@@ -32,6 +32,10 @@ from otterdog.utils import (
 _logger = get_logger(__name__)
 
 
+# the workflow settings that are retrieved with a request of their own
+_SELECTED_ACTIONS_SETTINGS = ("allow_github_owned_actions", "allow_verified_creator_actions", "allow_action_patterns")
+_DEFAULT_PERMISSIONS_SETTINGS = ("default_workflow_permissions", "actions_can_approve_pull_request_reviews")
+
 # the settings of a repository that are retrieved with a request of their own
 _GH_PAGES_SETTINGS = (
     "gh_pages_build_type",
@@ -1223,17 +1227,21 @@ class RepoClient(RestClient):
         except GitHubException as ex:
             raise RuntimeError(f"failed retrieving workflow settings for repo '{org_id}/{repo_name}':\n{ex}") from ex
 
+        def is_included(*keys: str) -> bool:
+            # the settings that are provided by a request of their own are only retrieved if included
+            return included_keys is None or any(key in included_keys for key in keys)
+
         allowed_actions = permissions.get("allowed_actions", "none")
-        if allowed_actions == "selected":
+        if allowed_actions == "selected" and is_included(*_SELECTED_ACTIONS_SETTINGS):
             workflow_settings.update(await self._get_selected_actions_for_workflow_settings(org_id, repo_name))
 
-        if permissions.get("enabled", False) is not False:
+        if permissions.get("enabled", False) is not False and is_included(*_DEFAULT_PERMISSIONS_SETTINGS):
             workflow_settings.update(await self._get_default_workflow_permissions(org_id, repo_name))
 
-        if not is_private:
+        if not is_private and is_included("fork_pr_approval_policy"):
             workflow_settings.update(await self._get_fork_pr_approval_policy(org_id, repo_name))
 
-        if included_keys is None or "max_cache_size_gb" in included_keys:
+        if is_included("max_cache_size_gb"):
             workflow_settings.update(await self._get_max_cache_size_gb(org_id, repo_name))
 
         return workflow_settings

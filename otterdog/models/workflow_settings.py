@@ -19,6 +19,7 @@ from otterdog.utils import (
     UNSET,
     Change,
     IndentingPrinter,
+    is_set_and_present,
     is_set_and_valid,
     write_patch_object_as_json,
 )
@@ -122,7 +123,11 @@ class WorkflowSettings(EmbeddedModelObject, abc.ABC):
                     f"while only values ('all' | 'local_only' | 'selected') are allowed.",
                 )
 
-            if self.allowed_actions != "selected" and len(self.allow_action_patterns) > 0:
+            if (
+                self.allowed_actions != "selected"
+                and is_set_and_present(self.allow_action_patterns)
+                and len(self.allow_action_patterns) > 0
+            ):
                 context.add_failure(
                     FailureType.WARNING,
                     f"{parent_object.get_model_header()} has 'workflows.allowed_actions' set to "

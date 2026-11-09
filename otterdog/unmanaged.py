@@ -70,6 +70,20 @@ DEPENDENCIES: dict[str, str] = {
     "repository.archived": "the settings of an archived repository are not compared, GitHub rejects their changes",
     "repository.gh_pages_build_type": "the other GitHub Pages settings depend on it",
     "repository.code_scanning_default_setup_enabled": "the other code scanning settings depend on it",
+    "repository.gh_pages_cname": "whether the HTTPS enforcement of GitHub Pages can be changed depends on it",
+    "repository.workflows.enabled": "the other workflow settings of a repository are only compared if they are enabled",
+    "repository.workflows.allowed_actions": "the selected actions of a repository are only compared if it is 'selected'",
+    "organization.settings.discussion_source_repository": "the repository of the discussions depends on it",
+    # the workflow settings of the organization restrict the ones of its repositories, which are compared with them
+    "organization.settings.workflows.enabled_repositories": "the workflow settings of repositories depend on it",
+    "organization.settings.workflows.allowed_actions": "the workflow settings of repositories depend on it",
+    "organization.settings.workflows.default_workflow_permissions": "the workflow settings of repositories depend on it",
+    "organization.settings.workflows.actions_can_approve_pull_request_reviews": (
+        "the workflow settings of repositories depend on it"
+    ),
+    # changing the enforcement to 'selected' without the selection would clear the selection
+    "organization.settings.immutable_releases_enforced_repositories": "the selected repositories depend on it",
+    "organization.settings.immutable_releases_selected_repositories": "changing the enforcement would clear the selection",
 }
 
 _ORGANIZATION_SETTINGS = "organization.settings"

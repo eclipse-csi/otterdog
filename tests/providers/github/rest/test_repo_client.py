@@ -706,3 +706,43 @@ class TestRepoClientUnmanagedSettings:
         assert "_fill_code_scanning_config" not in await self._get_repo_data(
             [*scanning, "code_scanning_default_languages"]
         )
+
+
+class TestRepoClientWorkflowSettingsIncludedKeys:
+    @staticmethod
+    async def _requests(included_keys):
+        from unittest.mock import AsyncMock, patch
+
+        permissions = {"enabled_repositories": "all", "enabled": True, "allowed_actions": "selected"}
+        client = RepoClient(pretend.stub(requester=pretend.stub(request_json=AsyncMock(return_value=permissions))))
+        names = (
+            "_get_selected_actions_for_workflow_settings",
+            "_get_default_workflow_permissions",
+            "_get_fork_pr_approval_policy",
+            "_get_max_cache_size_gb",
+        )
+        mocks = {name: AsyncMock(return_value={}) for name in names}
+
+        with patch.multiple(client, **mocks):
+            await client.get_workflow_settings("org", "repo", included_keys=included_keys)
+
+        return {name for name, mock in mocks.items() if mock.await_count > 0}
+
+    async def test_everything_is_requested_without_included_keys(self):
+        assert len(await self._requests(None)) == 4
+
+    @pytest.mark.parametrize(
+        "key,request_name",
+        [
+            ("fork_pr_approval_policy", "_get_fork_pr_approval_policy"),
+            ("max_cache_size_gb", "_get_max_cache_size_gb"),
+            ("allow_action_patterns", "_get_selected_actions_for_workflow_settings"),
+            ("default_workflow_permissions", "_get_default_workflow_permissions"),
+            ("actions_can_approve_pull_request_reviews", "_get_default_workflow_permissions"),
+        ],
+    )
+    async def test_a_dedicated_request_is_only_made_if_one_of_its_settings_is_included(self, key, request_name):
+        assert await self._requests({key}) == {request_name}
+
+    async def test_nothing_dedicated_is_requested_if_no_setting_of_it_is_included(self):
+        assert await self._requests({"enabled", "allowed_actions"}) == set()

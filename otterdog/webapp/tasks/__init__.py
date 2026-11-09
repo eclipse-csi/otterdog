@@ -292,13 +292,16 @@ async def get_organization_config(
 
     project_name = unwrap(org_model.project_name)
 
-    # the settings and resources that are not managed are defined in the otterdog config of the instance
+    # the settings and resources that are not managed are defined in the otterdog config of the instance, a failure
+    # to retrieve it must not be mistaken for a project without any: they would be managed, which cannot be undone
+    otterdog_config = await get_otterdog_config()
+
     unmanaged: Collection[str] = ()
     unmanaged_error = None
-    try:
-        jsonnet_config = (await get_otterdog_config()).get_organization_config(project_name).jsonnet_config
+    if otterdog_config.get_project_name(project_name) is not None:
+        jsonnet_config = otterdog_config.get_organization_config(project_name).jsonnet_config
         unmanaged, unmanaged_error = jsonnet_config.unmanaged, jsonnet_config.unmanaged_error
-    except RuntimeError:
+    else:
         # the project is not defined (anymore) in the otterdog config
         getLogger(__name__).debug("no otterdog config for project '%s', nothing is unmanaged", project_name)
 

@@ -147,3 +147,23 @@ async def test_the_members_of_teams_are_retrieved_unless_unmanaged():
 
     provider.get_org_team_members.assert_not_awaited()
     assert organization.teams[0].members is UNSET
+
+
+@pytest.mark.parametrize("ruleset_config,expected_requests", [(None, 0), ({}, 1)])
+async def test_the_teams_are_only_retrieved_to_resolve_the_bypass_actors_of_repository_rulesets(
+    ruleset_config, expected_requests
+):
+    from otterdog.models.github_organization import _load_repos_from_provider
+
+    get_org_teams = AsyncMock(return_value=[{"id": 1, "slug": "dev"}])
+    provider = stub(
+        get_repos=AsyncMock(return_value=[]),
+        get_org_teams=get_org_teams,
+        get_team_permissions=AsyncMock(return_value=[]),
+    )
+    config = minimal_config(default_repo_ruleset_config=ruleset_config, default_repo_config={"team_permissions": {}})
+
+    repositories = [repo async for repo in _load_repos_from_provider("acme", provider, config, {})]
+
+    assert repositories == []
+    assert get_org_teams.await_count == expected_requests

@@ -10,6 +10,8 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
 
+import pytest
+
 from otterdog.config import OtterdogConfig
 from otterdog.webapp.tasks import get_organization_config
 
@@ -70,3 +72,15 @@ async def test_nothing_is_unmanaged_for_a_project_that_the_otterdog_config_does_
 
     assert org_config.jsonnet_config.unmanaged == frozenset()
     assert org_config.jsonnet_config.unmanaged_error is None
+
+
+async def test_a_failure_to_retrieve_the_otterdog_config_is_not_mistaken_for_a_project_without_unmanaged_paths(
+    monkeypatch, tmp_path
+):
+    # the settings and resources that are unmanaged would be managed, which cannot be undone
+    monkeypatch.setattr(
+        "otterdog.webapp.utils.get_otterdog_config", AsyncMock(side_effect=RuntimeError("failed to load the config"))
+    )
+
+    with pytest.raises(RuntimeError, match="failed to load the config"):
+        await get_organization_config(_installation(), "token", str(tmp_path), str(tmp_path))

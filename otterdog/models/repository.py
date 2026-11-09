@@ -684,7 +684,11 @@ class Repository(ModelObject):
                         f"   ],",
                     )
 
-            if self.gh_pages_build_type == "legacy" and self.gh_pages_source_path not in ["/", "/docs"]:
+            if (
+                self.gh_pages_build_type == "legacy"
+                and is_set_and_valid(self.gh_pages_source_path)
+                and self.gh_pages_source_path not in ["/", "/docs"]
+            ):
                 context.add_failure(
                     FailureType.ERROR,
                     f"{self.get_model_header(parent_object)} has"

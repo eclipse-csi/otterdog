@@ -1901,7 +1901,10 @@ async def _load_repos_from_provider(
     if repo_filter is not None:
         repo_names = fnmatch.filter(repo_names, repo_filter)
 
-    teams = {str(team["id"]): f"{github_id}/{team['slug']}" for team in await provider.get_org_teams(github_id)}
+    # the teams are only needed to resolve the bypass actors of repository rulesets
+    teams: dict[str, str] = {}
+    if jsonnet_config.default_repo_ruleset_config is not None:
+        teams = {str(team["id"]): f"{github_id}/{team['slug']}" for team in await provider.get_org_teams(github_id)}
 
     default_org_repo = Repository.from_model_data(jsonnet_config.default_repo_config)
     if is_set_and_present(default_org_repo.team_permissions):

@@ -248,9 +248,16 @@ Everything listed is not managed for the organization:
 `unmanaged` must be a list of paths. An invalid list, e.g. a path that does not exist, is reported when an operation
 uses the organization, with the closest valid paths. The configuration is still loaded and the other organizations are
 not affected. Settings that decide how others are compared or sent cannot be unmanaged, the error explains why:
-`repository.private`, `repository.archived`, `repository.gh_pages_build_type`,
-`repository.code_scanning_default_setup_enabled`, `organization.settings.has_discussions`,
-`organization.settings.custom_properties` and `organization.settings.workflows.selected_repositories`.
+
+- the workflow settings of the organization that restrict its repositories: `enabled_repositories`,
+  `selected_repositories`, `allowed_actions`, `default_workflow_permissions` and
+  `actions_can_approve_pull_request_reviews`, and `repository.workflows.enabled` and
+  `repository.workflows.allowed_actions`,
+- the immutable release policy of the organization, the discussions (`has_discussions` and
+  `discussion_source_repository`) and its custom properties,
+- `repository.private` and `repository.archived`, the GitHub Pages build type and custom domain
+  (`repository.gh_pages_build_type` and `repository.gh_pages_cname`) and
+  `repository.code_scanning_default_setup_enabled`.
 
 !!! note
 
