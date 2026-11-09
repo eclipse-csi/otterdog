@@ -61,7 +61,7 @@ from otterdog.models.repository import Repository
 from otterdog.models.team import Team
 from otterdog.models.team_sync import TeamSync
 from otterdog.providers.github.rest.secret_client import SecretScope, SecretsNotAvailableError
-from otterdog.unmanaged import declared_unmanaged_resources, unset_unmanaged_settings
+from otterdog.unmanaged import declared_unmanaged_resources, drop_unmanaged, unmanaged_repository_settings
 from otterdog.utils import (
     IndentingPrinter,
     associate_by_key,
@@ -519,8 +519,6 @@ class GitHubOrganization:
             provider=provider,
             secret_access_policy=secret_access_policy,
         )
-        self.settings.validate(context, self)
-
         # resources that are not managed cannot be compared with GitHub, nothing would be done with them
         for path, count in declared_unmanaged_resources(self, jsonnet_config.unmanaged).items():
             context.add_failure(
@@ -528,6 +526,12 @@ class GitHubOrganization:
                 f"organization '{self.github_id}' declares {count} resource(s) of '{path}', which is listed in the "
                 f"'unmanaged' list of the otterdog configuration, remove them or the entry of the list.",
             )
+
+        # everything unmanaged is ignored, including the checks that depend on it, it is removed from the
+        # organization as it is no longer compared
+        drop_unmanaged(self, jsonnet_config.unmanaged)
+
+        self.settings.validate(context, self)
 
         enterprise_plan = self.settings.plan == "enterprise"
 
@@ -1419,7 +1423,7 @@ class GitHubOrganization:
             await _load_code_security_configuration_attachments(org, github_id, provider)
 
         # settings that are not managed are neither compared nor imported
-        unset_unmanaged_settings(org, jsonnet_config.unmanaged)
+        drop_unmanaged(org, jsonnet_config.unmanaged)
 
         return org
 
@@ -1674,7 +1678,9 @@ async def _process_single_repo(
     rest_api = gh_client.rest_api
 
     # get repo data
-    github_repo_data = await rest_api.repo.get_repo_data(github_id, repo_name)
+    github_repo_data = await rest_api.repo.get_repo_data(
+        github_id, repo_name, unmanaged_repository_settings(jsonnet_config.unmanaged)
+    )
     repo = Repository.from_provider_data(github_id, github_repo_data)
 
     is_private = github_repo_data.get("private", False)
@@ -1748,7 +1754,7 @@ async def _process_single_repo(
     else:
         _logger.debug("not reading repo rulesets, no default config available")
 
-    if jsonnet_config.default_org_webhook_config is not None:
+    if jsonnet_config.default_repo_webhook_config is not None:
         # get webhooks of the repo
         webhooks = await rest_api.repo.get_webhooks(github_id, repo_name)
         for github_webhook in webhooks:

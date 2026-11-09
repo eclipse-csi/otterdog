@@ -648,3 +648,61 @@ class TestRepoClientActivities:
         with pytest.raises(RuntimeError, match="failed retrieving activities of type 'pr_merge'"):
             async for _ in repo_client.get_activities("test-org", "test-repo", "refs/heads/main", "pr_merge"):
                 pass
+
+
+_SEPARATELY_RETRIEVED_SETTINGS = {
+    "dependabot_alerts_enabled": "_fill_vulnerability_alerts",
+    "private_vulnerability_reporting_enabled": "_fill_private_vulnerability_reporting",
+    "immutable_releases_enabled": "_fill_immutable_releases",
+    "topics": "_fill_topics",
+    "custom_properties": "_fill_custom_properties",
+}
+
+
+class TestRepoClientUnmanagedSettings:
+    @staticmethod
+    async def _get_repo_data(unmanaged):
+        from unittest.mock import AsyncMock, patch
+
+        repo_client = RepoClient(pretend.stub())
+        fills = (
+            "_fill_vulnerability_alerts",
+            "_fill_private_vulnerability_reporting",
+            "_fill_immutable_releases",
+            "_fill_github_pages_config",
+            "_fill_topics",
+            "_fill_code_scanning_config",
+            "_fill_custom_properties",
+        )
+        mocks = {name: AsyncMock() for name in fills}
+
+        with (
+            patch.object(repo_client, "get_simple_repo_data", AsyncMock(return_value={"archived": False})),
+            patch.multiple(repo_client, **mocks),
+        ):
+            await repo_client.get_repo_data("org", "repo", unmanaged)
+
+        return {name for name, mock in mocks.items() if mock.await_count > 0}
+
+    async def test_all_settings_are_retrieved_by_default(self):
+        assert len(await self._get_repo_data(())) == 7
+
+    @pytest.mark.parametrize("setting,fill", sorted(_SEPARATELY_RETRIEVED_SETTINGS.items()))
+    async def test_a_setting_with_a_request_of_its_own_is_skipped_if_unmanaged(self, setting, fill):
+        called = await self._get_repo_data([setting])
+
+        assert fill not in called
+        assert len(called) == 6
+
+    async def test_a_request_providing_several_settings_is_only_skipped_if_none_is_managed(self):
+        pages = ["gh_pages_build_type", "gh_pages_source_branch", "gh_pages_source_path"]
+        all_pages = [*pages, "gh_pages_visibility", "gh_pages_cname", "gh_pages_https_enforced"]
+
+        assert "_fill_github_pages_config" in await self._get_repo_data(pages)
+        assert "_fill_github_pages_config" not in await self._get_repo_data(all_pages)
+
+        scanning = ["code_scanning_default_setup_enabled", "code_scanning_default_query_suite"]
+        assert "_fill_code_scanning_config" in await self._get_repo_data(scanning)
+        assert "_fill_code_scanning_config" not in await self._get_repo_data(
+            [*scanning, "code_scanning_default_languages"]
+        )

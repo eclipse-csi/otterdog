@@ -165,6 +165,32 @@ class GitHubOrganizationTest(unittest.IsolatedAsyncioTestCase):
             context = await validate(unmanaged)
             assert not [m for _, m in context.validation_failures if "unmanaged" in m]
 
+    async def test_validate_ignores_unmanaged_settings(self):
+        organization = GitHubOrganization.load_from_file(self.TEST_ORG, self.jsonnet_config.org_config_file)
+        organization.settings.plan = "free"
+        organization.settings.members_can_create_private_pages = True
+
+        async def failures(unmanaged):
+            with (
+                patch.object(self.jsonnet_config, "_unmanaged", frozenset(unmanaged)),
+                patch.object(
+                    self.jsonnet_config,
+                    "default_org_config_for_org_id",
+                    return_value=jsonnet_evaluate_file(self.jsonnet_config.org_config_file),
+                ),
+            ):
+                context = await organization.validate(
+                    self.otterdog_config,
+                    self.jsonnet_config,
+                    pretend.stub(is_supported_secret_provider=lambda _provider: False, get_secret=lambda value: value),
+                    None,
+                )
+            return [m for t, m in context.validation_failures if t == FailureType.ERROR and "private_pages" in m]
+
+        # the value is rejected for a plan that does not support it, unless the setting is not managed
+        assert len(await failures([])) == 1
+        assert await failures(["organization.settings.members_can_create_private_pages"]) == []
+
     async def test_validate_reports_code_scanning_for_missing_repository(self):
         async def get_repos(_github_id, _repository_name):
             return []

@@ -18,7 +18,7 @@ from rich.markup import escape
 from otterdog.models import LivePatch, LivePatchContext, LivePatchType
 from otterdog.models.github_organization import GitHubOrganization
 from otterdog.providers.github import GitHubProvider
-from otterdog.unmanaged import unset_unmanaged_settings
+from otterdog.unmanaged import drop_unmanaged
 from otterdog.utils import Change, IndentingPrinter, unwrap
 
 from . import Operation
@@ -194,15 +194,19 @@ class DiffOperation(Operation):
 
         validation_status = await self.validate(expected_org, jsonnet_config, org_config)
         if self.handle_validation_status(validation_status):
+            # what is not managed is neither compared nor sent to GitHub, e.g. when creating a repository, and does
+            # not request anything from GitHub, as the settings to retrieve also depend on the expected organization,
+            # declared resources that are not managed have been reported by the validation
+            drop_unmanaged(expected_org, jsonnet_config.unmanaged)
+
             try:
                 current_org = await self.load_current_org(org_config.name, github_id, jsonnet_config, expected_org)
             except RuntimeError as e:
                 self.printer.print_error(f"failed to load current configuration\n{e!s}")
                 return None
 
-            # settings that are not managed are neither compared nor sent to GitHub, e.g. when creating a repository,
-            # declared resources that are not managed have been reported by the validation
-            unset_unmanaged_settings(expected_org, jsonnet_config.unmanaged)
+            # the current organization might be loaded from a file, and then contain unmanaged resources
+            drop_unmanaged(current_org, jsonnet_config.unmanaged)
 
             expected_org, current_org = self.preprocess_orgs(expected_org, current_org)
 

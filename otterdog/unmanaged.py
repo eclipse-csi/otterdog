@@ -60,6 +60,12 @@ RESOURCES: dict[str, tuple[str, ...]] = {
     "team.team_sync": ("default_team_sync_config",),
 }
 
+# settings that cannot be unmanaged as other parts of the configuration depend on their value
+DEPENDENCIES: dict[str, str] = {
+    "organization.settings.custom_properties": "repositories are checked against the custom properties of the organization",
+    "organization.settings.workflows.selected_repositories": "the workflow settings of repositories depend on it",
+}
+
 _ORGANIZATION_SETTINGS = "organization.settings"
 _REPOSITORY = "repository"
 _TEAM = "team"
@@ -106,7 +112,7 @@ def valid_paths() -> list[str]:
     for scope, model_class in _setting_scopes().items():
         paths.extend(f"{scope}.{name}" for name in _setting_names(model_class, scope))
 
-    return sorted(paths)
+    return sorted(path for path in paths if path not in DEPENDENCIES)
 
 
 def validate_paths(paths: Iterable[Any], source: str) -> frozenset[str]:
@@ -118,6 +124,8 @@ def validate_paths(paths: Iterable[Any], source: str) -> frozenset[str]:
     for path in paths:
         if not isinstance(path, str):
             errors.append(f"'{path}' is not a string")
+        elif path in DEPENDENCIES:
+            errors.append(f"'{path}' cannot be unmanaged, {DEPENDENCIES[path]}")
         elif path not in valid:
             suggestions = difflib.get_close_matches(path, valid, n=3, cutoff=0.6)
             hint = f", did you mean {' or '.join(repr(s) for s in suggestions)}?" if suggestions else ""
@@ -194,9 +202,8 @@ def _unset(model_object: Any, scope: str, unmanaged: Collection[str]) -> None:
 
 def unset_unmanaged_settings(organization: GitHubOrganization, unmanaged: Collection[str]) -> None:
     """
-    Unsets the unmanaged settings of a organization loaded from GitHub, as not all of them are retrieved
-    based on the default configuration, e.g. the settings of a repository. A setting that is unset
-    is neither compared nor imported.
+    Unsets the unmanaged settings of an organization, as not all of them are retrieved based on the default
+    configuration, e.g. the settings of a repository. A setting that is unset is neither compared nor imported.
     """
     if not unmanaged:
         return
@@ -210,18 +217,49 @@ def unset_unmanaged_settings(organization: GitHubOrganization, unmanaged: Collec
         _unset(team, _TEAM, unmanaged)
 
 
+def _objects_of(organization: GitHubOrganization, scope: str) -> list[Any]:
+    if scope == "organization":
+        return [organization]
+    if scope == _REPOSITORY:
+        return list(organization.repositories)
+    return list(organization.teams)
+
+
+def clear_unmanaged_resources(organization: GitHubOrganization, unmanaged: Collection[str]) -> None:
+    """
+    Removes the unmanaged resources of an organization, e.g. the ones of a configuration loaded from a file:
+    a resource that is not removed would be compared with a state that does not contain it.
+    """
+    for path in sorted(p for p in unmanaged if p in RESOURCES):
+        scope, _, name = path.partition(".")
+        for model_object in _objects_of(organization, scope):
+            if isinstance(getattr(model_object, name, None), list):
+                setattr(model_object, name, [])
+
+
+def drop_unmanaged(organization: GitHubOrganization, unmanaged: Collection[str]) -> None:
+    """Removes everything that is unmanaged from an organization, it is then neither compared nor imported."""
+    unset_unmanaged_settings(organization, unmanaged)
+    clear_unmanaged_resources(organization, unmanaged)
+
+
+def unmanaged_repository_settings(unmanaged: Collection[str]) -> frozenset[str]:
+    """The names of the unmanaged settings of repositories, some of them are retrieved with dedicated requests."""
+    prefix = f"{_REPOSITORY}."
+    return frozenset(
+        path.removeprefix(prefix)
+        for path in unmanaged
+        if path.startswith(prefix) and path not in RESOURCES and "." not in path.removeprefix(prefix)
+    )
+
+
 def declared_unmanaged_resources(organization: GitHubOrganization, unmanaged: Collection[str]) -> dict[str, int]:
     """The number of resources that the configuration of the organization declares although they are unmanaged."""
     declared: dict[str, int] = {}
 
     for path in sorted(p for p in unmanaged if p in RESOURCES):
         scope, _, name = path.partition(".")
-        if scope == "organization":
-            objects: list[Any] = [organization]
-        elif scope == _REPOSITORY:
-            objects = list(organization.repositories)
-        else:
-            objects = list(organization.teams)
+        objects = _objects_of(organization, scope)
 
         count = sum(len(items) for items in (getattr(o, name, None) for o in objects) if isinstance(items, list))
         if count > 0:

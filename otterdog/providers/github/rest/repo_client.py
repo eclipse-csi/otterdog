@@ -13,7 +13,7 @@ import pathlib
 import re
 import tempfile
 import zipfile
-from collections.abc import AsyncGenerator
+from collections.abc import AsyncGenerator, Collection
 from typing import Any
 
 import aiofiles
@@ -30,6 +30,22 @@ from otterdog.utils import (
 )
 
 _logger = get_logger(__name__)
+
+
+# the settings of a repository that are retrieved with a request of their own
+_GH_PAGES_SETTINGS = (
+    "gh_pages_build_type",
+    "gh_pages_source_branch",
+    "gh_pages_source_path",
+    "gh_pages_visibility",
+    "gh_pages_cname",
+    "gh_pages_https_enforced",
+)
+_CODE_SCANNING_SETTINGS = (
+    "code_scanning_default_setup_enabled",
+    "code_scanning_default_query_suite",
+    "code_scanning_default_languages",
+)
 
 
 class RepoClient(RestClient):
@@ -101,25 +117,42 @@ class RepoClient(RestClient):
         except GitHubException as ex:
             raise RuntimeError(f"failed renaming branch '{branch}' in repo '{org_id}/{repo_name}':\n{ex}") from ex
 
-    async def get_repo_data(self, org_id: str, repo_name: str) -> dict[str, Any]:
+    async def get_repo_data(
+        self, org_id: str, repo_name: str, unmanaged_settings: Collection[str] = ()
+    ) -> dict[str, Any]:
+        """
+        Retrieves the data of a repository. Some of its settings are retrieved with requests of their own,
+        which are skipped if all the settings they provide are unmanaged, e.g. as the plan does not support them.
+        """
         _logger.debug("retrieving repo data for '%s/%s'", org_id, repo_name)
+
+        unmanaged = frozenset(unmanaged_settings)
+
+        def is_managed(*settings: str) -> bool:
+            return not unmanaged.issuperset(settings)
 
         try:
             repo_data = await self.get_simple_repo_data(org_id, repo_name)
 
             archived = repo_data.get("archived", False)
             if not archived:
-                await self._fill_vulnerability_alerts(org_id, repo_name, repo_data)
+                if is_managed("dependabot_alerts_enabled"):
+                    await self._fill_vulnerability_alerts(org_id, repo_name, repo_data)
 
                 private = repo_data.get("private", False)
-                if not private:
+                if not private and is_managed("private_vulnerability_reporting_enabled"):
                     await self._fill_private_vulnerability_reporting(org_id, repo_name, repo_data)
 
-            await self._fill_immutable_releases(org_id, repo_name, repo_data)
-            await self._fill_github_pages_config(org_id, repo_name, repo_data)
-            await self._fill_topics(org_id, repo_name, repo_data)
-            await self._fill_code_scanning_config(org_id, repo_name, repo_data)
-            await self._fill_custom_properties(org_id, repo_name, repo_data)
+            if is_managed("immutable_releases_enabled"):
+                await self._fill_immutable_releases(org_id, repo_name, repo_data)
+            if is_managed(*_GH_PAGES_SETTINGS):
+                await self._fill_github_pages_config(org_id, repo_name, repo_data)
+            if is_managed("topics"):
+                await self._fill_topics(org_id, repo_name, repo_data)
+            if is_managed(*_CODE_SCANNING_SETTINGS):
+                await self._fill_code_scanning_config(org_id, repo_name, repo_data)
+            if is_managed("custom_properties"):
+                await self._fill_custom_properties(org_id, repo_name, repo_data)
 
             return repo_data
         except GitHubException as ex:

@@ -227,9 +227,10 @@ section of the `otterdog.json` file, or in the entry of an organization. Both li
 
 Everything listed is not managed for the organization:
 
-- A setting is not retrieved if it is read separately from GitHub, it is not compared with the configuration, it is
-  not written to the configuration by `import`, and it is not sent to GitHub, e.g. when creating a repository.
-  Its value in the configuration of the organization is ignored.
+- A setting is not retrieved if it is read with a request of its own, e.g. the topics or the custom properties of a
+  repository. It is not compared with the configuration, not written to the configuration by `import`, not sent to
+  GitHub, e.g. when creating a repository, and not validated. Its value in the configuration of the organization is
+  ignored.
 - A resource is not read from GitHub, so it is neither compared nor deleted. If the configuration of the organization
   declares resources of this type, `validate` reports an error, as nothing would be done with them.
 
@@ -245,7 +246,9 @@ Everything listed is not managed for the organization:
 | `team.team_sync`                          | the identity provider groups of all teams                                            |
 
 An entry that is not a valid path stops otterdog when loading the configuration, and the error suggests the closest
-valid paths.
+valid paths. A few settings cannot be unmanaged as other settings depend on their value:
+`organization.settings.custom_properties`, which repositories are checked against, and
+`organization.settings.workflows.selected_repositories`.
 
 !!! note
 

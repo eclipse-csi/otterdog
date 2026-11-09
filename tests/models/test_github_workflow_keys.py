@@ -18,6 +18,8 @@ from otterdog.models.repo_workflow_settings import RepositoryWorkflowSettings
 
 def minimal_config(default_workflows):
     return SimpleNamespace(
+        unmanaged=frozenset(),
+        default_repo_webhook_config=None,
         default_repo_config={"workflows": default_workflows},
         default_branch_protection_rule_config=None,
         default_repo_ruleset_config=None,

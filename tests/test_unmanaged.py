@@ -6,6 +6,7 @@
 #  SPDX-License-Identifier: EPL-2.0
 #  *******************************************************************************
 
+import json
 from pathlib import Path
 
 import pytest
@@ -16,8 +17,12 @@ from otterdog.jsonnet import JsonnetConfig
 from otterdog.models.organization_settings import OrganizationSettings
 from otterdog.models.repository import Repository
 from otterdog.unmanaged import (
+    DEPENDENCIES,
     RESOURCES,
+    clear_unmanaged_resources,
     declared_unmanaged_resources,
+    drop_unmanaged,
+    unmanaged_repository_settings,
     unset_unmanaged_settings,
     valid_paths,
     validate_paths,
@@ -237,3 +242,113 @@ def test_no_declared_resources_are_reported_if_none_is_declared():
     organization = _organization(codespaces_secrets=[])
 
     assert declared_unmanaged_resources(organization, ["organization.codespaces_secrets"]) == {}
+
+
+@pytest.mark.parametrize("path", sorted(DEPENDENCIES))
+def test_settings_that_others_depend_on_cannot_be_unmanaged(path):
+    assert path not in valid_paths()
+
+    with pytest.raises(RuntimeError, match=f"'{path}' cannot be unmanaged, "):
+        validate_paths([path], "test")
+
+
+def test_unmanaged_resources_are_removed_from_an_organization():
+    organization = _organization(codespaces_secrets=[1, 2], secrets=[1])
+    organization.repositories[0].codespaces_secrets = [1]
+    organization.repositories[1].secrets = [1, 2]
+    organization.teams.append(stub(team_sync=[1]))
+
+    clear_unmanaged_resources(
+        organization, ["organization.codespaces_secrets", "repository.codespaces_secrets", "team.team_sync"]
+    )
+
+    assert organization.codespaces_secrets == []
+    assert organization.repositories[0].codespaces_secrets == []
+    assert organization.teams[0].team_sync == []
+    # the resources that are managed are untouched
+    assert organization.secrets == [1]
+    assert organization.repositories[1].secrets == [1, 2]
+
+
+def test_everything_unmanaged_is_dropped_from_an_organization():
+    organization = _organization(codespaces_secrets=[1])
+
+    drop_unmanaged(organization, ["organization.codespaces_secrets", "repository.has_discussions"])
+
+    assert organization.codespaces_secrets == []
+    assert all(r.has_discussions is UNSET for r in organization.repositories)
+
+
+def test_the_unmanaged_settings_of_repositories():
+    assert unmanaged_repository_settings(
+        [
+            "repository.topics",
+            "repository.custom_properties",
+            "repository.workflows.max_cache_size_gb",
+            "repository.codespaces_secrets",
+            "organization.settings.plan",
+            "team.description",
+        ]
+    ) == frozenset({"topics", "custom_properties"})
+
+
+def _populated_organization():
+    """An organization with everything other models of the configuration depend on."""
+    from otterdog.models.github_organization import GitHubOrganization
+
+    data = json.loads(Path(__file__).parent.joinpath("models", "resources", "otterdogtest.json").read_text())
+    data["project_name"] = "otterdog"
+    data["github_id"] = "OtterdogTest"
+    data["settings"]["custom_properties"] = [
+        {
+            "name": "tier",
+            "value_type": "string",
+            "required": False,
+            "default_value": None,
+            "description": None,
+            "allowed_values": [],
+            "values_editable_by": "org_actors",
+        }
+    ]
+    data["settings"]["workflows"] = {
+        "enabled_repositories": "selected",
+        "selected_repositories": ["other-repo"],
+        "allowed_actions": "selected",
+        "default_workflow_permissions": "read",
+        "actions_can_approve_pull_request_reviews": False,
+        "max_cache_size_gb": 10,
+    }
+    for repository in data["repositories"]:
+        repository["custom_properties"] = {"tier": "gold"}
+        repository["workflows"] = {
+            "enabled": True,
+            "allowed_actions": "all",
+            "default_workflow_permissions": "write",
+            "actions_can_approve_pull_request_reviews": True,
+            "max_cache_size_gb": 10,
+        }
+
+    return GitHubOrganization.from_model_data(data)
+
+
+def _patches(expected, current):
+    from otterdog.models import LivePatchContext
+
+    context = LivePatchContext("OtterdogTest", "*", False, False, "*", current.settings, expected.settings)
+    patches: list = []
+    expected.generate_live_patch(current, context, patches.append)
+    return patches
+
+
+@pytest.mark.parametrize("path", valid_paths())
+def test_unmanaging_any_path_does_not_break_the_comparison(path):
+    """
+    Other models read settings of the organization, e.g. to coerce the settings of its repositories. A setting that
+    is read must not be unmanageable: its value is no longer set when comparing, which would raise.
+    """
+    expected, current = _populated_organization(), _populated_organization()
+
+    drop_unmanaged(expected, [path])
+    drop_unmanaged(current, [path])
+
+    assert _patches(expected, current) == []

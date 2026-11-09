@@ -30,6 +30,8 @@ EXCLUDE_TEAMS = re.compile(".*-project-leads|.*-committers")
 
 def minimal_config(default_repo_config=None):
     return SimpleNamespace(
+        unmanaged=frozenset(),
+        default_repo_webhook_config=None,
         default_repo_config=default_repo_config or {},
         default_branch_protection_rule_config=None,
         default_repo_ruleset_config=None,
