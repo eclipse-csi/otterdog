@@ -113,6 +113,24 @@ async def test_local_plan_reports_changes_for_a_configuration_difference(tmp_pat
     assert "1 to change" in output.getvalue()
 
 
+async def test_local_plan_ignores_differences_of_unmanaged_settings(tmp_path, monkeypatch):
+    """
+    A setting listed as unmanaged is not compared, the repository description is the only difference.
+    """
+    org_config = _create_org_config(tmp_path, with_config_files=True)
+    org_config.jsonnet_config._unmanaged = frozenset({"repository.description"})
+    output = StringIO()
+    operation = LocalPlanOperation("-BASE", "*", False, False, False, "")
+    client = pretend.stub(close=AsyncMock())
+    _initialize_operation(operation, monkeypatch, output, client)
+
+    result = await operation.execute(org_config)
+
+    assert result == 0
+    assert "0 to change" in output.getvalue()
+    assert "1 to change" not in output.getvalue()
+
+
 async def test_local_plan_returns_failure_when_the_configuration_is_missing(tmp_path, monkeypatch):
     """
     A local plan returns failure and explains when the desired configuration is absent.

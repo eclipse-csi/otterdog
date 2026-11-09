@@ -189,3 +189,66 @@ ignored again and remains on GitHub unmanaged.
     The `import` operation has no configuration to compare against and therefore always skips excluded environments.
     When importing into an existing configuration, add the declarations of excluded environments you want to manage
     again afterwards.
+
+## Features an organization cannot use
+
+The default configuration decides what otterdog reads from GitHub and compares: a setting is retrieved if its key is
+present in it, and a resource such as the secrets of repositories is managed if the template defines the function
+that creates it. An organization may not be able to use a feature the default configuration includes, e.g. because of
+its plan: GitHub then answers the request with an error, or reports a value that cannot be changed.
+
+Instead of copying the default configuration to remove the feature, list it in `unmanaged` in the `defaults.github`
+section of the `otterdog.json` file, or in the entry of an organization. Both lists are combined for an organization:
+
+``` json
+{
+  "defaults": {
+    "github": {
+      "unmanaged": [
+        "repository.workflows.max_cache_size_gb"
+      ]
+    }
+  },
+  "organizations": [
+    {
+      "name": "tinygears",
+      "github_id": "TinyGearsOrg",
+      "unmanaged": [
+        "organization.settings.workflows.max_cache_size_gb",
+        "organization.codespaces_secrets",
+        "repository.codespaces_secrets",
+        "team.team_sync",
+        "team.external_group_id"
+      ]
+    }
+  ]
+}
+```
+
+Everything listed is not managed for the organization:
+
+- A setting is not retrieved if it is read separately from GitHub, it is not compared with the configuration, it is
+  not written to the configuration by `import`, and it is not sent to GitHub, e.g. when creating a repository.
+  Its value in the configuration of the organization is ignored.
+- A resource is not read from GitHub, so it is neither compared nor deleted. If the configuration of the organization
+  declares resources of this type, `validate` reports an error, as nothing would be done with them.
+
+| Path                                      | Unmanaged                                                                            |
+|-------------------------------------------|--------------------------------------------------------------------------------------|
+| `organization.settings.<setting>`         | a setting of the [organization](../reference/organization/settings.md)               |
+| `organization.settings.workflows.<setting>` | a workflow setting of the organization                                             |
+| `repository.<setting>`                    | a setting of all [repositories](../reference/organization/repository/index.md)      |
+| `repository.workflows.<setting>`          | a workflow setting of all repositories                                               |
+| `team.<setting>`                          | a setting of all teams, e.g. `team.external_group_id`                                |
+| `organization.<resources>`                | `roles`, `teams`, `webhooks`, `secrets`, `dependabot_secrets`, `codespaces_secrets`, `variables`, `rulesets` or `code_security_configurations` of the organization |
+| `repository.<resources>`                  | `webhooks`, `secrets`, `dependabot_secrets`, `codespaces_secrets`, `variables`, `branch_protection_rules`, `rulesets` or `environments` of all repositories |
+| `team.team_sync`                          | the identity provider groups of all teams                                            |
+
+An entry that is not a valid path stops otterdog when loading the configuration, and the error suggests the closest
+valid paths.
+
+!!! note
+
+    `show-default` displays what the functions of the template define, without the entries of `unmanaged`.
+
+    The list is not used by the dashboard of the webapp yet.

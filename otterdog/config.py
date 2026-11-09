@@ -25,6 +25,7 @@ from otterdog.models import CostPolicy
 
 from .jsonnet import JsonnetConfig
 from .logging import get_logger, print_warn
+from .unmanaged import validate_paths as validate_unmanaged_paths
 from .utils import ExclusionPatterns, deep_merge_dict, is_local_template, jsonnet_evaluate_file, query_json
 
 if TYPE_CHECKING:
@@ -139,11 +140,18 @@ class OrganizationConfig:
         approval_teams = cls._normalize_team_list(data.get("approval_teams"), "approval_teams", name)
         admin_teams = cls._normalize_team_list(data.get("admin_teams"), "admin_teams", name)
 
+        # the settings and resources of the default config that are not managed, the global list and the one
+        # of the organization are combined
+        unmanaged = validate_unmanaged_paths(
+            [*otterdog_config.default_unmanaged, *(data.get("unmanaged") or [])], f"organization '{name}'"
+        )
+
         jsonnet_config = JsonnetConfig(
             github_id,
             otterdog_config.jsonnet_base_dir,
             base_template,
             otterdog_config.local_mode,
+            unmanaged=unmanaged,
         )
 
         credentials = data.get("credentials", {})
@@ -418,6 +426,10 @@ class OtterdogConfig:
     @property
     def default_no_web_ui(self) -> bool:
         return bool(self._github_config.get("no_web_ui", False))
+
+    @property
+    def default_unmanaged(self) -> list[str]:
+        return self._github_config.get("unmanaged", [])
 
     @property
     def default_team_exclusions(self) -> list[str]:

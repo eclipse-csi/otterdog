@@ -8,6 +8,7 @@
 
 import os
 from asyncio import Lock, Task, create_task, shield, to_thread
+from collections.abc import Collection
 from functools import cached_property
 from pathlib import Path
 from shutil import ignore_patterns
@@ -17,6 +18,12 @@ import aiofiles.os
 import aiofiles.ospath
 
 from .logging import get_logger
+from .unmanaged import (
+    remove_unmanaged_settings_of_org_config,
+    remove_unmanaged_settings_of_repo_config,
+    remove_unmanaged_settings_of_team_config,
+    unavailable_default_configs,
+)
 from .utils import is_local_template, jsonnet_evaluate_snippet, parse_github_url, parse_template_url
 
 _template_lock = Lock()
@@ -72,6 +79,7 @@ class JsonnetConfig:
         base_template_url: str,
         local_only: bool,
         org_dir: str | None = None,
+        unmanaged: Collection[str] = (),
     ):
         self._org_id = org_id
         self._base_dir = base_dir
@@ -99,6 +107,12 @@ class JsonnetConfig:
             self._base_template_ref = ref
 
         self._local_only = local_only
+
+        # settings and resources of the default config that are not managed, see otterdog.unmanaged
+        self._unmanaged = frozenset(unmanaged)
+        for name in unavailable_default_configs(self._unmanaged):
+            # replaces the cached value of the property, the default config of an unmanaged resource is not available
+            self.__dict__[name] = None
 
         self._default_org_config: dict[str, Any] | None = None
         self._default_org_role_config: dict[str, Any] | None = None
@@ -137,6 +151,10 @@ class JsonnetConfig:
     def org_id(self) -> str:
         return self._org_id
 
+    @property
+    def unmanaged(self) -> frozenset[str]:
+        return self._unmanaged
+
     async def init_template(self) -> None:
         if self._initialized is True:
             return
@@ -158,7 +176,9 @@ class JsonnetConfig:
         try:
             # load the default settings for the organization
             snippet = f"(import '{self.template_file}').{self.create_org}('{project_name}', '{org_id}')"
-            return jsonnet_evaluate_snippet(snippet)
+            config = jsonnet_evaluate_snippet(snippet)
+            remove_unmanaged_settings_of_org_config(config, self._unmanaged)
+            return config
         except RuntimeError as ex:
             raise RuntimeError(f"failed to get default organization config for org '{org_id}': {ex}") from ex
 
@@ -181,7 +201,9 @@ class JsonnetConfig:
         try:
             # load the default team config
             team_snippet = f"(import '{self.template_file}').{self.create_org_team}('default')"
-            return jsonnet_evaluate_snippet(team_snippet)
+            config = jsonnet_evaluate_snippet(team_snippet)
+            remove_unmanaged_settings_of_team_config(config, self._unmanaged)
+            return config
         except RuntimeError:
             _logger.debug("no default team config found, teams will be skipped")
             return None
@@ -281,7 +303,9 @@ class JsonnetConfig:
         try:
             # load the default repo config
             repo_snippet = f"(import '{self.template_file}').{self.create_repo}('default')"
-            return jsonnet_evaluate_snippet(repo_snippet)
+            config = jsonnet_evaluate_snippet(repo_snippet)
+            remove_unmanaged_settings_of_repo_config(config, self._unmanaged)
+            return config
         except RuntimeError:
             _logger.debug("no default repo config found, repos will be skipped")
             return None

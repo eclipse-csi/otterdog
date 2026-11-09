@@ -33,6 +33,7 @@ def user_actor(user_id=123, bypass_mode="always"):
 def minimal_config(**overrides):
     values = {
         "default_org_config": {"settings": {}},
+        "unmanaged": frozenset(),
         "default_org_ruleset_config": {},
         "default_repo_ruleset_config": None,
         "default_org_role_config": None,

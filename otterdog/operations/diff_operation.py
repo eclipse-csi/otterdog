@@ -18,6 +18,7 @@ from rich.markup import escape
 from otterdog.models import LivePatch, LivePatchContext, LivePatchType
 from otterdog.models.github_organization import GitHubOrganization
 from otterdog.providers.github import GitHubProvider
+from otterdog.unmanaged import unset_unmanaged_settings
 from otterdog.utils import Change, IndentingPrinter, unwrap
 
 from . import Operation
@@ -198,6 +199,10 @@ class DiffOperation(Operation):
             except RuntimeError as e:
                 self.printer.print_error(f"failed to load current configuration\n{e!s}")
                 return None
+
+            # settings that are not managed are neither compared nor sent to GitHub, e.g. when creating a repository,
+            # declared resources that are not managed have been reported by the validation
+            unset_unmanaged_settings(expected_org, jsonnet_config.unmanaged)
 
             expected_org, current_org = self.preprocess_orgs(expected_org, current_org)
 

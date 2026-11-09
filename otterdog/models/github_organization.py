@@ -61,6 +61,7 @@ from otterdog.models.repository import Repository
 from otterdog.models.team import Team
 from otterdog.models.team_sync import TeamSync
 from otterdog.providers.github.rest.secret_client import SecretScope, SecretsNotAvailableError
+from otterdog.unmanaged import declared_unmanaged_resources, unset_unmanaged_settings
 from otterdog.utils import (
     IndentingPrinter,
     associate_by_key,
@@ -519,6 +520,14 @@ class GitHubOrganization:
             secret_access_policy=secret_access_policy,
         )
         self.settings.validate(context, self)
+
+        # resources that are not managed cannot be compared with GitHub, nothing would be done with them
+        for path, count in declared_unmanaged_resources(self, jsonnet_config.unmanaged).items():
+            context.add_failure(
+                FailureType.ERROR,
+                f"organization '{self.github_id}' declares {count} resource(s) of '{path}', which is listed in the "
+                f"'unmanaged' list of the otterdog configuration, remove them or the entry of the list.",
+            )
 
         enterprise_plan = self.settings.plan == "enterprise"
 
@@ -1408,6 +1417,9 @@ class GitHubOrganization:
         # without any configuration, repositories are known to have none attached
         if jsonnet_config.default_org_code_security_configuration_config is not None:
             await _load_code_security_configuration_attachments(org, github_id, provider)
+
+        # settings that are not managed are neither compared nor imported
+        unset_unmanaged_settings(org, jsonnet_config.unmanaged)
 
         return org
 
