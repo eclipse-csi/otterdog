@@ -352,3 +352,169 @@ def test_unmanaging_any_path_does_not_break_the_comparison(path):
     drop_unmanaged(current, [path])
 
     assert _patches(expected, current) == []
+
+
+# unmanaging a setting may only remove changes from a plan, never add one: a setting that gates how others are
+# compared or sent must not be unmanageable, these tests unmanage every valid path in the states that gate others
+
+_REPOSITORY_STATES = {
+    "archived": [False, True],
+    "private": [False, True],
+    "gh_pages_build_type": ["disabled", "legacy", "workflow"],
+    "code_scanning_default_setup_enabled": [False, True],
+}
+_REPOSITORY_BASE = {
+    "name": "r",
+    "description": "d",
+    "homepage": "",
+    "has_wiki": False,
+    "has_projects": False,
+    "gh_pages_source_branch": "main",
+    "gh_pages_source_path": "/",
+    "gh_pages_cname": None,
+    "code_scanning_default_query_suite": "default",
+    "secret_scanning_push_protection": "disabled",
+    "dependabot_security_updates_enabled": False,
+    "topics": [],
+    "allow_merge_commit": True,
+}
+_REPOSITORY_DIFFERENCES = {
+    "description": "x",
+    "homepage": "http://x",
+    "has_wiki": True,
+    "has_projects": True,
+    "gh_pages_source_branch": "gh-pages",
+    "gh_pages_source_path": "/docs",
+    "gh_pages_cname": "x.org",
+    "code_scanning_default_query_suite": "extended",
+    "secret_scanning_push_protection": "enabled",
+    "dependabot_security_updates_enabled": True,
+    "topics": ["t"],
+    "allow_merge_commit": False,
+}
+
+
+def _changed_fields_of_repository(expected, current, unmanaged):
+    import dataclasses
+
+    from otterdog.models import LivePatchContext
+
+    expected, current = dataclasses.replace(expected), dataclasses.replace(current)
+    for repository in (expected, current):
+        unset_unmanaged_settings(stub(settings=None, repositories=[repository], teams=[]), unmanaged)
+
+    context = LivePatchContext("o", "*", False, False, "*", None, OrganizationSettings.from_model_data({}))
+    patches: list = []
+    Repository.generate_live_patch(expected, current, None, context, patches.append)
+    return {field for patch in patches for field in patch.changes}
+
+
+@pytest.mark.parametrize(
+    "path",
+    [p for p in valid_paths() if p.startswith("repository.") and p not in RESOURCES and p.count(".") == 1],
+)
+def test_unmanaging_a_repository_setting_never_adds_a_change(path):
+    import itertools
+
+    name = path.removeprefix("repository.")
+    for values in itertools.product(*_REPOSITORY_STATES.values()):
+        data = {**_REPOSITORY_BASE, **dict(zip(_REPOSITORY_STATES, values, strict=True))}
+        expected = Repository.from_model_data(data)
+        current = Repository.from_model_data({**data, **_REPOSITORY_DIFFERENCES})
+
+        added = _changed_fields_of_repository(expected, current, [path]) - _changed_fields_of_repository(
+            expected, current, []
+        )
+
+        assert added <= {name}, f"{values}: unmanaging '{path}' adds changes of {sorted(added - {name})}"
+
+
+@pytest.mark.parametrize(
+    "path",
+    [p for p in valid_paths() if p.startswith("organization.settings.") and p not in RESOURCES and p.count(".") == 2],
+)
+def test_unmanaging_an_organization_setting_never_adds_a_change(path):
+    import itertools
+
+    states = {
+        "has_discussions": [False, True],
+        "immutable_releases_enforced_repositories": ["all", "none", "selected"],
+        "plan": ["free", "enterprise"],
+    }
+    differences = {
+        "discussion_source_repository": "o/x",
+        "immutable_releases_selected_repositories": ["x"],
+        "description": "x",
+        "billing_email": "x@x",
+        "default_repository_permission": "write",
+        "web_commit_signoff_required": True,
+    }
+    base = {
+        "description": "d",
+        "billing_email": "a@a",
+        "default_repository_permission": "read",
+        "web_commit_signoff_required": False,
+        "discussion_source_repository": "o/y",
+        "immutable_releases_selected_repositories": [],
+    }
+
+    def changed(expected, current, unmanaged):
+        import dataclasses
+
+        expected, current = dataclasses.replace(expected), dataclasses.replace(current)
+        for settings in (expected, current):
+            unset_unmanaged_settings(stub(settings=settings, repositories=[], teams=[]), unmanaged)
+        difference = expected.get_difference_from(current)
+        return set(difference) if difference else set()
+
+    name = path.rsplit(".", 1)[1]
+    for values in itertools.product(*states.values()):
+        data = {**base, **dict(zip(states, values, strict=True))}
+        expected = OrganizationSettings.from_model_data(data)
+        current = OrganizationSettings.from_model_data({**data, **differences})
+
+        added = changed(expected, current, [path]) - changed(expected, current, [])
+
+        assert added <= {name}, f"{values}: unmanaging '{path}' adds changes of {sorted(added - {name})}"
+
+
+# the members of a team connected to an identity provider are not compared, which depends on its external group:
+# the setting is meant to skip reading the external groups of organizations that cannot use them
+_TEAM_SETTINGS_THAT_ENABLE_OTHERS = {"team.external_group_id": {"members"}}
+
+
+@pytest.mark.parametrize("path", [p for p in valid_paths() if p.startswith("team.") and p not in RESOURCES])
+def test_unmanaging_a_team_setting_adds_no_change_unless_known(path):
+    import dataclasses
+    import itertools
+
+    from otterdog.models.team import Team
+
+    name = path.removeprefix("team.")
+    allowed = {name} | _TEAM_SETTINGS_THAT_ENABLE_OTHERS.get(path, set())
+
+    def changed(expected, current, unmanaged):
+        expected, current = dataclasses.replace(expected), dataclasses.replace(current)
+        for team in (expected, current):
+            unset_unmanaged_settings(stub(settings=None, repositories=[], teams=[team]), unmanaged)
+        difference = expected.get_difference_from(current)
+        return set(difference) if difference else set()
+
+    for skip_members, external_group_id in itertools.product([False, True], [None, 42]):
+        data = {
+            "name": "t",
+            "privacy": "closed",
+            "members": ["a"],
+            "description": "d",
+            "notifications": False,
+            "skip_members": skip_members,
+            "external_group_id": external_group_id,
+        }
+        expected = Team.from_model_data(data)
+        current = Team.from_model_data(
+            {**data, "members": ["a", "b"], "description": "x", "privacy": "secret", "notifications": True}
+        )
+
+        added = changed(expected, current, [path]) - changed(expected, current, [])
+
+        assert added <= allowed, f"unmanaging '{path}' adds changes of {sorted(added - allowed)}"

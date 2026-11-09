@@ -64,6 +64,12 @@ RESOURCES: dict[str, tuple[str, ...]] = {
 DEPENDENCIES: dict[str, str] = {
     "organization.settings.custom_properties": "repositories are checked against the custom properties of the organization",
     "organization.settings.workflows.selected_repositories": "the workflow settings of repositories depend on it",
+    "organization.settings.has_discussions": "the discussion source repository depends on it",
+    # decides how a repository is created, an unmanaged value would not be sent: GitHub creates a public repository
+    "repository.private": "it decides how a repository is created and which of its settings are compared",
+    "repository.archived": "the settings of an archived repository are not compared, GitHub rejects their changes",
+    "repository.gh_pages_build_type": "the other GitHub Pages settings depend on it",
+    "repository.code_scanning_default_setup_enabled": "the other code scanning settings depend on it",
 }
 
 _ORGANIZATION_SETTINGS = "organization.settings"

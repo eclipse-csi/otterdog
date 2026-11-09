@@ -246,12 +246,21 @@ Everything listed is not managed for the organization:
 | `team.team_sync`                          | the identity provider groups of all teams                                            |
 
 An entry that is not a valid path stops otterdog when loading the configuration, and the error suggests the closest
-valid paths. A few settings cannot be unmanaged as other settings depend on their value:
-`organization.settings.custom_properties`, which repositories are checked against, and
-`organization.settings.workflows.selected_repositories`.
+valid paths. Settings that decide how others are compared or sent cannot be unmanaged, the error explains why:
+`repository.private`, `repository.archived`, `repository.gh_pages_build_type`,
+`repository.code_scanning_default_setup_enabled`, `organization.settings.has_discussions`,
+`organization.settings.custom_properties` and `organization.settings.workflows.selected_repositories`.
 
 !!! note
 
     `show-default` displays what the functions of the template define, without the entries of `unmanaged`.
 
-    The list is not used by the dashboard of the webapp yet.
+    The list is meant to set up otterdog for an organization with the command line, without defining a default
+    configuration of your own. It is not used by the webapp yet: its tasks, e.g. the validation of pull requests and
+    the apply of merged ones, as well as its dashboard, ignore it.
+
+!!! warning
+
+    The members of a team connected to an external group are provisioned by the identity provider and not
+    compared. If `team.external_group_id` is unmanaged, the members of such a team are compared, only use it for
+    organizations that do not use external groups.
