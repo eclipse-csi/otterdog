@@ -122,7 +122,7 @@ referencing = "^0.37.0"
 [tool.poetry.group.typing.dependencies]
 mypy = ">=2.4.1"
 types-colorama = ">=0.4"
-types-requests = ">=2.33.0.20261006"
+types-requests = ">=2.33.0.20261030"
 types-jsonschema = ">=4.26.0.20261006"
 types-chevron = ">=0.14"
 types-aiofiles = ">=24.0"
