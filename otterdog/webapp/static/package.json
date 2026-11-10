@@ -11,7 +11,7 @@
   },
   "devDependencies": {
     "husky": "^9.1.7",
-    "sass-embedded": "^1.106.1",
+    "sass-embedded": "^1.107.1",
     "vite": "^8.3.5",
     "vite-plugin-static-copy": "^4.1.1"
   },
@@ -31,13 +31,13 @@
     "chart.js": "^4.6.1",
     "cm6-graphql": "^0.2.2",
     "codemirror": "^6.0.2",
-    "datatables.net": "^3.1.4",
-    "datatables.net-bs5": "^3.1.4",
+    "datatables.net": "^3.1.5",
+    "datatables.net-bs5": "^3.1.5",
     "datatables.net-responsive": "^4.1.1",
     "datatables.net-responsive-bs5": "^4.1.1",
     "highlight.js": "^11.12.0",
     "jquery": "^4.0.0",
-    "marked": "^18.1.2",
+    "marked": "^18.1.3",
     "moment": "^2.31.0"
   }
 }
