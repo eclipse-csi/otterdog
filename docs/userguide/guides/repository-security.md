@@ -269,6 +269,15 @@ orgs.newOrg('my-project', 'my-org') {
     repositories. Delete them if no repository is attached to them, or import them to keep them. The predefined
     configurations of GitHub, e.g. `GitHub recommended`, are not managed.
 
+    To only delete these configurations, without applying any other change, select them with `--delete-filter`,
+    e.g. in all organizations:
+
+    ```shell
+    otterdog apply --delete-resources --delete-filter 'org_code_security_configuration[name="Legacy*"]'
+    ```
+
+    See [deleting selected resources](../../reference/operations/apply.md#deleting-selected-resources).
+
 !!! note
 
     For private and internal repositories, `code_security` and `secret_protection` enable GitHub Code Security and

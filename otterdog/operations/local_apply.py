@@ -18,7 +18,10 @@ from otterdog.utils import unwrap
 from .apply import ApplyOperation
 
 if TYPE_CHECKING:
+    from collections.abc import Sequence
+
     from otterdog.jsonnet import JsonnetConfig
+    from otterdog.models import ResourceSelector
 
 
 class LocalApplyOperation(ApplyOperation):
@@ -35,6 +38,8 @@ class LocalApplyOperation(ApplyOperation):
         delete_resources: bool,
         resolve_secrets: bool = True,
         include_resources_with_secrets: bool = True,
+        *,
+        delete_filter: Sequence[ResourceSelector] = (),
     ) -> None:
         super().__init__(
             force_processing=force_processing,
@@ -47,6 +52,7 @@ class LocalApplyOperation(ApplyOperation):
             delete_resources=delete_resources,
             resolve_secrets=resolve_secrets,
             include_resources_with_secrets=include_resources_with_secrets,
+            delete_filter=delete_filter,
         )
 
         self._suffix = suffix

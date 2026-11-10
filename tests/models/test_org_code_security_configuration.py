@@ -15,7 +15,15 @@ import pytest
 from pretend import stub
 
 from otterdog.jsonnet import JsonnetConfig
-from otterdog.models import CostPolicy, FailureType, LivePatch, LivePatchContext, ModelObject, ValidationContext
+from otterdog.models import (
+    CostPolicy,
+    FailureType,
+    LivePatch,
+    LivePatchContext,
+    ModelObject,
+    ResourceSelector,
+    ValidationContext,
+)
 from otterdog.models.github_organization import (
     GitHubOrganization,
     _add_code_security_configurations,
@@ -1148,7 +1156,7 @@ def current_organization(
 def plan(
     expected: GitHubOrganization, current: GitHubOrganization, delete_resources: bool = False
 ) -> CodeSecurityConfigurationPlan:
-    return expected.plan_code_security_configurations(current, delete_resources)
+    return expected.plan_code_security_configurations(current, lambda configuration: delete_resources)
 
 
 def test_plan_keeps_values_not_managed_by_the_expected_configuration():
@@ -1205,6 +1213,43 @@ def test_plan_of_configurations_that_are_not_expected(delete_resources):
 
     # configurations that are not managed are kept, but can not be referenced by repositories
     assert unwrap(planned.planned_attached_configurations["repo-b"]).name == "GitHub recommended"
+
+
+@pytest.mark.parametrize(
+    ("delete_filter", "deleted"),
+    [
+        ((), True),
+        (("org_code_security_configuration",), True),
+        (("org_*",), True),
+        (("repository", "org_code_security_configuration"), True),
+        (("repository",), False),
+        (('org_code_security_configuration[name="Legacy*"]',), True),
+        (('org_code_security_configuration[name="Legacy - public repositories"]',), False),
+    ],
+)
+def test_plan_of_configurations_deleted_with_a_delete_filter(delete_filter, deleted):
+    """Repositories are planned with the configurations that are deleted, the ones matching the delete filter."""
+    legacy = "Legacy - private/internal repositories"
+    current = current_organization(configuration_with_id(legacy, 1), attached={"repo-a": 1})
+    expected = organization()
+    context = LivePatchContext(
+        "OtterdogTest",
+        "*",
+        False,
+        False,
+        "*",
+        current.settings,
+        expected.settings,
+        delete_resources=True,
+        delete_filter=tuple(ResourceSelector.parse(x) for x in delete_filter),
+    )
+
+    patches: list[LivePatch] = []
+    expected.generate_live_patch(current, context, patches.append)
+
+    planned = unwrap(context.code_security_configuration_plan)
+    assert (legacy in planned.managed_configurations) is not deleted
+    assert [(x.patch_type.name, unwrap(x.current_object).name) for x in patches] == [("REMOVE", legacy)]
 
 
 def test_plan_identifies_attached_configurations_by_their_id():

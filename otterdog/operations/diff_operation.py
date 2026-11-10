@@ -15,7 +15,7 @@ from typing import TYPE_CHECKING, Protocol
 import aiofiles.ospath
 from rich.markup import escape
 
-from otterdog.models import LivePatch, LivePatchContext, LivePatchType
+from otterdog.models import LivePatch, LivePatchContext, LivePatchType, ResourceSelector
 from otterdog.models.github_organization import GitHubOrganization
 from otterdog.providers.github import GitHubProvider
 from otterdog.utils import Change, IndentingPrinter, unwrap
@@ -36,6 +36,9 @@ class DiffStatus:
         self.additions = 0
         self.differences = 0
         self.deletions = 0
+        # the patches that the operation leaves out, e.g. the changes other than the deletions selected by a
+        # delete filter
+        self.skipped = 0
 
     def total_changes(self, include_deletions: bool) -> int:
         if include_deletions:
@@ -208,6 +211,10 @@ class DiffOperation(Operation):
                 if self.only_secrets and not patch.is_secret():
                     return
 
+                if not self.include_live_patch(patch):
+                    diff_status.skipped += 1
+                    return
+
                 live_patches.append(patch)
 
                 match patch.patch_type:
@@ -238,6 +245,7 @@ class DiffOperation(Operation):
                 current_org.settings if self.coerce_current_org() else None,
                 expected_org.settings,
                 delete_resources=self.delete_resources(),
+                delete_filter=self.delete_filter(),
             )
             expected_org.generate_live_patch(current_org, context, handle)
 
@@ -257,6 +265,14 @@ class DiffOperation(Operation):
     def delete_resources(self) -> bool:
         """Indicates whether resources that are not expected are deleted when applying the patches."""
         return False
+
+    def delete_filter(self) -> tuple[ResourceSelector, ...]:
+        """Selects the resources that are deleted, all of them if empty."""
+        return ()
+
+    def include_live_patch(self, patch: LivePatch) -> bool:
+        """Indicates whether a patch is part of the diff, the ones that are left out are only counted."""
+        return True
 
     def coerce_current_org(self) -> bool:
         return False

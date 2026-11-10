@@ -345,8 +345,8 @@ class Team(ModelObject, abc.ABC):
         if is_unset(expected_object.external_group_id) and is_set_and_present(current_object.external_group_id):
             return True
 
-        # groups removed from team_sync are only disconnected when deleting resources
-        return len(current_object.team_sync) > 0 and not context.delete_resources
+        # groups removed from team_sync are only disconnected when deleting them
+        return any(not context.deletes(x, current_object) for x in current_object.team_sync)
 
     @classmethod
     async def apply_live_patch(

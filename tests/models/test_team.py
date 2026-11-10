@@ -15,7 +15,14 @@ import pytest
 from pretend import stub
 
 from otterdog.jsonnet import JsonnetConfig
-from otterdog.models import FailureType, LivePatch, LivePatchContext, ModelObject, ValidationContext
+from otterdog.models import (
+    FailureType,
+    LivePatch,
+    LivePatchContext,
+    ModelObject,
+    ResourceSelector,
+    ValidationContext,
+)
 from otterdog.models.team import Team
 from otterdog.models.team_sync import TeamSync
 from otterdog.providers.github import GitHubProvider
@@ -35,8 +42,18 @@ def _validation_context():
     )
 
 
-def _live_patch_context(delete_resources: bool = False):
-    return LivePatchContext("OtterdogTest", "*", False, False, "*", None, stub(), delete_resources=delete_resources)
+def _live_patch_context(delete_resources: bool = False, delete_filter: tuple[str, ...] = ()):
+    return LivePatchContext(
+        "OtterdogTest",
+        "*",
+        False,
+        False,
+        "*",
+        None,
+        stub(),
+        delete_resources=delete_resources,
+        delete_filter=tuple(ResourceSelector.parse(x) for x in delete_filter),
+    )
 
 
 def _patch_summary(patches: list[LivePatch]) -> list[tuple[str, str]]:
@@ -348,6 +365,26 @@ class TeamTest(ModelTest):
         )
 
         assert _patch_summary(patches) == [("REMOVE", "TeamSync")]
+
+    def test_team_sync_group_deleted_with_a_delete_filter(self):
+        # the removed team sync group stays connected if its deletion is not selected by the delete filter
+        for delete_filter, expected in [
+            (("team",), [("REMOVE", "TeamSync")]),
+            (('team_sync[id="456"]',), [("REMOVE", "TeamSync")]),
+            (('team_sync[id="123"]',), [("REMOVE", "TeamSync"), ("CHANGE", "Team")]),
+            (("team_sync[team=*]",), [("REMOVE", "TeamSync"), ("CHANGE", "Team")]),
+        ]:
+            with self.subTest(delete_filter=delete_filter):
+                patches: list[LivePatch] = []
+                Team.generate_live_patch(
+                    self.team_with(members=["netomi"]),
+                    self._current_team_with_team_sync(),
+                    None,
+                    _live_patch_context(delete_resources=True, delete_filter=delete_filter),
+                    patches.append,
+                )
+
+                assert _patch_summary(patches) == expected
 
     def test_team_sync_connected_after_team_is_created(self):
         patches: list[LivePatch] = []
