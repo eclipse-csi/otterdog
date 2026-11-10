@@ -1,15 +1,77 @@
 # Change Log
 
-## [Unreleased]
+## [1.8.0] - 10/11/2026
+
+### Security
+
+ - fix(credentials): invoke the `pass` and `bitwarden` CLIs without a shell, fixes CVE-2026-123717 ([GHSA-886p-g538-rcmp](https://github.com/eclipse-csi/otterdog/security/advisories/GHSA-886p-g538-rcmp)) by @mbarbero and @heurtematte
+
+### Added
+
+ - feat: allow to ignore repository environments with exclude_environments by @netomi in https://github.com/eclipse-csi/otterdog/pull/887
+ - feat: manage Dependabot and Codespaces secrets by @heurtematte in https://github.com/eclipse-csi/otterdog/pull/890
+ - feat: validate configurations with otterdog in the playground by @heurtematte in https://github.com/eclipse-csi/otterdog/pull/891
+ - feat(org): manage code security configurations by @heurtematte in https://github.com/eclipse-csi/otterdog/pull/892
+ - Feat/ruleset additional rule types by @heurtematte in https://github.com/eclipse-csi/otterdog/pull/900
+ - Feat/dashboard theme by @heurtematte in https://github.com/eclipse-csi/otterdog/pull/912
+ - Feat/team idp sync by @heurtematte in https://github.com/eclipse-csi/otterdog/pull/911
+ - feat: warn when base_template references a branch by @heurtematte in https://github.com/eclipse-csi/otterdog/pull/921
+ - feat: allow to disable the web ui by default via otterdog.json by @netomi in https://github.com/eclipse-csi/otterdog/pull/913
+ - feat: support a local base template by @netomi in https://github.com/eclipse-csi/otterdog/pull/917
+ - feat: restrict the secrets that an organization can reference by @heurtematte in https://github.com/eclipse-csi/otterdog/pull/923
 
 ### Changed
 
- - **Breaking**: move the standard Jsonnet defaults from `examples/template` to `otterdog/resources/defaults` and ship them with the otterdog package ([#857](https://github.com/eclipse-csi/otterdog/pull/857)).
-   Configurations using `https://github.com/eclipse-csi/otterdog#examples/template/otterdog-defaults.libsonnet` with a ref that includes this change (e.g. `@main`) need to update:
+ - **Breaking**: move the standard Jsonnet defaults from `examples/template` to `otterdog/resources/defaults` and ship them with the otterdog package ([#889](https://github.com/eclipse-csi/otterdog/pull/889)).
+   Configurations using `https://github.com/eclipse-csi/otterdog#examples/template/otterdog-defaults.libsonnet` with a ref that includes this change (e.g. `@v1.8.0` or `@main`) need to update:
    - `defaults.jsonnet.base_template` in `otterdog.json` to `https://github.com/eclipse-csi/otterdog#otterdog/resources/defaults/otterdog-defaults.libsonnet@<ref>`
    - the import statement of every organization configuration from `import 'vendor/otterdog/examples/template/otterdog-defaults.libsonnet'` to `import 'vendor/otterdog/otterdog/resources/defaults/otterdog-defaults.libsonnet'`
 
    Configurations pinned to an earlier release tag are not affected.
+ - **Breaking**: the standard Jsonnet defaults define the functions of Dependabot and Codespaces secrets ([#890](https://github.com/eclipse-csi/otterdog/pull/890)).
+   Configurations using them need credentials that can read these secrets, e.g. a GitHub App with the `Codespaces secrets`, `Dependabot secrets`, `Organization codespaces secrets` and `Organization dependabot secrets` permissions, see [Create a GitHub App](https://csi.eclipse.dev/otterdog/operating_otterdog/install/#create-a-github-app).
+ - **Breaking**: secret names that are not uppercase are reported as an error by the validation, as GitHub normalizes secret names to uppercase ([#890](https://github.com/eclipse-csi/otterdog/pull/890)).
+ - **Breaking**: a failure to read the secrets of an organization, a repository or an environment aborts the operation, instead of being considered as no secrets ([#890](https://github.com/eclipse-csi/otterdog/pull/890)).
+   Codespaces secrets that GitHub does not make available for an organization are skipped ([#914](https://github.com/eclipse-csi/otterdog/pull/914)).
+ - **Breaking**: the values used to look up credentials with the `pass` and `bitwarden` providers are no longer subject to shell expansion (see Security below).
+   A configuration relying on `$VARIABLE`, `~` or globbing inside a bitwarden item id or a pass key must resolve it beforehand, or use the `env` credential provider.
+ - refactor: move standard Jsonnet templates into package resources by @heurtematte in https://github.com/eclipse-csi/otterdog/pull/889
+ - chore: run the tests in parallel by @heurtematte in https://github.com/eclipse-csi/otterdog/pull/899
+ - docs: build the documentation with Zensical by @heurtematte in https://github.com/eclipse-csi/otterdog/pull/908
+ - docs: link the documentation at csi.eclipse.dev instead of Read the Docs by @heurtematte in https://github.com/eclipse-csi/otterdog/pull/909
+ - website official artwork by @heurtematte in https://github.com/eclipse-csi/otterdog/pull/910
+ - chore(deps-dev): bump dnspython from 2.8.0 to 2.9.0 in the python-security group across 1 directory by @dependabot[bot] in https://github.com/eclipse-csi/otterdog/pull/896
+ - chore(deps): bump the npm-minor-patch group in /otterdog/webapp/static with 4 updates by @dependabot[bot] in https://github.com/eclipse-csi/otterdog/pull/901
+ - chore(deps): bump the github-actions group with 2 updates by @dependabot[bot] in https://github.com/eclipse-csi/otterdog/pull/902
+ - chore(deps-dev): bump the python-minor-patch group with 4 updates by @dependabot[bot] in https://github.com/eclipse-csi/otterdog/pull/903
+ - chore(deps-dev): bump the python-minor-patch group with 5 updates by @dependabot[bot] in https://github.com/eclipse-csi/otterdog/pull/931
+ - chore(deps): bump the npm-minor-patch group in /otterdog/webapp/static with 4 updates by @dependabot[bot] in https://github.com/eclipse-csi/otterdog/pull/928
+ - chore(deps): bump rossjrw/pr-preview-action from 1.8.1 to 1.8.2 in the github-actions group by @dependabot[bot] in https://github.com/eclipse-csi/otterdog/pull/930
+ - chore(deps-dev): bump types-requests from 2.33.0.20261006 to 2.33.0.20261030 by @dependabot[bot] in https://github.com/eclipse-csi/otterdog/pull/932
+ - chore(deps-dev): bump types-pyyaml from 6.0.12.20260906 to 6.0.12.20261030 by @dependabot[bot] in https://github.com/eclipse-csi/otterdog/pull/935
+ - chore(deps-dev): bump pytest-asyncio from 1.4.1 to 1.4.1.post1 by @dependabot[bot] in https://github.com/eclipse-csi/otterdog/pull/934
+ - chore(deps-dev): bump types-hvac from 2.4.0.20260731 to 2.4.0.20261102 by @dependabot[bot] in https://github.com/eclipse-csi/otterdog/pull/933
+ - chore(deps): bump cm6-graphql from 0.2.2 to 1.0.0 in /otterdog/webapp/static by @dependabot[bot] in https://github.com/eclipse-csi/otterdog/pull/929
+ - chore(deps): declare graphql as a direct dependency of the webapp by @heurtematte in https://github.com/eclipse-csi/otterdog/pull/936
+
+### Fixed
+
+ - fix: do not flag every workflow settings change as cost-related by @heurtematte in https://github.com/eclipse-csi/otterdog/pull/885
+ - fix: translate deprecated code scanning language javascript-typescript by @netomi in https://github.com/eclipse-csi/otterdog/pull/888
+ - recheck approvals when merging a pull request via /otterdog merge by @heurtematte in https://github.com/eclipse-csi/otterdog/pull/895
+ - fix: generate the SBOM with cyclonedx-bom 7.6.0 by @heurtematte in https://github.com/eclipse-csi/otterdog/pull/898
+ - fix: respect custom templates throughout the playground by @AlexanderLanin in https://github.com/eclipse-csi/otterdog/pull/893
+ - fix: do not remove the teams managed outside otterdog when applying a pull request by @heurtematte in https://github.com/eclipse-csi/otterdog/pull/905
+ - fix: find the base of a rebase-merged pull request before GitHub associates its commits by @heurtematte in https://github.com/eclipse-csi/otterdog/pull/904
+ - Fix/installation before config by @heurtematte in https://github.com/eclipse-csi/otterdog/pull/906
+ - fix(custom-property): default values_editable_by to org_actors by @heurtematte in https://github.com/eclipse-csi/otterdog/pull/907
+ - fix: skip Codespaces secrets that GitHub does not make available by @netomi in https://github.com/eclipse-csi/otterdog/pull/914
+ - fix: write lists with a null default as replacement in generated jsonnet by @netomi in https://github.com/eclipse-csi/otterdog/pull/916
+ - fix: only retrieve workflow settings defined by the default config on import by @netomi in https://github.com/eclipse-csi/otterdog/pull/919
+ - fix: send javascript-typescript when updating the code scanning default setup by @heurtematte in https://github.com/eclipse-csi/otterdog/pull/922
+ - fix: do not send team permissions when updating repository settings by @heurtematte in https://github.com/eclipse-csi/otterdog/pull/924
+ - fix: ignore the private pages setting reported for non-enterprise plans by @netomi in https://github.com/eclipse-csi/otterdog/pull/925
+ - fix: synchronize the otterdog processes updating the same base template by @heurtematte in https://github.com/eclipse-csi/otterdog/pull/927
 
 ## [1.7.1] - 28/10/2026
 
