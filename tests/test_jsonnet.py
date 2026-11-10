@@ -73,6 +73,34 @@ def test_a_template_referencing_a_tag_or_a_commit_is_not_reported(template_repo,
     assert _branch_warnings(caplog) == []
 
 
+def test_a_template_being_cloned_by_another_process_is_waited_for(template_repo, tmp_path, monkeypatch):
+    fcntl = pytest.importorskip("fcntl")
+    template_dir = tmp_path / "templates" / "v1.0.0"
+    template_dir.parent.mkdir()
+    flock, locking = fcntl.flock, threading.Event()
+
+    def signal_and_flock(file, operation):
+        locking.set()
+        flock(file, operation)
+
+    update = threading.Thread(target=_update, args=(tmp_path, "v1.0.0"))
+
+    # another otterdog process using the same directory, e.g. one of several otterdog plan commands running in parallel
+    with open(f"{template_dir}.lock", "a") as lock:
+        flock(lock, fcntl.LOCK_EX)
+        monkeypatch.setattr(fcntl, "flock", signal_and_flock)
+        update.start()
+        # the update has reached the lock, it must wait for it instead of cloning the template
+        assert locking.wait(10)
+        update.join(0.5)
+        assert update.is_alive()
+        assert not template_dir.exists()
+
+    update.join(10)
+    assert not update.is_alive()
+    assert (template_dir / "otterdog-defaults.libsonnet").is_file()
+
+
 async def test_a_cancelled_initialization_keeps_the_lock_of_the_templates_until_git_completes(monkeypatch, tmp_path):
     # git runs in a thread, which cannot be stopped when the caller is cancelled, e.g. a request whose client disconnects
     started, release = threading.Event(), threading.Event()
