@@ -42,6 +42,7 @@ class WebClient:
     _REPO_DEFAULTS_PAGE_URL = "/settings/repository-defaults"
     _REPO_DEFAULTS_404_RETRIES = 5
     _REPO_DEFAULTS_404_RETRY_DELAY = 1
+    _TWO_FACTOR_CHECKUP_URL = "https://github.com/settings/two_factor_checkup"
 
     def __init__(self, credentials: Credentials):
         self.credentials = credentials
@@ -629,21 +630,21 @@ class WebClient:
     async def _logged_in_as(self, page: Page) -> str | None:
         await self._goto(page, "https://github.com/settings/profile")
 
-        try:
-            meta_element = page.locator('meta[name="octolytics-actor-login"]')
-            actor = await meta_element.evaluate("element => element.content", timeout=1)
-        except PlaywrightError:
-            actor = None
+        # the meta element is only present when logged in, check its presence first
+        # as waiting for it with a short timeout is not reliable.
+        meta_element = page.locator('meta[name="octolytics-actor-login"]')
+        if await meta_element.count() == 0:
+            return None
 
-        return actor
+        return await meta_element.get_attribute("content")
 
     async def _enter_username_and_password(self, page: Page) -> None:
         await self._goto(page, "https://github.com/login")
 
         await page.type("#login_field", self.credentials.username)
         await page.type("#password", self.credentials.password)
-        # submit the form and wait for navigation
-        async with page.expect_navigation(wait_until="load"):
+        # submit the form and wait for the resulting page, see _submit_totp() for why not using expect_navigation()
+        async with page.expect_event("load"):
             await page.click('input[name="commit"]')
 
         # Store the page content and a screenshot after submitting the login form.
@@ -663,23 +664,47 @@ class WebClient:
         ):
             raise RuntimeError("too many failed login attempts, please try again later")
 
-    async def _handle_verify_2fa_extra_page(self, page: Page) -> None:
-        if await page.title() == "Verify two-factor authentication":
+    async def _submit_totp(self, page: Page) -> None:
+        # a TOTP can only be used once, so getting one may have to wait until the next one is generated.
+        # get it before expecting the navigation, so that the wait does not count towards its timeout.
+        totp = await to_thread(lambda: self.credentials.totp)
+
+        # the form is submitted automatically once the TOTP has been entered, wait for the resulting page.
+        # do not use expect_navigation() for that, as it is also satisfied by same-document navigations,
+        # which GitHub performs even after a page has been loaded, leaving the form submission unfinished.
+        async with page.expect_event("load"):
+            await page.get_by_role("textbox", name="Enter the verification code").fill(totp)
+
+    async def _perform_2fa_checkup(self, page: Page) -> None:
+        """
+        Performs the verification of the 2FA settings that GitHub might request after logging in.
+
+        GitHub shows a 'Verify two-factor authentication' page instead of the requested one until
+        the configured 2FA credentials have been verified by entering another TOTP.
+        """
+        if await page.title() != "Verify two-factor authentication":
+            return
+
+        _logger.debug("verification of 2FA settings requested by GitHub, performing 2FA checkup")
+        await self._store_html_and_screenshot(page, log_level=logging.TRACE)
+
+        # the 'Verify 2FA now' button just submits a form without parameters to the checkup page,
+        # load it directly instead of clicking it, as this turned out to be unreliable.
+        await self._goto(page, self._TWO_FACTOR_CHECKUP_URL)
+        await self._submit_totp(page)
+
+        _logger.trace("page title after submitting 2FA checkup form: '%s'", await page.title())
+        await self._store_html_and_screenshot(page, log_level=logging.TRACE)
+
+        # GitHub asks for a TOTP again if the submitted one was not accepted
+        if await page.get_by_role("textbox", name="Enter the verification code").count() > 0:
             await self._store_html_and_screenshot(page, log_level=logging.DEBUG)
+            raise RuntimeError("2FA checkup failed, TOTP has not been accepted")
 
-            verify_button = page.get_by_role("button", name="Verify 2FA now")
-            if await verify_button.count() > 0:
-                await verify_button.click()
-
-                if await page.is_visible('button[text="Confirm"]'):
-                    confirm_button = page.get_by_role("button", name="Confirm")
-                    if await confirm_button.count() > 0:
-                        await confirm_button.click()
-
-                if await page.title() == "Confirm your account recovery settings":
-                    confirm_button = page.get_by_role("button", name="Confirm")
-                    if await confirm_button.count() > 0:
-                        await confirm_button.click()
+        if await page.title() == "Confirm your account recovery settings":
+            confirm_button = page.get_by_role("button", name="Confirm")
+            if await confirm_button.count() > 0:
+                await confirm_button.click()
 
     async def _perform_2fa_verification(self, page: Page) -> None:
         # GitHub will redirect to the user default 2FA method after login,
@@ -693,11 +718,10 @@ class WebClient:
             await self._store_html_and_screenshot(page, log_level=logging.DEBUG)
             raise RuntimeError("unexpected page after login, expected 'Two-factor authentication' in title")
 
-        # after typing the TOTP, the page will redirect to the verification page.
-        # wait for page navigation after submitting the form, this will also ensure
-        # that the TOTP code is accepted and we are logged in successfully
-        async with page.expect_navigation(wait_until="load"):
-            await page.type("#app_totp", self.credentials.totp)
+        # after entering the TOTP, the page will redirect to the verification page.
+        # waiting for the page navigation will also ensure that the TOTP is accepted
+        # and we are logged in successfully
+        await self._submit_totp(page)
 
         _logger.trace("page title after submitting 2FA form: '%s'", await page.title())
 
@@ -712,8 +736,8 @@ class WebClient:
     async def _login(self, page: Page) -> None:
         try:
             await self._enter_username_and_password(page)
-            await self._handle_verify_2fa_extra_page(page)
             await self._perform_2fa_verification(page)
+            await self._perform_2fa_checkup(page)
         except PlaywrightError as e:
             raise RuntimeError(f"could not log in to web UI: {e!s}") from e
 
