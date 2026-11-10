@@ -109,7 +109,7 @@ otterdog apply --delete-resources --delete-filter 'org_code_security_configurati
 
 The organizations without a selected deletion report `No changes required.`, together with the warning above.
 `--force` applies the deletions without asking for approval. Run the command without it first to review the
-deletions of each organization, and answer anything but `yes` to cancel them.
+deletions of each organization: only `yes` or `y` approves them, answer `no` to cancel them.
 
 ## Example
 
