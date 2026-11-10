@@ -44,6 +44,9 @@ def org() -> GitHubOrganization:
         # a quoted value can contain commas and brackets
         ('org_variable[ name = "a, [b]" ]', "org_variable", (("name", "a, [b]"),)),
         ("  org_variable  ", "org_variable", ()),
+        ('org_variable[name="a]"]', "org_variable", (("name", "a]"),)),
+        ("org_variable[name=a=b]", "org_variable", (("name", "a=b"),)),
+        ('org_variable[name="", repository = my-repo ]', "org_variable", (("name", ""), ("repository", "my-repo"))),
     ],
 )
 def test_parse(selector, model_object_name, conditions):
@@ -56,7 +59,22 @@ def test_parse(selector, model_object_name, conditions):
 
 @pytest.mark.parametrize(
     "selector",
-    ["", "   ", "org variable", "org_variable[]", "org_variable[name]", 'org_variable[name="a" b]', "[name=a]"],
+    [
+        "",
+        "   ",
+        "org variable",
+        "org_variable]",
+        "[name=a]",
+        "org_variable[]",
+        "org_variable[name]",
+        "org_variable[=a]",
+        "org_variable[name=a",
+        "org_variable[name=a]x",
+        "org_variable[name=a,]",
+        'org_variable[name="a]',
+        'org_variable[name="a" b]',
+        'org_variable[name=a"b]',
+    ],
 )
 def test_parse_rejects_invalid_selectors(selector):
     with pytest.raises(ValueError, match="invalid resource selector"):

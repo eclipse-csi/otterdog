@@ -244,10 +244,8 @@ class LivePatchContext:
         return self.delete_resources and matches_delete_filter(model_object, parent_object, self.delete_filter)
 
 
-_SELECTOR_PATTERN = re.compile(r"\s*(?P<type>[^\s\[\]]+)\s*(?:\[(?P<conditions>.*)\])?\s*")
-_SELECTOR_CONDITION_PATTERN = re.compile(
-    r'\s*(?P<name>[A-Za-z_]\w*)\s*=\s*(?:"(?P<quoted>[^"]*)"|(?P<value>[^,"]*?))\s*(?:,|$)'
-)
+_SELECTOR_TYPE_PATTERN = re.compile(r"[^\s\[\]]+")
+_SELECTOR_NAME_PATTERN = re.compile(r"[A-Za-z_]\w*")
 
 
 @dataclasses.dataclass(frozen=True)
@@ -266,26 +264,16 @@ class ResourceSelector:
 
     @classmethod
     def parse(cls, selector: str) -> ResourceSelector:
-        match = _SELECTOR_PATTERN.fullmatch(selector)
-        if match is None:
+        text = selector.strip()
+        model_object_name, bracket, conditions = text.partition("[")
+        model_object_name = model_object_name.strip()
+        if _SELECTOR_TYPE_PATTERN.fullmatch(model_object_name) is None or (bracket and not conditions.endswith("]")):
             raise ValueError(f"invalid resource selector '{selector}', expected 'type' or 'type[key=value, ...]'")
 
-        conditions: list[tuple[str, str]] = []
-        text = match.group("conditions")
-        if text is not None:
-            position = 0
-            while position < len(text) or len(conditions) == 0:
-                condition = _SELECTOR_CONDITION_PATTERN.match(text, position)
-                if condition is None or condition.end() == position:
-                    raise ValueError(
-                        f"invalid resource selector '{selector}', expected conditions like 'name=\"value\"' "
-                        "separated by commas"
-                    )
-                value = condition.group("quoted")
-                conditions.append((condition.group("name"), value if value is not None else condition.group("value")))
-                position = condition.end()
+        if not bracket:
+            return cls(selector, model_object_name)
 
-        return cls(selector, match.group("type"), tuple(conditions))
+        return cls(selector, model_object_name, tuple(_parse_selector_conditions(selector, conditions[:-1])))
 
     def matches(self, model_object: ModelObject, parent_object: ModelObject | None = None) -> bool:
         if not fnmatch.fnmatchcase(model_object.model_object_name, self.model_object_name):
@@ -300,6 +288,52 @@ class ResourceSelector:
 
     def __str__(self) -> str:
         return self.selector
+
+
+def _parse_selector_conditions(selector: str, text: str) -> list[tuple[str, str]]:
+    """Parses the conditions of a resource selector, e.g. 'name="Legacy*", repository=my-repo'."""
+    error = ValueError(
+        f"invalid resource selector '{selector}', expected conditions like 'name=\"value\"' separated by commas"
+    )
+
+    conditions: list[tuple[str, str]] = []
+    position = 0
+    while True:
+        separator = text.find("=", position)
+        name = text[position:separator].strip()
+        if separator < 0 or _SELECTOR_NAME_PATTERN.fullmatch(name) is None:
+            raise error
+
+        value_start = _skip_whitespace(text, separator + 1)
+
+        if text.startswith('"', value_start):
+            # a quoted value can contain spaces, commas and brackets
+            value_end = text.find('"', value_start + 1)
+            if value_end < 0:
+                raise error
+            value = text[value_start + 1 : value_end]
+            position = value_end + 1
+        else:
+            comma = text.find(",", value_start)
+            position = len(text) if comma < 0 else comma
+            value = text[value_start:position].strip()
+            if '"' in value:
+                raise error
+
+        conditions.append((name, value))
+
+        position = _skip_whitespace(text, position)
+        if position == len(text):
+            return conditions
+        if text[position] != ",":
+            raise error
+        position += 1
+
+
+def _skip_whitespace(text: str, position: int) -> int:
+    while position < len(text) and text[position].isspace():
+        position += 1
+    return position
 
 
 def _get_selected_value(name: str, model_object: ModelObject, parent_object: ModelObject | None) -> str | None:
