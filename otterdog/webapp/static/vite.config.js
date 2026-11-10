@@ -84,7 +84,7 @@ export default defineConfig({
                 },
                 {
                   name: "graphql",
-                  test: /[\\/]node_modules[\\/](graphql|graphql-language-service|cm6-graphql|vscode-languageserver-types|nullthrows|picomatch-browser)[\\/]/,
+                  test: /[\\/]node_modules[\\/](graphql|graphql-language-service|cm6-graphql|vscode-languageserver-types)[\\/]/,
                 },
               ],
             },
