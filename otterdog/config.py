@@ -11,7 +11,6 @@ from __future__ import annotations
 import dataclasses
 import json
 import os
-import re
 from abc import abstractmethod
 from functools import cached_property
 from pathlib import Path
@@ -278,8 +277,12 @@ class CredentialResolver(SecretResolver):
         self._check_secret_access(secret_data)
 
         if secret_data and ":" in secret_data:
-            # the data of the provider can contain ':'
-            provider_type, data = re.split(":", secret_data, maxsplit=1)
+            # only split on the first colon: the provider specific data may contain colons itself,
+            # and splitting on all of them would raise a ValueError when unpacking
+            provider_type, data = secret_data.split(":", 1)
+            if not self.is_supported_secret_provider(provider_type):
+                return secret_data
+
             provider = self._get_credential_provider(provider_type)
             if provider is not None:
                 return provider.get_secret(data)

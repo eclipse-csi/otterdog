@@ -21,6 +21,13 @@ repos:
         args: [ --min-severity, low ]
   - repo: local
     hooks:
+      - id: no-shell-execution
+        name: Forbid Shell Based Process Execution
+        # a shell lets configuration supplied values be interpreted as shell syntax,
+        # use otterdog.utils.run_command_sync / asyncio.create_subprocess_exec instead
+        language: pygrep
+        types: [python]
+        entry: 'create_subprocess_shell|shell\s*=\s*True|getstatusoutput|os\.system|noqa:.*S60[245]'
       - id: ruff
         name: Ruff Linter
         entry: poetry run ruff check --fix

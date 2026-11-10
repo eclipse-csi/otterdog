@@ -11,7 +11,6 @@ from __future__ import annotations
 import abc
 import dataclasses
 import fnmatch
-import re
 from typing import TYPE_CHECKING, Any, Self, TypeVar, cast
 
 from jsonbender import K  # type: ignore
@@ -50,7 +49,9 @@ class Secret(ModelObject, abc.ABC):
             )
         else:
             if ":" in self.value:
-                provider_type, _ = re.split(":", self.value, maxsplit=1)
+                # only split on the first colon: the provider specific data may contain colons
+                # itself, and splitting on all of them would raise a ValueError when unpacking
+                provider_type, _ = self.value.split(":", 1)
                 resolved_secret = context.secret_resolver.is_supported_secret_provider(provider_type)
             else:
                 resolved_secret = False

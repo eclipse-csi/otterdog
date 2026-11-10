@@ -90,9 +90,16 @@ class CanonicalDiffOperation(Operation):
             await file.flush()
 
             try:
-                cmd = f"diff --label {name_a} --label {name_b} -u -w - {file.name}"
-                proc = await asyncio.create_subprocess_shell(
-                    cmd,
+                proc = await asyncio.create_subprocess_exec(
+                    "diff",
+                    "--label",
+                    name_a,
+                    "--label",
+                    name_b,
+                    "-u",
+                    "-w",
+                    "-",
+                    file.name,
                     stdin=asyncio.subprocess.PIPE,
                     stdout=asyncio.subprocess.PIPE,
                     stderr=asyncio.subprocess.PIPE,

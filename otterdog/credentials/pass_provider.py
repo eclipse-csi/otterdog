@@ -8,10 +8,9 @@
 
 from __future__ import annotations
 
-from subprocess import getstatusoutput
-
 from otterdog.credentials import CredentialPlaceHolders, CredentialProvider, Credentials
 from otterdog.logging import get_logger
+from otterdog.utils import run_command_sync
 
 _logger = get_logger(__name__)
 
@@ -42,9 +41,9 @@ class PassVault(CredentialProvider):
             os.environ["PASSWORD_STORE_DIR"] = password_store_dir
 
         _logger.debug("accessing pass vault")
-        status, output = getstatusoutput("pass ls")  # noqa: S605, S607
+        status, output, error = run_command_sync("pass", "ls")
         if status != 0:
-            raise RuntimeError(f"could not access pass vault:\n{output}")
+            raise RuntimeError(f"could not access pass vault:\n{error or output}")
 
         self._username_pattern = username_pattern
         self._password_pattern = password_pattern
@@ -122,15 +121,20 @@ class PassVault(CredentialProvider):
 
     @staticmethod
     def _retrieve_resolved_key(key: str, strict: bool = True) -> str:
-        status, secret = getstatusoutput(f"pass {key} 2>/dev/null")  # noqa: S605
-        if status != 0:
-            # run the process again, capturing any error output for debugging.
-            _, output = getstatusoutput(f"pass {key}")  # noqa: S605
+        # a key starting with a dash would be interpreted as an option by the pass cli
+        if not key or key.startswith("-"):
+            raise RuntimeError(f"invalid pass key '{key}'")
 
+        # use the explicit 'show' sub-command, otherwise a key named like a sub-command
+        # (e.g. 'rm' or 'insert') would be executed as such
+        status, secret, error = run_command_sync("pass", "show", key)
+        if status != 0:
+            # only report stderr, where pass and gpg write their diagnostics: stdout holds the
+            # secret value itself and must not end up in an exception message or the log
             if strict:
-                raise RuntimeError(f"'{key}' could not be retrieved from your pass vault:\n{output}")
+                raise RuntimeError(f"'{key}' could not be retrieved from your pass vault:\n{error}")
             else:
-                _logger.warning("'%s' could not be retrieved from your pass vault:\n%s", key, output)
+                _logger.warning("'%s' could not be retrieved from your pass vault:\n%s", key, error)
                 secret = ""
 
         return secret

@@ -7,6 +7,8 @@
 #  *******************************************************************************
 
 import os
+import subprocess
+import sys
 from io import StringIO
 from pathlib import Path
 
@@ -25,6 +27,7 @@ from otterdog.utils import (
     parse_template_url,
     patch_to_other,
     restrict_jsonnet_imports,
+    run_command_sync,
     snake_to_camel_case,
     snake_to_normal_case,
     write_patch_object_as_json,
@@ -262,3 +265,82 @@ def test_print_with_soft_wrap(method, long_string, soft_wrap, expected_newlines)
 
     # Assert newline count in captured output
     assert captured_output.getvalue().count("\n") == expected_newlines
+
+
+def test_run_command_sync_returns_streams_separately():
+    status, stdout, stderr = run_command_sync(
+        sys.executable,
+        "-c",
+        "import sys; sys.stdout.write('out'); sys.stderr.write('err'); sys.exit(3)",
+    )
+
+    assert status == 3
+    assert stdout == "out"
+    assert stderr == "err"
+
+
+def test_run_command_sync_strips_exactly_one_trailing_newline():
+    # the previous shell based implementation stripped a single trailing newline, the helper must too,
+    # otherwise every retrieved secret would silently change value
+    _, stdout, _ = run_command_sync(sys.executable, "-c", r"import sys; sys.stdout.write('secret\n\n')")
+    assert stdout == "secret\n"
+
+    _, stdout, _ = run_command_sync(sys.executable, "-c", r"import sys; sys.stdout.write('  padded  ')")
+    assert stdout == "  padded  "
+
+
+def test_run_command_sync_does_not_interpret_shell_metacharacters():
+    value = "$(echo substituted); echo chained && echo `backticked`"
+
+    _, stdout, _ = run_command_sync(
+        sys.executable,
+        "-c",
+        "import sys; sys.stdout.write(sys.argv[1])",
+        value,
+    )
+
+    # the value is handed to the process verbatim as a single argument
+    assert stdout == value
+
+
+def test_run_command_sync_never_uses_a_shell(monkeypatch):
+    captured = {}
+
+    def fake_run(args, **kwargs):
+        captured["args"] = args
+        captured["kwargs"] = kwargs
+        return subprocess.CompletedProcess(args, 0, "", "")
+
+    monkeypatch.setattr(subprocess, "run", fake_run)
+
+    run_command_sync("bw", "get", "item", "a; echo chained")
+
+    assert captured["args"] == ["bw", "get", "item", "a; echo chained"]
+    assert not captured["kwargs"].get("shell", False)
+
+
+def test_run_command_sync_reports_a_missing_executable(monkeypatch, tmp_path: Path):
+    # like a shell, report exit status 127 instead of raising, so that callers can turn it
+    # into a meaningful error (e.g. an inaccessible vault)
+    monkeypatch.setenv("PATH", str(tmp_path))
+
+    status, stdout, stderr = run_command_sync("pass", "ls")
+
+    assert status == 127
+    assert stdout == ""
+    assert "failed to execute 'pass'" in stderr
+
+
+def test_run_command_sync_inherits_the_environment(monkeypatch, tmp_path: Path):
+    # pass/bw/gpg are environment driven (PASSWORD_STORE_DIR, BW_SESSION, GPG_TTY);
+    # dropping the shell must not change what the child process sees
+    store = str(tmp_path / "store")
+    monkeypatch.setenv("PASSWORD_STORE_DIR", store)
+
+    _, stdout, _ = run_command_sync(
+        sys.executable,
+        "-c",
+        "import os, sys; sys.stdout.write(os.environ.get('PASSWORD_STORE_DIR', ''))",
+    )
+
+    assert stdout == store

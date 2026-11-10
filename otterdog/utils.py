@@ -394,6 +394,37 @@ async def run_command(cmd: str, *args: str, **kwargs) -> tuple[int, str, str]:
     return process.returncode, stdout.decode("utf-8"), stderr.decode("utf-8")  # type: ignore
 
 
+def _strip_trailing_newline(data: str) -> str:
+    return data.removesuffix("\n")
+
+
+def run_command_sync(cmd: str, *args: str) -> tuple[int, str, str]:
+    """
+    Runs a command with the given arguments, without involving a shell.
+
+    Arguments are handed to the process verbatim, so values originating from configuration
+    can never be interpreted as shell syntax.
+
+    If the command can not be executed (e.g. it is not installed), the exit status 127 of a
+    shell is returned together with the error as stderr, instead of raising an exception.
+
+    :return: a tuple of (returncode, stdout, stderr)
+    """
+    import subprocess
+
+    try:
+        process = subprocess.run([cmd, *args], capture_output=True, text=True, check=False)  # noqa: S603
+    except OSError as ex:
+        return 127, "", f"failed to execute '{cmd}': {ex}"
+
+    # strip a single trailing newline from each stream, matching the previous shell based behaviour
+    return (
+        process.returncode,
+        _strip_trailing_newline(process.stdout),
+        _strip_trailing_newline(process.stderr),
+    )
+
+
 _jsonnet_import_root: contextvars.ContextVar[str | None] = contextvars.ContextVar(
     "otterdog_jsonnet_import_root", default=None
 )

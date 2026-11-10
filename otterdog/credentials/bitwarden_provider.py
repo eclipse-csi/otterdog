@@ -9,10 +9,11 @@
 from __future__ import annotations
 
 import json
-import subprocess
+from typing import Any
 
 from otterdog.credentials import CredentialPlaceHolders, CredentialProvider, Credentials
 from otterdog.logging import get_logger
+from otterdog.utils import run_command_sync
 
 _logger = get_logger(__name__)
 
@@ -28,9 +29,9 @@ class BitwardenVault(CredentialProvider):
         self._api_token_key = api_token_key
 
         _logger.debug("unlocking bitwarden vault")
-        self._status, output = subprocess.getstatusoutput("bw unlock --check")  # noqa: S605, S607
+        self._status, output, error = run_command_sync("bw", "unlock", "--check")
         if self._status != 0:
-            raise RuntimeError(f"could not access bitwarden vault:\n{output}")
+            raise RuntimeError(f"could not access bitwarden vault:\n{error or output}")
 
         if not self.is_unlocked():
             raise RuntimeError("bitwarden vault is locked, run 'bw unlock' and follow instructions first")
@@ -41,6 +42,27 @@ class BitwardenVault(CredentialProvider):
 
     def is_unlocked(self) -> bool:
         return self._status == 0
+
+    @staticmethod
+    def _get_item(item_id: str) -> dict[str, Any]:
+        # an item id starting with a dash would be interpreted as an option by the bw cli
+        if not item_id or item_id.startswith("-"):
+            raise RuntimeError(f"invalid bitwarden item id '{item_id}'")
+
+        status, output, error = run_command_sync("bw", "get", "item", item_id)
+        if status != 0:
+            raise RuntimeError(f"item with id '{item_id}' not found in your bitwarden vault: {error or output}")
+
+        # the cli may emit additional output, only consider the json object itself
+        try:
+            start_index = output.index("{")
+            end_index = output.rindex("}")
+        except ValueError:
+            raise RuntimeError(
+                f"unexpected output while reading item with id '{item_id}' from your bitwarden vault"
+            ) from None
+
+        return json.loads(output[start_index : end_index + 1])
 
     def get_credentials(
         self, _placeholders: CredentialPlaceHolders, data: dict[str, str], only_token: bool = False
@@ -53,16 +75,8 @@ class BitwardenVault(CredentialProvider):
         if api_token_key is None:
             api_token_key = self.api_token_key
 
-        status, output = subprocess.getstatusoutput(f"bw get item {item_id}")  # noqa: S605
-        if status != 0:
-            raise RuntimeError(f"item with id '{item_id}' not found in your bitwarden vault: {output}")
-        else:
-            start_index = output.index("{")
-            end_index = output.rindex("}")
-            output = output[start_index : end_index + 1]
-
         # load the item json string and access the field containing the GitHub token
-        item = json.loads(output)
+        item = self._get_item(item_id)
 
         token_field = next(filter(lambda k: k["name"] == api_token_key, item.get("fields", [])), None)
         if token_field is None:
@@ -92,32 +106,22 @@ class BitwardenVault(CredentialProvider):
         return Credentials(username, password, totp_secret, github_token)
 
     def get_secret(self, data: str) -> str:
-        from re import split
-
         try:
-            item_id, secret_key = split("@", data)
-
-            status, output = subprocess.getstatusoutput(f"bw get item {item_id}")  # noqa: S605
-            if status != 0:
-                raise RuntimeError(f"item with id '{item_id}' not found in your bitwarden vault: {output}")
-
-            if status != 0:
-                raise RuntimeError(f"item with id '{item_id}' not found in your bitwarden vault")
-
-            # load the item json string and access the field containing the GitHub token
-            item = json.loads(output)
-
-            secret_field = next(filter(lambda k: k["name"] == secret_key, item.get("fields", [])), None)
-            if secret_field is None:
-                raise RuntimeError(f"field with key '{secret_key}' not found in item with id '{item_id}'")
-
-            secret = secret_field.get("value")
-            if secret is None:
-                raise RuntimeError(f"field with key '{secret_key}' is empty in item with id '{item_id}'")
-
-            return secret
+            item_id, secret_key = data.split("@", 1)
         except ValueError:
             raise RuntimeError(f"failed to parse secret data '{data}'") from None
+
+        item = self._get_item(item_id)
+
+        secret_field = next(filter(lambda k: k["name"] == secret_key, item.get("fields", [])), None)
+        if secret_field is None:
+            raise RuntimeError(f"field with key '{secret_key}' not found in item with id '{item_id}'")
+
+        secret = secret_field.get("value")
+        if secret is None:
+            raise RuntimeError(f"field with key '{secret_key}' is empty in item with id '{item_id}'")
+
+        return secret
 
     def __repr__(self):
         return f"BitWardenVault(api_token_key='{self.api_token_key}')"
