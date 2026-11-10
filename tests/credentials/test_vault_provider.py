@@ -30,7 +30,8 @@ class TestVaultProvider:
         assert provider._vault_addr == "https://secretsmanager.eclipse.org"
 
     @patch.dict(os.environ, {"VAULT_ADDR": "https://vault.test.com"}, clear=True)
-    def test_vault_provider_missing_token_batch_mode(self):
+    @patch("otterdog.credentials.vault_provider.VaultProvider._read_token_from_file", return_value=None)
+    def test_vault_provider_missing_token_batch_mode(self, _mock_read_token):
         """Test initialization fails when token missing in batch mode."""
         from otterdog.credentials.vault_provider import VaultProvider
 
