@@ -28,6 +28,15 @@ def _placeholders(org_name: str, github_id: str | None = None) -> CredentialPlac
     return CredentialPlaceHolders(org_name=org_name, github_id=github_id or org_name)
 
 
+@pytest.fixture(autouse=True)
+def _no_dotenv(monkeypatch):
+    """
+    Prevents EnvVault from loading a real .env file: python-dotenv searches the parent
+    directories of the package, so a .env file in e.g. the home directory would leak into the tests.
+    """
+    monkeypatch.setattr("otterdog.credentials.env_provider.load_dotenv", lambda: False)
+
+
 class TestBasicFunctionality:
     """Tests for core EnvVault functionality: loading .env files and retrieving credentials."""
 
