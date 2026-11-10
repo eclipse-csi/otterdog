@@ -10,16 +10,19 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from otterdog.models import LivePatch, LivePatchType
-from otterdog.utils import Change, IndentingPrinter, get_approval
+from rich.markup import escape
+
+from otterdog.models import LivePatch, LivePatchType, matches_delete_filter
+from otterdog.utils import Change, IndentingPrinter, get_approval, unwrap
 
 from .plan import PlanOperation
 
 if TYPE_CHECKING:
+    from collections.abc import Sequence
     from typing import Any
 
     from otterdog.config import OrganizationConfig, OtterdogConfig
-    from otterdog.models import ModelObject
+    from otterdog.models import ModelObject, ResourceSelector
 
     from .diff_operation import DiffResult
 
@@ -37,10 +40,13 @@ class ApplyOperation(PlanOperation):
         delete_resources: bool,
         resolve_secrets: bool = True,
         include_resources_with_secrets: bool = True,
+        *,
+        delete_filter: Sequence[ResourceSelector] = (),
     ):
         super().__init__(no_web_ui, repo_filter, update_webhooks, update_secrets, only_secrets, update_filter)
         self._force_processing = force_processing
         self._delete_resources = delete_resources
+        self._delete_filter = tuple(delete_filter)
         self._resolve_secrets = resolve_secrets
         self._include_resources_with_secrets = include_resources_with_secrets
 
@@ -59,6 +65,25 @@ class ApplyOperation(PlanOperation):
 
     def delete_resources(self) -> bool:
         return self._delete_resources
+
+    def delete_filter(self) -> tuple[ResourceSelector, ...]:
+        return self._delete_filter
+
+    def only_deletions(self) -> bool:
+        # a delete filter only applies the deletions it selects, the other changes are skipped
+        return self._delete_resources and len(self._delete_filter) > 0
+
+    def include_live_patch(self, patch: LivePatch) -> bool:
+        if not self.only_deletions():
+            return True
+
+        return patch.patch_type == LivePatchType.REMOVE and self._deletes(patch)
+
+    def _deletes(self, patch: LivePatch) -> bool:
+        """Returns whether the resource removed by a patch is deleted."""
+        return self._delete_resources and matches_delete_filter(
+            unwrap(patch.current_object), patch.parent_object, self._delete_filter
+        )
 
     def handle_add_object(
         self,
@@ -103,17 +128,34 @@ class ApplyOperation(PlanOperation):
         if result.validation_status.errors > 0:
             return result.validation_status.errors
 
+        removals = [p for p in result.patches if p.patch_type == LivePatchType.REMOVE]
+        if self._delete_resources:
+            for selector in self._delete_filter:
+                if not any(selector.matches(unwrap(p.current_object), p.parent_object) for p in removals):
+                    self.printer.print_warn(
+                        f"no resource to delete matches the delete filter '{escape(str(selector))}'."
+                    )
+
+        skipped_message = (
+            f"{result.diff_status.skipped} other change(s) are skipped, only the deletions selected by "
+            "'--delete-filter' are applied."
+        )
+
         if result.diff_status.total_changes(self._delete_resources) == 0:
             self.printer.println("No changes required.")
             if not self._delete_resources and result.diff_status.deletions > 0:
                 self.printer.println(
                     f"{result.diff_status.deletions} resource(s) would be deleted with flag '--delete-resources'."
                 )
+            if result.diff_status.skipped > 0:
+                self.printer.println(skipped_message)
             return 0
 
         if not self._force_processing:
             if result.diff_status.deletions > 0 and not self._delete_resources:
                 self.printer.println("No resource will be removed, use flag '--delete-resources' to delete them.\n")
+            if result.diff_status.skipped > 0:
+                self.printer.println(f"{skipped_message}\n")
 
             self.printer.println(
                 "Do you want to perform these actions? (Only 'yes' or 'y' will be accepted to approve)\n"
@@ -143,7 +185,7 @@ class ApplyOperation(PlanOperation):
         with Progress(console=self.printer.console) as progress:
             task = progress.add_task(self.printer.current_indentation, total=len(patches_ordered_by_readonly_status))
             for patch in patches_ordered_by_readonly_status:
-                if patch.patch_type == LivePatchType.REMOVE and not self._delete_resources:
+                if patch.patch_type == LivePatchType.REMOVE and not self._deletes(patch):
                     progress.advance(task)
                     continue
                 else:
@@ -157,13 +199,14 @@ class ApplyOperation(PlanOperation):
                         progress.advance(task)
 
         delete_snippet = "deleted" if self._delete_resources else "live resources ignored"
+        skipped_snippet = f", {result.diff_status.skipped} skipped" if result.diff_status.skipped > 0 else ""
 
         self.printer.println("\nDone.")
 
         self.printer.println(
             f"\n[bold]Executed plan:[/] {result.diff_status.additions} added, "
             f"{result.diff_status.differences} changed, "
-            f"{result.diff_status.deletions} {delete_snippet}.",
+            f"{result.diff_status.deletions} {delete_snippet}{skipped_snippet}.",
             highlight=True,
         )
 

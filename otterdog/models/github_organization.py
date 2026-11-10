@@ -300,7 +300,9 @@ class GitHubOrganization:
         await _load_attached_code_security_configurations(self, self.github_id, provider)
 
     def plan_code_security_configurations(
-        self, current_organization: GitHubOrganization, delete_resources: bool
+        self,
+        current_organization: GitHubOrganization,
+        deletes: Callable[[OrganizationCodeSecurityConfiguration], bool],
     ) -> CodeSecurityConfigurationPlan:
         """
         Plans the code security configurations as they are once the patches are applied, to plan the settings
@@ -308,11 +310,12 @@ class GitHubOrganization:
         is skipped, overlaid with the values managed by the expected configurations.
         """
         expected_configurations = {x.name: x for x in self.code_security_configurations}
-        deleted_configurations = (
-            {x.name for x in current_organization.code_security_configurations} - set(expected_configurations)
-            if delete_resources
-            else set()
-        )
+        # the deleted configurations, the ones that are not expected and whose deletion is not skipped
+        deleted_configurations = {
+            x.name
+            for x in current_organization.code_security_configurations
+            if x.name not in expected_configurations and deletes(x)
+        }
 
         # the configurations of the organization the patches are generated against, which are not the ones
         # retrieved from GitHub if the current organization is loaded from a file
@@ -1046,7 +1049,7 @@ class GitHubOrganization:
             handle_ruleset_patch,
         )
         context.code_security_configuration_plan = self.plan_code_security_configurations(
-            current_organization, context.delete_resources
+            current_organization, context.deletes
         )
         self._set_costs_of_code_security_configurations(current_organization, context.code_security_configuration_plan)
         OrganizationCodeSecurityConfiguration.generate_live_patch_of_list(

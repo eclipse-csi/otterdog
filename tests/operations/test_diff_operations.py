@@ -19,7 +19,7 @@ from otterdog.config import OrganizationConfig
 from otterdog.credentials import CredentialPlaceHolders
 from otterdog.credentials.secret_access_policy import SecretAccessMode, SecretAccessPolicy
 from otterdog.jsonnet import JsonnetConfig
-from otterdog.models import LivePatchType
+from otterdog.models import LivePatchContext, LivePatchType, ResourceSelector
 from otterdog.models.github_organization import GitHubOrganization
 from otterdog.models.team import Team
 from otterdog.operations.apply import ApplyOperation
@@ -494,3 +494,268 @@ def test_local_plan_uses_the_deletion_policy_of_the_apply_it_previews(delete_res
     operation = LocalPlanOperation("-BASE", "*", False, False, False, "", delete_resources=delete_resources)
 
     assert operation.delete_resources() is delete_resources
+
+
+def _selectors(*selectors: str) -> tuple[ResourceSelector, ...]:
+    return tuple(ResourceSelector.parse(x) for x in selectors)
+
+
+@pytest.mark.parametrize("delete_resources", [True, False])
+def test_live_patch_context_only_deletes_with_delete_resources(tmp_path, delete_resources):
+    _, current_org = _org_config_with_live_variables(tmp_path)
+    context = LivePatchContext(
+        "test-org",
+        "*",
+        False,
+        False,
+        "*",
+        None,
+        pretend.stub(),
+        delete_resources=delete_resources,
+        delete_filter=_selectors("org_variable"),
+    )
+    repository = current_org.repositories[0]
+
+    assert context.deletes(current_org.variables[0]) is delete_resources
+    assert context.deletes(repository.variables[0], repository) is False
+
+
+def _org_config_with_live_variables(tmp_path: Path, base_differs: bool = False):
+    """
+    Returns an organization config whose live configuration has an organization variable and a repository variable
+    that the desired configuration does not define, and the current organization.
+    """
+    org_config = _create_org_config(tmp_path, with_config_files=True, base_differs=base_differs)
+    base_file = Path(f"{org_config.jsonnet_config.org_config_file}-BASE")
+    current_data = json.loads(base_file.read_text(encoding="utf-8"))
+    current_data["variables"] = [
+        {"name": "ORG_VARIABLE", "value": "org", "visibility": "public", "selected_repositories": []}
+    ]
+    current_data["repositories"][0]["variables"] = [{"name": "REPO_VARIABLE", "value": "repo"}]
+    base_file.write_text(json.dumps(current_data), encoding="utf-8")
+    return org_config, GitHubOrganization.load_from_file(org_config.github_id, str(base_file))
+
+
+async def _apply_with_live_variables(
+    tmp_path, monkeypatch, delete_resources: bool, delete_filter: tuple[str, ...], base_differs: bool = False
+) -> tuple[str, pretend.stub]:
+    """Applies a configuration without the live variables, and returns the output and the GitHub client."""
+    org_config, current_org = _org_config_with_live_variables(tmp_path, base_differs)
+    output = StringIO()
+    operation = ApplyOperation(
+        True, True, "*", False, False, False, "", delete_resources, delete_filter=_selectors(*delete_filter)
+    )
+    client = pretend.stub(
+        close=AsyncMock(),
+        delete_org_variable=AsyncMock(),
+        delete_repo_variable=AsyncMock(),
+        update_repo=AsyncMock(),
+        get_skipped_repository_reason=lambda org_id, repo_name: None,
+    )
+    _initialize_operation(operation, monkeypatch, output, client, current_org)
+    # displays the warnings of the operation
+    operation.init(operation.config, IndentingPrinter(output, log_level=LogLevel.WARN))
+
+    assert await operation.execute(org_config) == 0
+    return output.getvalue(), client
+
+
+async def test_apply_with_delete_filter_only_applies_the_selected_deletions(tmp_path, monkeypatch):
+    """
+    The other deletions and the other changes, here of the description of a repository, are skipped and not
+    displayed.
+    """
+    output, client = await _apply_with_live_variables(tmp_path, monkeypatch, True, ("org_*",), base_differs=True)
+
+    client.delete_org_variable.assert_awaited_once_with("test-org", "ORG_VARIABLE")
+    client.delete_repo_variable.assert_not_awaited()
+    client.update_repo.assert_not_awaited()
+    assert 'remove org_variable[name="ORG_VARIABLE"]' in output
+    assert "REPO_VARIABLE" not in output
+    assert "description" not in output
+    assert "0 added, 0 changed, 1 deleted, 2 skipped." in output
+    assert "Warning" not in output
+
+
+@pytest.mark.parametrize(
+    "selector",
+    [
+        'repo_variable[name="REPO_VARIABLE"]',
+        "repo_variable[name=REPO_*]",
+        'repo_variable[name="REPO_*", repository=".eclipsefdn-private"]',
+        "repo_variable[repository=.eclipsefdn-*]",
+    ],
+)
+async def test_apply_with_delete_filter_selects_resources_by_key(tmp_path, monkeypatch, selector):
+    output, client = await _apply_with_live_variables(tmp_path, monkeypatch, True, (selector,))
+
+    client.delete_org_variable.assert_not_awaited()
+    client.delete_repo_variable.assert_awaited_once()
+    assert "0 added, 0 changed, 1 deleted, 1 skipped." in output
+
+
+@pytest.mark.parametrize(
+    ("delete_resources", "summary"),
+    [
+        (True, "0 added, 1 changed, 2 deleted."),
+        # nothing is deleted
+        (False, "1 changed, 2 live resources ignored."),
+    ],
+)
+async def test_apply_without_delete_filter_keeps_its_deletion_policy(tmp_path, monkeypatch, delete_resources, summary):
+    output, client = await _apply_with_live_variables(tmp_path, monkeypatch, delete_resources, (), base_differs=True)
+
+    assert client.delete_org_variable.await_count == int(delete_resources)
+    assert client.delete_repo_variable.await_count == int(delete_resources)
+    client.update_repo.assert_awaited_once()
+    assert 'remove org_variable[name="ORG_VARIABLE"]' in output
+    assert 'remove repo_variable[name="REPO_VARIABLE"' in output
+    assert summary in output
+    assert "skipped" not in output
+
+
+@pytest.mark.parametrize("selector", ["org_variables", 'org_variable[name="OTHER"]', "org_variable[nme=ORG_VARIABLE]"])
+async def test_apply_warns_about_a_delete_filter_selecting_no_resource_to_delete(tmp_path, monkeypatch, selector):
+    """
+    A delete filter with a typo deletes nothing, which is reported instead of silently ignored.
+    """
+    output, client = await _apply_with_live_variables(tmp_path, monkeypatch, True, (selector,))
+
+    client.delete_org_variable.assert_not_awaited()
+    client.delete_repo_variable.assert_not_awaited()
+    assert f"no resource to delete matches the delete filter '{selector}'." in output
+    assert "No changes required." in output
+    assert "2 other change(s) are skipped, only the deletions selected by '--delete-filter' are applied." in output
+
+
+@pytest.mark.parametrize("delete_filter", [("org_variable",), ()])
+def test_local_apply_uses_the_delete_filter(delete_filter):
+    operation = LocalApplyOperation(
+        "-BASE", True, True, "*", False, False, False, "", True, delete_filter=_selectors(*delete_filter)
+    )
+
+    assert [str(x) for x in operation.delete_filter()] == list(delete_filter)
+
+
+_ENVIRONMENT = {
+    "name": "prod",
+    "wait_timer": 0,
+    "reviewers": [],
+    "prevent_self_review": False,
+    "deployment_branch_policy": "all",
+    "branch_policies": [],
+}
+
+
+def _org_config_with_renamed_repository(tmp_path: Path) -> tuple[OrganizationConfig, str]:
+    """
+    Returns an organization config whose desired configuration renames a repository to 'new-name' with an alias,
+    and whose live repository has a variable and an environment variable that the desired configuration does not
+    define, and the current name of the repository.
+    """
+    org_config = _create_org_config(tmp_path, with_config_files=True, base_differs=False)
+    config_file = Path(org_config.jsonnet_config.org_config_file)
+
+    expected_data = json.loads(config_file.read_text(encoding="utf-8"))
+    current_name = expected_data["repositories"][0]["name"]
+    expected_data["repositories"][0].update(name="new-name", aliases=[current_name], environments=[_ENVIRONMENT])
+    config_file.write_text(json.dumps(expected_data), encoding="utf-8")
+
+    base_file = Path(f"{config_file}-BASE")
+    current_data = json.loads(base_file.read_text(encoding="utf-8"))
+    current_data["repositories"][0].update(
+        variables=[{"name": "REPO_VARIABLE", "value": "repo"}],
+        environments=[{**_ENVIRONMENT, "variables": [{"name": "ENV_VARIABLE", "value": "env"}]}],
+    )
+    base_file.write_text(json.dumps(current_data), encoding="utf-8")
+    return org_config, current_name
+
+
+async def _apply_to_renamed_repository(
+    tmp_path, monkeypatch, local: bool, delete_filter: tuple[str, ...]
+) -> tuple[str, pretend.stub, str]:
+    """
+    Applies with deletions enabled a configuration renaming a repository, with apply or local-apply, and returns the
+    output, the GitHub client and the current name of the repository.
+    """
+    org_config, current_name = _org_config_with_renamed_repository(tmp_path)
+    selectors = _selectors(*delete_filter)
+    current_org = None
+    if local:
+        operation: ApplyOperation = LocalApplyOperation(
+            "-BASE", True, True, "*", False, False, False, "", True, delete_filter=selectors
+        )
+    else:
+        operation = ApplyOperation(True, True, "*", False, False, False, "", True, delete_filter=selectors)
+        current_org = GitHubOrganization.load_from_file(
+            org_config.github_id, f"{org_config.jsonnet_config.org_config_file}-BASE"
+        )
+    client = pretend.stub(
+        close=AsyncMock(),
+        update_repo=AsyncMock(),
+        delete_repo_variable=AsyncMock(),
+        delete_environment_variable=AsyncMock(),
+        get_skipped_repository_reason=lambda org_id, repo_name: None,
+    )
+    output = StringIO()
+    _initialize_operation(operation, monkeypatch, output, client, current_org)
+
+    assert await operation.execute(org_config) == 0
+    return output.getvalue(), client, current_name
+
+
+_APPLY_VARIANTS = pytest.mark.parametrize("local", [False, True], ids=["apply", "local-apply"])
+
+
+@_APPLY_VARIANTS
+@pytest.mark.parametrize("selector", ["repo_variable", "repo_variable[repository=.eclipsefdn-*]"])
+async def test_apply_with_delete_filter_deletes_the_resources_of_a_renamed_repository_by_its_current_name(
+    tmp_path, monkeypatch, local, selector
+):
+    """
+    The renaming of a repository is skipped with a delete filter, the selected deletions of its resources target the
+    repository with its current name, by which they are also selected and displayed.
+    """
+    output, client, current_name = await _apply_to_renamed_repository(tmp_path, monkeypatch, local, (selector,))
+
+    client.update_repo.assert_not_awaited()
+    client.delete_repo_variable.assert_awaited_once_with("test-org", current_name, "REPO_VARIABLE")
+    client.delete_environment_variable.assert_not_awaited()
+    assert f'remove repo_variable[name="REPO_VARIABLE", repository={current_name}]' in output
+    assert "new-name" not in output
+
+
+@_APPLY_VARIANTS
+async def test_apply_with_delete_filter_deletes_the_environment_resources_of_a_renamed_repository(
+    tmp_path, monkeypatch, local
+):
+    _, client, current_name = await _apply_to_renamed_repository(tmp_path, monkeypatch, local, ("env_variable",))
+
+    client.update_repo.assert_not_awaited()
+    client.delete_environment_variable.assert_awaited_once_with("test-org", current_name, "prod", "ENV_VARIABLE")
+    client.delete_repo_variable.assert_not_awaited()
+
+
+@_APPLY_VARIANTS
+async def test_apply_with_delete_filter_does_not_select_a_renamed_repository_by_its_new_name(
+    tmp_path, monkeypatch, local
+):
+    output, client, _ = await _apply_to_renamed_repository(
+        tmp_path, monkeypatch, local, ("repo_variable[repository=new-name]",)
+    )
+
+    client.delete_repo_variable.assert_not_awaited()
+    assert "No changes required." in output
+
+
+@_APPLY_VARIANTS
+async def test_apply_without_delete_filter_deletes_the_resources_of_a_renamed_repository_by_its_new_name(
+    tmp_path, monkeypatch, local
+):
+    """Without delete filter, the repository is renamed before the deletions of its resources."""
+    _, client, current_name = await _apply_to_renamed_repository(tmp_path, monkeypatch, local, ())
+
+    assert client.update_repo.await_args.args[1] == current_name
+    assert client.update_repo.await_args.args[2]["name"] == "new-name"
+    client.delete_repo_variable.assert_awaited_once_with("test-org", "new-name", "REPO_VARIABLE")
+    client.delete_environment_variable.assert_awaited_once_with("test-org", "new-name", "prod", "ENV_VARIABLE")

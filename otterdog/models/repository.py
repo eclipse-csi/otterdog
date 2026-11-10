@@ -1554,10 +1554,14 @@ class Repository(ModelObject):
                     )
                 )
 
+        # the repository that nested resources belong to once the patches are applied, or its current state if only
+        # deletions are applied, e.g. a repository that is renamed keeps its current name
+        children_parent = current_object if context.only_deletions and current_object is not None else coerced_object
+
         RepositoryWebhook.generate_live_patch_of_list(
             coerced_object.webhooks,
             current_object.webhooks if current_object is not None else [],
-            coerced_object,
+            children_parent,
             context,
             handler,
         )
@@ -1565,7 +1569,7 @@ class Repository(ModelObject):
         RepositorySecret.generate_live_patch_of_list(
             coerced_object.secrets,
             current_object.secrets if current_object is not None else [],
-            coerced_object,
+            children_parent,
             context,
             handler,
         )
@@ -1573,7 +1577,7 @@ class Repository(ModelObject):
         RepositoryDependabotSecret.generate_live_patch_of_list(
             coerced_object.dependabot_secrets,
             current_object.dependabot_secrets if current_object is not None else [],
-            coerced_object,
+            children_parent,
             context,
             handler,
         )
@@ -1581,7 +1585,7 @@ class Repository(ModelObject):
         RepositoryCodespacesSecret.generate_live_patch_of_list(
             coerced_object.codespaces_secrets,
             current_object.codespaces_secrets if current_object is not None else [],
-            coerced_object,
+            children_parent,
             context,
             handler,
         )
@@ -1589,7 +1593,7 @@ class Repository(ModelObject):
         RepositoryVariable.generate_live_patch_of_list(
             coerced_object.variables,
             current_object.variables if current_object is not None else [],
-            coerced_object,
+            children_parent,
             context,
             handler,
         )
@@ -1597,7 +1601,7 @@ class Repository(ModelObject):
         Environment.generate_live_patch_of_list(
             coerced_object.environments,
             current_object.environments if current_object is not None else [],
-            coerced_object,
+            children_parent,
             context,
             handler,
         )
@@ -1605,11 +1609,11 @@ class Repository(ModelObject):
         # only take branch protection rules of non-archive projects into account
         # if the change to archived happens in this operation, still perform any
         # other changes, the archiving will be done last.
-        if coerced_object.archived is False or changes_object_to_readonly is True:
+        if children_parent.archived is False or changes_object_to_readonly is True:
             BranchProtectionRule.generate_live_patch_of_list(
                 coerced_object.branch_protection_rules,
                 (current_object.branch_protection_rules if current_object is not None else []),
-                coerced_object,
+                children_parent,
                 context,
                 handler,
             )
@@ -1617,7 +1621,7 @@ class Repository(ModelObject):
             RepositoryRuleset.generate_live_patch_of_list(
                 coerced_object.rulesets,
                 current_object.rulesets if current_object is not None else [],
-                coerced_object,
+                children_parent,
                 context,
                 handler,
             )

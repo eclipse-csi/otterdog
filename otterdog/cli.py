@@ -264,6 +264,33 @@ _no_web_ui_option = click.option(
 )
 
 
+def _parse_delete_filter(ctx: click.Context, param: click.Parameter, values: tuple[str, ...]):
+    from otterdog.models import ResourceSelector
+
+    try:
+        return tuple(ResourceSelector.parse(x) for x in values)
+    except ValueError as e:
+        raise click.BadParameter(str(e)) from e
+
+
+_delete_filter_option = click.option(
+    "--delete-filter",
+    "delete_filter",
+    multiple=True,
+    metavar="SELECTOR",
+    callback=_parse_delete_filter,
+    help="only applies the deletions of the resources selected by their type, optionally followed by their key as "
+    "displayed by plan, using shell patterns, e.g. 'org_code_security_configuration' or "
+    "'org_code_security_configuration[name=\"Legacy*\"]', requires '--delete-resources', can be repeated",
+)
+
+
+def _check_delete_filter(delete_filter: tuple, delete_resources: bool) -> None:
+    # a delete filter only narrows the deletions enabled by --delete-resources, it never enables them
+    if len(delete_filter) > 0 and not delete_resources:
+        raise click.UsageError("option '--delete-filter' requires '--delete-resources'")
+
+
 @cli.command(cls=StdCommand)
 @_no_web_ui_option
 def show_live(organizations: list[str], no_web_ui):
@@ -670,6 +697,7 @@ def local_plan(
     default=False,
     help="enables deletion of resources if they are missing in the definition",
 )
+@_delete_filter_option
 def apply(
     organizations: list[str],
     force,
@@ -680,11 +708,14 @@ def apply(
     only_secrets,
     update_filter,
     delete_resources,
+    delete_filter,
 ):
     """
     Apply changes based on the current configuration to the live configuration at GitHub.
     """
     from otterdog.operations.apply import ApplyOperation
+
+    _check_delete_filter(delete_filter, delete_resources)
 
     _execute_operation(
         organizations,
@@ -697,6 +728,7 @@ def apply(
             only_secrets=only_secrets,
             update_filter=update_filter,
             delete_resources=delete_resources,
+            delete_filter=delete_filter,
         ),
     )
 
@@ -760,6 +792,7 @@ def apply(
     default=False,
     help="enables deletion of resources if they are missing in the definition",
 )
+@_delete_filter_option
 def local_apply(
     organizations: list[str],
     force,
@@ -770,12 +803,15 @@ def local_apply(
     only_secrets,
     update_filter,
     delete_resources,
+    delete_filter,
     suffix,
 ):
     """
     Apply changes based on the current configuration to another local configuration.
     """
     from otterdog.operations.local_apply import LocalApplyOperation
+
+    _check_delete_filter(delete_filter, delete_resources)
 
     _execute_operation(
         organizations,
@@ -789,6 +825,7 @@ def local_apply(
             only_secrets=only_secrets,
             update_filter=update_filter,
             delete_resources=delete_resources,
+            delete_filter=delete_filter,
         ),
     )
 

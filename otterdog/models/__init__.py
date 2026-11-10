@@ -9,7 +9,9 @@
 from __future__ import annotations
 
 import dataclasses
+import fnmatch
 import os
+import re
 from abc import ABC, abstractmethod
 from enum import Enum
 from typing import TYPE_CHECKING, Any, Generic, Protocol, Self, TypeVar, cast, final
@@ -232,8 +234,142 @@ class LivePatchContext:
     modified_org_workflow_settings: dict[str, Change] = dataclasses.field(default_factory=dict)
     # whether resources that are not expected are deleted
     delete_resources: bool = False
+    # selects the resources that are deleted, all of them if empty
+    delete_filter: Sequence[ResourceSelector] = ()
+    # whether only deletions are applied: the other changes, e.g. renaming a repository, are skipped, so the patches
+    # of nested resources are generated against their current parent
+    only_deletions: bool = False
     # the code security configurations as they are once the patches are applied, to plan repositories
     code_security_configuration_plan: CodeSecurityConfigurationPlan | None = None
+
+    def deletes(self, model_object: ModelObject, parent_object: ModelObject | None = None) -> bool:
+        """Returns whether the given resource is deleted when it is not expected."""
+        return self.delete_resources and matches_delete_filter(model_object, parent_object, self.delete_filter)
+
+
+_SELECTOR_TYPE_PATTERN = re.compile(r"[^\s\[\]]+")
+_SELECTOR_NAME_PATTERN = re.compile(r"[A-Za-z_]\w*")
+
+
+@dataclasses.dataclass(frozen=True)
+class ResourceSelector:
+    """
+    Selects resources by their type, and optionally by their key or the key of their parent, written like the header
+    of a resource displayed by plan, e.g. 'org_code_security_configuration' or
+    'org_code_security_configuration[name="Legacy*"]'. The type and the values are shell patterns, a value can
+    be quoted, and a condition names either the key of the resource, e.g. 'name', or the type of its parent, e.g.
+    'repository'.
+    """
+
+    selector: str
+    model_object_name: str
+    conditions: tuple[tuple[str, str], ...] = ()
+
+    @classmethod
+    def parse(cls, selector: str) -> ResourceSelector:
+        text = selector.strip()
+        model_object_name, bracket, conditions = text.partition("[")
+        model_object_name = model_object_name.strip()
+        if _SELECTOR_TYPE_PATTERN.fullmatch(model_object_name) is None or (bracket and not conditions.endswith("]")):
+            raise ValueError(f"invalid resource selector '{selector}', expected 'type' or 'type[key=value, ...]'")
+
+        if not bracket:
+            return cls(selector, model_object_name)
+
+        return cls(selector, model_object_name, tuple(_parse_selector_conditions(selector, conditions[:-1])))
+
+    def matches(self, model_object: ModelObject, parent_object: ModelObject | None = None) -> bool:
+        if not fnmatch.fnmatchcase(model_object.model_object_name, self.model_object_name):
+            return False
+
+        for name, pattern in self.conditions:
+            value = _get_selected_value(name, model_object, parent_object)
+            if value is None or not fnmatch.fnmatchcase(value, pattern):
+                return False
+
+        return True
+
+    def __str__(self) -> str:
+        return self.selector
+
+
+def _parse_selector_conditions(selector: str, text: str) -> list[tuple[str, str]]:
+    """Parses the conditions of a resource selector, e.g. 'name="Legacy*", repository=my-repo'."""
+    conditions: list[tuple[str, str]] = []
+    position = 0
+    try:
+        while True:
+            name, value, position = _parse_selector_condition(text, position)
+            conditions.append((name, value))
+
+            position = _skip_whitespace(text, position)
+            if position == len(text):
+                return conditions
+            if text[position] != ",":
+                raise ValueError(f"expected ',' at position {position}")
+            position += 1
+    except ValueError as e:
+        raise ValueError(
+            f"invalid resource selector '{selector}', expected conditions like 'name=\"value\"' separated by commas"
+        ) from e
+
+
+def _parse_selector_condition(text: str, position: int) -> tuple[str, str, int]:
+    """
+    Parses a condition 'name=value' of a resource selector starting at the given position, and returns its name,
+    its value and the position after it.
+    """
+    separator = text.find("=", position)
+    if separator < 0:
+        raise ValueError(f"expected '=' after position {position}")
+
+    name = text[position:separator].strip()
+    if _SELECTOR_NAME_PATTERN.fullmatch(name) is None:
+        raise ValueError(f"invalid name '{name}'")
+
+    value, position = _parse_selector_value(text, _skip_whitespace(text, separator + 1))
+    return name, value, position
+
+
+def _parse_selector_value(text: str, position: int) -> tuple[str, int]:
+    """Parses a value of a resource selector starting at the given position, and returns it and the position after it."""
+    if text.startswith('"', position):
+        # a quoted value can contain spaces, commas and brackets
+        end = text.find('"', position + 1)
+        if end < 0:
+            raise ValueError(f"unclosed quote at position {position}")
+        return text[position + 1 : end], end + 1
+
+    comma = text.find(",", position)
+    end = len(text) if comma < 0 else comma
+    value = text[position:end].strip()
+    if '"' in value:
+        raise ValueError(f"unexpected quote in the value '{value}'")
+    return value, end
+
+
+def _skip_whitespace(text: str, position: int) -> int:
+    while position < len(text) and text[position].isspace():
+        position += 1
+    return position
+
+
+def _get_selected_value(name: str, model_object: ModelObject, parent_object: ModelObject | None) -> str | None:
+    """Returns the value of the key of a resource or of its parent that a selector names, as displayed by plan."""
+    if model_object.is_keyed() and model_object.get_key() == name:
+        return str(model_object.get_key_value())
+
+    if parent_object is not None and parent_object.is_keyed() and parent_object.model_object_name == name:
+        return str(parent_object.get_key_value())
+
+    return None
+
+
+def matches_delete_filter(
+    model_object: ModelObject, parent_object: ModelObject | None, delete_filter: Sequence[ResourceSelector]
+) -> bool:
+    """Returns whether a resource is selected by a delete filter, an empty filter selecting all resources."""
+    return len(delete_filter) == 0 or any(x.matches(model_object, parent_object) for x in delete_filter)
 
 
 class LivePatchHandler(Protocol):
