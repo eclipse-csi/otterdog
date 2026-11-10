@@ -295,42 +295,57 @@ class ResourceSelector:
 
 def _parse_selector_conditions(selector: str, text: str) -> list[tuple[str, str]]:
     """Parses the conditions of a resource selector, e.g. 'name="Legacy*", repository=my-repo'."""
-    error = ValueError(
-        f"invalid resource selector '{selector}', expected conditions like 'name=\"value\"' separated by commas"
-    )
-
     conditions: list[tuple[str, str]] = []
     position = 0
-    while True:
-        separator = text.find("=", position)
-        name = text[position:separator].strip()
-        if separator < 0 or _SELECTOR_NAME_PATTERN.fullmatch(name) is None:
-            raise error
+    try:
+        while True:
+            name, value, position = _parse_selector_condition(text, position)
+            conditions.append((name, value))
 
-        value_start = _skip_whitespace(text, separator + 1)
+            position = _skip_whitespace(text, position)
+            if position == len(text):
+                return conditions
+            if text[position] != ",":
+                raise ValueError(f"expected ',' at position {position}")
+            position += 1
+    except ValueError as e:
+        raise ValueError(
+            f"invalid resource selector '{selector}', expected conditions like 'name=\"value\"' separated by commas"
+        ) from e
 
-        if text.startswith('"', value_start):
-            # a quoted value can contain spaces, commas and brackets
-            value_end = text.find('"', value_start + 1)
-            if value_end < 0:
-                raise error
-            value = text[value_start + 1 : value_end]
-            position = value_end + 1
-        else:
-            comma = text.find(",", value_start)
-            position = len(text) if comma < 0 else comma
-            value = text[value_start:position].strip()
-            if '"' in value:
-                raise error
 
-        conditions.append((name, value))
+def _parse_selector_condition(text: str, position: int) -> tuple[str, str, int]:
+    """
+    Parses a condition 'name=value' of a resource selector starting at the given position, and returns its name,
+    its value and the position after it.
+    """
+    separator = text.find("=", position)
+    if separator < 0:
+        raise ValueError(f"expected '=' after position {position}")
 
-        position = _skip_whitespace(text, position)
-        if position == len(text):
-            return conditions
-        if text[position] != ",":
-            raise error
-        position += 1
+    name = text[position:separator].strip()
+    if _SELECTOR_NAME_PATTERN.fullmatch(name) is None:
+        raise ValueError(f"invalid name '{name}'")
+
+    value, position = _parse_selector_value(text, _skip_whitespace(text, separator + 1))
+    return name, value, position
+
+
+def _parse_selector_value(text: str, position: int) -> tuple[str, int]:
+    """Parses a value of a resource selector starting at the given position, and returns it and the position after it."""
+    if text.startswith('"', position):
+        # a quoted value can contain spaces, commas and brackets
+        end = text.find('"', position + 1)
+        if end < 0:
+            raise ValueError(f"unclosed quote at position {position}")
+        return text[position + 1 : end], end + 1
+
+    comma = text.find(",", position)
+    end = len(text) if comma < 0 else comma
+    value = text[position:end].strip()
+    if '"' in value:
+        raise ValueError(f"unexpected quote in the value '{value}'")
+    return value, end
 
 
 def _skip_whitespace(text: str, position: int) -> int:
