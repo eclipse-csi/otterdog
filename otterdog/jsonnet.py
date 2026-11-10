@@ -37,10 +37,11 @@ def _lock_across_processes(lock_file: str) -> Iterator[None]:
         import fcntl
     except ImportError:
         # not available on Windows, the processes are not synchronized there
+        _logger.debug("cannot lock '%s' on this platform, other otterdog processes are not waited for", lock_file)
         yield
         return
 
-    os.makedirs(os.path.dirname(lock_file), exist_ok=True)
+    Path(lock_file).parent.mkdir(parents=True, exist_ok=True)
     with open(lock_file, "a") as file:
         # released when the file is closed, also when the process is killed
         fcntl.flock(file, fcntl.LOCK_EX)
@@ -631,7 +632,7 @@ class JsonnetConfig:
         import git
 
         # _template_lock only holds within this process: other otterdog processes using the same directory, e.g. several
-        # otterdog plan run in parallel, would clone the template or pull its changes at the same time and fail
+        # otterdog plan commands running in parallel, would clone the template or pull its changes at once and fail
         with _lock_across_processes(f"{template_dir}.lock"):
             if not os.path.exists(f"{template_dir}/.git"):
                 _logger.debug("cloning base template from url '%s'", self._base_template_repo_url)
