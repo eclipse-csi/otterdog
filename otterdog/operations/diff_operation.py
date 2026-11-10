@@ -246,6 +246,7 @@ class DiffOperation(Operation):
                 expected_org.settings,
                 delete_resources=self.delete_resources(),
                 delete_filter=self.delete_filter(),
+                only_deletions=self.only_deletions(),
             )
             expected_org.generate_live_patch(current_org, context, handle)
 
@@ -269,6 +270,10 @@ class DiffOperation(Operation):
     def delete_filter(self) -> tuple[ResourceSelector, ...]:
         """Selects the resources that are deleted, all of them if empty."""
         return ()
+
+    def only_deletions(self) -> bool:
+        """Indicates whether only deletions are applied, the other changes being skipped."""
+        return False
 
     def include_live_patch(self, patch: LivePatch) -> bool:
         """Indicates whether a patch is part of the diff, the ones that are left out are only counted."""

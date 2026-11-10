@@ -377,10 +377,14 @@ class Environment(ModelObject):
                     )
                 )
 
+        # the environment of the repository as it is once the patches are applied, or its current state if only
+        # deletions are applied, e.g. it belongs to a repository that keeps its current name
+        children_parent = current_object if context.only_deletions and current_object is not None else expected_object
+
         EnvironmentSecret.generate_live_patch_of_list(
             expected_object.secrets,
             current_object.secrets if current_object is not None else [],
-            expected_object,
+            children_parent,
             context,
             handler,
         )
@@ -388,7 +392,7 @@ class Environment(ModelObject):
         EnvironmentVariable.generate_live_patch_of_list(
             expected_object.variables,
             current_object.variables if current_object is not None else [],
-            expected_object,
+            children_parent,
             context,
             handler,
         )

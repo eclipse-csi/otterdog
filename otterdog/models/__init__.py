@@ -236,6 +236,9 @@ class LivePatchContext:
     delete_resources: bool = False
     # selects the resources that are deleted, all of them if empty
     delete_filter: Sequence[ResourceSelector] = ()
+    # whether only deletions are applied: the other changes, e.g. renaming a repository, are skipped, so the patches
+    # of nested resources are generated against their current parent
+    only_deletions: bool = False
     # the code security configurations as they are once the patches are applied, to plan repositories
     code_security_configuration_plan: CodeSecurityConfigurationPlan | None = None
 

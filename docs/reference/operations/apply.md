@@ -94,6 +94,10 @@ A selector that matches none of the resources to delete is reported with a warni
 a condition that names neither the key of the resource nor its parent. The planning takes the selection into
 account, e.g. a team stays connected to an IdP group whose removal from `team_sync` is not selected.
 
+As the other changes are skipped, the resources are selected, displayed and deleted with the current state of
+their parent: the variables of a repository renamed with `aliases` are deleted in the repository with its current
+name, and selected with `repository=<current name>`.
+
 ### Deleting resources in all organizations
 
 Without organization, `apply` processes all the organizations of the otterdog configuration, one after the other,

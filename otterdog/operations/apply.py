@@ -69,9 +69,12 @@ class ApplyOperation(PlanOperation):
     def delete_filter(self) -> tuple[ResourceSelector, ...]:
         return self._delete_filter
 
-    def include_live_patch(self, patch: LivePatch) -> bool:
+    def only_deletions(self) -> bool:
         # a delete filter only applies the deletions it selects, the other changes are skipped
-        if not self._delete_resources or len(self._delete_filter) == 0:
+        return self._delete_resources and len(self._delete_filter) > 0
+
+    def include_live_patch(self, patch: LivePatch) -> bool:
+        if not self.only_deletions():
             return True
 
         return patch.patch_type == LivePatchType.REMOVE and self._deletes(patch)
