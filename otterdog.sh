@@ -27,7 +27,7 @@ then
     # activate virtual environment
     # shellcheck source=/dev/null
     source "$PRGDIR"/.venv/bin/activate
-    PYTHONPATH=$PYTHONPATH:$PRGDIR python3 -m otterdog.cli "$@"
+    PYTHONPATH=$PYTHONPATH:$PRGDIR python3 -m otterdog "$@"
 else
     poetry -P "$PRGDIR" run otterdog "$@"
 fi
