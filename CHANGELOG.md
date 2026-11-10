@@ -4,7 +4,7 @@
 
 ### Security
 
- - fix(credentials): invoke the `pass` and `bitwarden` CLIs without a shell, fixes CVE-2026-123717 ([GHSA-886p-g538-rcmp](https://github.com/eclipse-csi/otterdog/security/advisories/GHSA-886p-g538-rcmp)) by @mbarbero and @heurtematte
+ - fix(credentials): invoke the `pass` and `bitwarden` CLIs without a shell, fixes CVE-2026-123717 ([GHSA-886p-g538-rcmp](https://github.com/eclipse-csi/otterdog/security/advisories/GHSA-886p-g538-rcmp)), reported by @kiki156578, fixed by @mbarbero and @heurtematte
 
 ### Added
 
