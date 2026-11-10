@@ -112,7 +112,7 @@ prek = ">=0.5.9"
 [tool.poetry.group.test.dependencies]
 tox = ">=4.67.7"
 pytest = ">=9.2.0"
-pytest-asyncio = ">=1.4.1"
+pytest-asyncio = ">=1.4.1.post1"
 parameterized  = ">=0.9"
 pytest-cov = ">=6.1.1"
 pytest-xdist = ">=3.8.0"
