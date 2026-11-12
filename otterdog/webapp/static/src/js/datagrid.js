@@ -74,6 +74,43 @@ export const dateTime = display((value) =>
   value ? '<time title="' + escapeHtml(value) + '">' + escapeHtml(shortDateTime(value)) + "</time>" : ""
 );
 
+// a date and time of the api in UTC, e.g. 2026-11-04T15:48:04.123456, to milliseconds since the epoch, NaN if invalid
+export function parseDateTime(value) {
+  // Date.parse only reads milliseconds, and takes a date and time without time zone as local time
+  const text = String(value).replace(/(\.\d{3})\d+/, "$1");
+  return Date.parse(/(Z|[+-]\d{2}:\d{2})$/.test(text) ? text : text + "Z");
+}
+
+// a duration in milliseconds, e.g. 1.2s, 6m 29s or 1h 02m, empty if invalid
+export function formatDuration(milliseconds) {
+  if (!Number.isFinite(milliseconds) || milliseconds < 0) {
+    return "";
+  }
+
+  const tenths = Math.round(milliseconds / 100);
+  if (tenths < 600) {
+    return (tenths / 10).toFixed(1) + "s";
+  }
+
+  const seconds = Math.round(milliseconds / 1000);
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) {
+    return minutes + "m " + String(seconds % 60).padStart(2, "0") + "s";
+  }
+  return Math.floor(minutes / 60) + "h " + String(minutes % 60).padStart(2, "0") + "m";
+}
+
+// the duration of a task, from its creation to its last update, only known once it is finished or failed
+export function taskDuration(task) {
+  if (!["finished", "failed"].includes(String(task.status).toLowerCase())) {
+    return "";
+  }
+  return formatDuration(parseDateTime(task.updated_at) - parseDateTime(task.created_at));
+}
+
+// renders the duration of the task of the row
+export const duration = display((value, row) => escapeHtml(taskDuration(row)));
+
 const gitHubLink = (path, text) =>
   '<a href="https://github.com/' + escapeHtml(path) + '">' + escapeHtml(text) + "</a>";
 
