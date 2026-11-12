@@ -79,6 +79,7 @@ nav = [
     { "CLI Operations" = [
       "reference/operations/index.md",
       { "Apply" = "reference/operations/apply.md" },
+      { "Check Status" = "reference/operations/check-status.md" },
       { "Import" = "reference/operations/import.md" },
       { "Plan" = "reference/operations/plan.md" },
       { "Validate" = "reference/operations/validate.md" },

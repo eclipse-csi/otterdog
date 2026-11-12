@@ -27,6 +27,7 @@ def _operation_factory(result: DiffResult, operation_name: str):
 
     def create_operation(*args, **kwargs):
         operation = SimpleNamespace(gh_client=pretend.stub())
+        create_operation.operations.append(operation)
 
         def set_callback(callback):
             operation.callback = callback
@@ -44,6 +45,7 @@ def _operation_factory(result: DiffResult, operation_name: str):
         return operation
 
     create_operation.__name__ = operation_name
+    create_operation.operations = []
     return create_operation
 
 
@@ -79,16 +81,14 @@ def _prepare_task(task, monkeypatch, org_config, rest_api):
     )
 
 
-async def _execute_check_sync_task(monkeypatch, tmp_path, result):
+async def _execute_check_sync_task(monkeypatch, tmp_path, result, app):
     rest_api = pretend.stub(issue=pretend.stub(create_comment=AsyncMock()))
     org_config = _organization_config(tmp_path)
     task = CheckConfigurationInSyncTask(1, "test-org", "repo", 42)
     _prepare_task(task, monkeypatch, org_config, rest_api)
 
-    monkeypatch.setattr(
-        "otterdog.webapp.tasks.check_sync.PlanOperation",
-        _operation_factory(result, "PlanOperation"),
-    )
+    plan_operation = _operation_factory(result, "PlanOperation")
+    monkeypatch.setattr("otterdog.webapp.tasks.check_sync.PlanOperation", plan_operation)
     monkeypatch.setattr(
         "otterdog.webapp.tasks.check_sync.fetch_config_from_github",
         AsyncMock(),
@@ -106,23 +106,26 @@ async def _execute_check_sync_task(monkeypatch, tmp_path, result):
         AsyncMock(return_value=[]),
     )
 
-    return await task.execute(), rest_api
+    async with app.app_context():
+        task_result = await task.execute()
+
+    return task_result, rest_api, plan_operation.operations
 
 
-async def test_check_sync_task_reports_out_of_sync_result_from_plan(monkeypatch, tmp_path):
+async def test_check_sync_task_reports_out_of_sync_result_from_plan(monkeypatch, tmp_path, app):
     """
     The sync-check task turns a plan with changes into an out-of-sync result and a comment.
     """
     diff_status = DiffStatus()
     diff_status.additions = 1
     result = DiffResult("test-org", diff_status, ValidationStatus(), [object()])
-    task_result, rest_api = await _execute_check_sync_task(monkeypatch, tmp_path, result)
+    task_result, rest_api, _ = await _execute_check_sync_task(monkeypatch, tmp_path, result, app)
 
     assert task_result is False
     rest_api.issue.create_comment.assert_awaited_once()
 
 
-async def test_check_sync_reports_managed_team_permission_removal_as_drift(monkeypatch, tmp_path, repository_test):
+async def test_check_sync_reports_managed_team_permission_removal_as_drift(monkeypatch, tmp_path, repository_test, app):
     """
     A still-present GitHub permission makes the sync check report drift when configuration removes its team.
     """
@@ -136,10 +139,19 @@ async def test_check_sync_reports_managed_team_permission_removal_as_drift(monke
     diff_status = DiffStatus()
     diff_status.differences = len(changes)
     result = DiffResult("test-org", diff_status, ValidationStatus(), [object()])
-    task_result, rest_api = await _execute_check_sync_task(monkeypatch, tmp_path, result)
+    task_result, rest_api, _ = await _execute_check_sync_task(monkeypatch, tmp_path, result, app)
 
     assert task_result is False
     rest_api.issue.create_comment.assert_awaited_once()
+
+
+async def test_check_sync_limits_the_concurrent_requests_by_its_setting(monkeypatch, tmp_path, app):
+    app.config["CHECK_SYNC_MAX_CONCURRENT_REQUESTS"] = 7
+    result = DiffResult("test-org", DiffStatus(), ValidationStatus(), [])
+
+    _, _, operations = await _execute_check_sync_task(monkeypatch, tmp_path, result, app)
+
+    assert [operation.concurrency for operation in operations] == [7]
 
 
 async def test_validate_pull_request_task_exposes_patch_safety_flags(monkeypatch, tmp_path):

@@ -1,3 +1,4 @@
+import asyncio
 import json
 
 import pretend
@@ -648,3 +649,62 @@ class TestRepoClientActivities:
         with pytest.raises(RuntimeError, match="failed retrieving activities of type 'pr_merge'"):
             async for _ in repo_client.get_activities("test-org", "test-repo", "refs/heads/main", "pr_merge"):
                 pass
+
+
+def _waiting_for(barrier, result=None):
+    """Returns a request that only completes once all requests waiting for the barrier have been sent."""
+
+    async def request(*args, **kwargs):
+        await barrier.wait()
+        return result
+
+    return request
+
+
+async def test_get_repo_data_sends_its_requests_concurrently():
+    # sent one after the other, the first of these requests would wait for the others forever
+    barrier = asyncio.Barrier(7)
+    repo_client = RepoClient(pretend.stub(requester=pretend.stub()))
+
+    async def simple_repo_data(org_id, repo_name):
+        return {"name": repo_name, "archived": False, "private": False}
+
+    repo_client.get_simple_repo_data = simple_repo_data
+    for fill in (
+        "_fill_vulnerability_alerts",
+        "_fill_private_vulnerability_reporting",
+        "_fill_immutable_releases",
+        "_fill_github_pages_config",
+        "_fill_topics",
+        "_fill_code_scanning_config",
+        "_fill_custom_properties",
+    ):
+        setattr(repo_client, fill, _waiting_for(barrier))
+
+    repo_data = await asyncio.wait_for(repo_client.get_repo_data("org", "repo"), timeout=5)
+
+    assert repo_data["name"] == "repo"
+
+
+async def test_get_workflow_settings_sends_its_requests_concurrently():
+    barrier = asyncio.Barrier(4)
+
+    async def permissions(method, url):
+        return {"enabled": True, "allowed_actions": "selected"}
+
+    repo_client = RepoClient(pretend.stub(requester=pretend.stub(request_json=permissions)))
+    repo_client._get_selected_actions_for_workflow_settings = _waiting_for(barrier, {"github_owned_allowed": True})
+    repo_client._get_default_workflow_permissions = _waiting_for(barrier, {"default_workflow_permissions": "read"})
+    repo_client._get_fork_pr_approval_policy = _waiting_for(barrier, {"approval_policy": "first_time_contributors"})
+    repo_client._get_max_cache_size_gb = _waiting_for(barrier, {"max_cache_size_gb": 10})
+
+    settings = await asyncio.wait_for(repo_client.get_workflow_settings("org", "repo"), timeout=5)
+
+    assert settings == {
+        "enabled": True,
+        "allowed_actions": "selected",
+        "github_owned_allowed": True,
+        "default_workflow_permissions": "read",
+        "approval_policy": "first_time_contributors",
+        "max_cache_size_gb": 10,
+    }

@@ -49,8 +49,13 @@ _TEAM_SYNC_GROUP_KEYS = ("group_id", "group_name", "group_description")
 
 
 class GitHubProvider:
-    def __init__(self, credentials: Credentials | None):
+    def __init__(self, credentials: Credentials | None, max_concurrent_requests: int | None = None):
+        """
+        ``max_concurrent_requests`` limits the requests sent concurrently to the REST API,
+        defaults to ``DEFAULT_MAX_CONCURRENT_REQUESTS``.
+        """
         self._credentials = credentials
+        self._max_concurrent_requests = max_concurrent_requests
         self._user_logins: dict[int, str] = {}
         self._user_login_lock = asyncio.Lock()
         self._repo_full_names: dict[int, str] = {}
@@ -82,10 +87,14 @@ class GitHubProvider:
         from otterdog.providers.github.auth import token_auth
 
         from .graphql import GraphQLClient
-        from .rest import RestApi
+        from .rest import DEFAULT_MAX_CONCURRENT_REQUESTS, RestApi
         from .web import WebClient
 
-        self.rest_api = RestApi(token_auth(self._credentials.github_token), get_github_cache())
+        self.rest_api = RestApi(
+            token_auth(self._credentials.github_token),
+            get_github_cache(),
+            self._max_concurrent_requests or DEFAULT_MAX_CONCURRENT_REQUESTS,
+        )
         self.web_client = WebClient(self._credentials)
         self.graphql_client = GraphQLClient(token_auth(self._credentials.github_token), get_github_cache())
 

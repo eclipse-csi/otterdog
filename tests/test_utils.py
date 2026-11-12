@@ -6,6 +6,7 @@
 #  SPDX-License-Identifier: EPL-2.0
 #  *******************************************************************************
 
+import asyncio
 import os
 import subprocess
 import sys
@@ -30,6 +31,7 @@ from otterdog.utils import (
     run_command_sync,
     snake_to_camel_case,
     snake_to_normal_case,
+    task_group,
     write_patch_object_as_json,
 )
 
@@ -344,3 +346,45 @@ def test_run_command_sync_inherits_the_environment(monkeypatch, tmp_path: Path):
     )
 
     assert stdout == store
+
+
+async def test_task_group_returns_the_results_of_its_tasks():
+    async def double(value: int) -> int:
+        await asyncio.sleep(0)
+        return 2 * value
+
+    async with task_group() as group:
+        tasks = [group.create_task(double(value)) for value in range(3)]
+
+    assert [task.result() for task in tasks] == [0, 2, 4]
+
+
+async def test_task_group_raises_the_failure_of_a_task_as_is_and_cancels_the_others():
+    pending: list[asyncio.Task] = []
+
+    async def fail() -> None:
+        raise ValueError("failed")
+
+    async def run_failing_task() -> None:
+        async with task_group() as group:
+            pending.append(group.create_task(asyncio.Event().wait()))
+            group.create_task(fail())
+
+    with pytest.raises(ValueError, match="failed"):
+        await run_failing_task()
+
+    assert pending[0].cancelled()
+
+
+async def test_task_group_raises_the_failure_of_its_body_as_is():
+    pending: list[asyncio.Task] = []
+
+    async def run_failing_body() -> None:
+        async with task_group() as group:
+            pending.append(group.create_task(asyncio.Event().wait()))
+            raise KeyError("body")
+
+    with pytest.raises(KeyError):
+        await run_failing_body()
+
+    assert pending[0].cancelled()

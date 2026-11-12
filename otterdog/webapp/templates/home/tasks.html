@@ -45,7 +45,7 @@
               </div>
               <!-- /.card-header -->
               <div class="card-body">
-                {{ paged_table("tasks", ["Type", "GitHub Organization", "Repo name", "Pull Request", "Status", "Log", "Cache Usage", "Remaining Rate Limit", "Creation Time", "Update Time"]) }}
+                {{ paged_table("tasks", ["Type", "GitHub Organization", "Repo name", "Pull Request", "Status", "Log", "Cache Usage", "Remaining Rate Limit", "Creation Time", "Update Time", "Duration"]) }}
               </div>
               <!-- /.card-body -->
             </div>
@@ -72,7 +72,7 @@
 
   <!-- page script -->
   <script type="module">
-    import {createPagedTable, display, organizationLink, pullRequestLink, repositoryLink, status} from '{{ asset('js/datagrid.js') }}';
+    import {createPagedTable, display, duration, organizationLink, pullRequestLink, repositoryLink, status} from '{{ asset('js/datagrid.js') }}';
 
     var renderDate = display(function(value) {
       return moment(value).locale('en').format('YYYY-MM-DD HH:mm:ss.SSS');
@@ -90,7 +90,9 @@
         { data: "cache_stats", filter: "text" },
         { data: "rate_limit_remaining", filter: "text" },
         { data: "created_at", className: "text-nowrap", render: renderDate },
-        { data: "updated_at", className: "text-nowrap", render: renderDate }
+        { data: "updated_at", className: "text-nowrap", render: renderDate },
+        // computed from the creation and update times of the task, it can not be sorted by the api
+        { data: "updated_at", className: "text-nowrap text-end", orderable: false, render: duration }
       ]
     });
   </script>

@@ -15,6 +15,7 @@ Options:
 Commands:
   apply              Apply changes based on the current configuration to the live configuration at GitHub.
   canonical-diff     Displays a diff of the current configuration to a canonical version.
+  check-status       Check for sync with live configuration on GitHub.
   delete-file        Deletes a specified file in a repository.
   dispatch-workflow  Dispatches a specified workflow in a repository.
   fetch-config       Fetches the configuration from the corresponding config repo of an organization.
@@ -129,3 +130,9 @@ are ignored, as they carry the rate limit of the original request. As the quota 
 the same credentials, it can not be used to derive the consumption of a single run.
 
 GitHub also enforces secondary rate limits, e.g. on concurrent requests, which are not measured.
+
+To avoid them, otterdog sends at most 30 REST requests at the same time. A REST request that hits a rate limit is
+sent again, up to 3 times, after the wait GitHub asks for, given by the header `retry-after` or by the reset of an
+exhausted rate limit, otherwise after one minute, doubled for every retry. The other requests wait as well, and the
+repeated requests are counted as `Retries`. A wait longer than 5 minutes, e.g. until the reset of an exhausted
+quota, is not awaited: the request fails.

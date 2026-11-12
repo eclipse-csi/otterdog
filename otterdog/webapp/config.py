@@ -56,6 +56,7 @@ def validate_required_settings(config_cls: type) -> None:
 # everything waiting on it forever with a value of 0.
 POSITIVE_INT_SETTINGS = (
     "MAX_CONCURRENT_INSTALLATION_TASKS",
+    "CHECK_SYNC_MAX_CONCURRENT_REQUESTS",
     "PLAYGROUND_VALIDATION_MAX_SIZE",
     "PLAYGROUND_MAX_CONCURRENT_VALIDATIONS",
 )
@@ -129,6 +130,11 @@ class AppConfig:
     # calling /internal/init, which is handled by a single worker. Higher values speed up the refresh
     # at the cost of memory usage and load on GitHub. Must be at least 1.
     MAX_CONCURRENT_INSTALLATION_TASKS = config("MAX_CONCURRENT_INSTALLATION_TASKS", default=10, cast=int)
+
+    # Maximum number of REST requests sent concurrently to GitHub by the sync check of a pull request, which retrieves
+    # the live settings of the whole organization with the installation token of the GitHub App. Higher values speed
+    # up the check at the risk of hitting the secondary rate limits of GitHub. Must be at least 1.
+    CHECK_SYNC_MAX_CONCURRENT_REQUESTS = config("CHECK_SYNC_MAX_CONCURRENT_REQUESTS", default=20, cast=int)
 
     # Maximum size in bytes of a configuration posted by the playground to be validated by otterdog, the larger ones
     # being rejected, e.g. about 800 KB for an organization with 300 repositories. Must be at least 1.

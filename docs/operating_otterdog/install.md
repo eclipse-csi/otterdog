@@ -320,6 +320,19 @@ which takes up to a second for a large organization. They are bounded by two set
     To limit the requests of a client, configure a rate limit for these paths in the ingress or
     the reverse proxy in front of the webapp.
 
+### Sync check of pull requests
+
+When a pull request of a configuration repository is opened or updated, and on the comment
+`/otterdog check-sync`, the webapp compares the configuration of the default branch to the live
+settings of the organization. This check retrieves every setting of every repository of the
+organization, about 20 requests per repository, with the installation token of the GitHub App.
+
+`CHECK_SYNC_MAX_CONCURRENT_REQUESTS` sets the maximum number of REST requests the check sends
+concurrently, 20 by default. A higher value makes the check of organizations with many
+repositories faster, at the risk of hitting the secondary rate limits of GitHub, which apply to the
+installation token of each organization. A request that hits a rate limit is sent again once the
+wait asked by GitHub is over, which slows the check down.
+
 ### Updating the Deployment
 
 To upgrade to the latest chart or image version:

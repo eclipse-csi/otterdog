@@ -155,8 +155,8 @@ class CheckConfigurationInSyncTask(InstallationBasedTask, Task[bool]):
             output = StringIO()
             printer = IndentingPrinter(output, log_level=LogLevel.ERROR, output_for_github=True)
             operation = PlanOperation(True, "*", False, False, False, "")
-            # set concurrency to 20 to avoid hitting secondary rate limits with installation tokens
-            operation.concurrency = 20
+            # limit the requests sent concurrently to avoid hitting secondary rate limits with installation tokens
+            operation.concurrency = current_app.config["CHECK_SYNC_MAX_CONCURRENT_REQUESTS"]
 
             config_in_sync = True
 
