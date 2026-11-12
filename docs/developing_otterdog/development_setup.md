@@ -50,7 +50,7 @@ Install [Minikkube](https://minikube.sigs.k8s.io/docs/start/)
 
 Why helm?
 
-Helm will deploy otterdog, dependency-track and ghproxy in the minikube cluster.
+Helm will deploy otterdog and ghproxy in the minikube cluster.
 
 Install [Helm](https://helm.sh/docs/intro/install/)
 

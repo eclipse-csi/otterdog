@@ -117,8 +117,6 @@ GITHUB_WEBHOOK_SYNC_CONTEXT=<the sync context, e.g. otterdog/otterdog-sync>
 GITHUB_APP_ID=<app id>
 GITHUB_APP_PRIVATE_KEY=<path to the private key file>
 
-DEPENDENCY_TRACK_URL=<base url to your dependency track installation, e.g. https://sbom.eclipse.org>
-DEPENDENCY_TRACK_TOKEN=<api key with at least BOM_UPLOAD permissions>
 ```
 
 `GITHUB_WEBHOOK_VALIDATION_CONTEXT` is used as the name for the validation

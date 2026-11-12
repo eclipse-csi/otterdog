@@ -36,8 +36,6 @@ REQUIRED_NON_EMPTY_SETTINGS = (
     "GITHUB_APP_ID",
     "GITHUB_APP_PRIVATE_KEY",
     "PROJECTS_BASE_URL",
-    "DEPENDENCY_TRACK_URL",
-    "DEPENDENCY_TRACK_TOKEN",
     "OTTERDOG_CONFIG_OWNER",
     "OTTERDOG_CONFIG_REPO",
     "OTTERDOG_CONFIG_PATH",
@@ -146,8 +144,6 @@ class AppConfig:
     PROJECTS_BASE_URL = config("PROJECTS_BASE_URL", default="https://projects.eclipse.org/projects/")
     # Base url of the otterdog documentation, linked from the examples of the playground.
     DOCUMENTATION_URL = config("DOCUMENTATION_URL", default="https://csi.eclipse.dev/otterdog/")
-    DEPENDENCY_TRACK_URL = config("DEPENDENCY_TRACK_URL")
-    DEPENDENCY_TRACK_TOKEN = config("DEPENDENCY_TRACK_TOKEN")
 
 
 validate_required_settings(AppConfig)

@@ -233,8 +233,6 @@ config:
   configToken: "<GITHUB TOKEN>"
   configRepo: "otterdog-configs"
   configPath: "otterdog.json"
-  dependencyTrackUrl: "https://otterdog-dt.default.svc.cluster"
-  dependencyTrackToken: "faketoken"
 
 github:
   webhookSecret: "<WEBHOOK SECRET>"

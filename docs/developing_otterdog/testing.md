@@ -246,7 +246,6 @@ This file must be set at the root level of your otterdog fork project.
 config:
   configOwner: "otterdog-<github username>"  # GitHub organization hosting the otterdog.json
   configToken: ""  # GitHub token — no specific permissions required, used only for rate-limiting
-  dependencyTrackToken: ""  # Dependency Track API token
 
 github:
   webhookSecret: ""  # webhook secret as configured for the GitHub App
@@ -290,10 +289,9 @@ Example of `otterdog.json`
 
 #### Run otterdog with tailscale
 
-Make sure you have the `eclipse-csi`, `tailscale`, and `dependency-track` Helm chart repositories added:
+Make sure you have the `eclipse-csi` and `tailscale` Helm chart repositories added:
 
 ```bash
-helm repo add dependency-track https://dependencytrack.github.io/helm-charts
 helm repo add eclipse-csi https://eclipse-csi.github.io/helm-charts
 helm repo add tailscale https://pkgs.tailscale.com/helmcharts
 ```
@@ -314,8 +312,6 @@ Trigger the Otterdog initialization:
 curl https://otterdog.tail<some hash>.ts.net/internal/init
 ```
 
-Dependency Track is reachable at `https://sbom.tail<some hash>.ts.net` (it still needs to be configured — see below)
-
 #### Setup ngrok to enable GitHub Webhooks to your development environment
 
 Alternative to the tailscale tunnel above.
@@ -330,7 +326,7 @@ We use the [ngrok Kubernetes Operator](https://ngrok.com/docs/k8s/) (minikube), 
 
 2. Reserve a domain in https://dashboard.ngrok.com/domains
 
-    > **NOTE:** Free ngrok domains (e.g. `<something>.ngrok-free.dev`/`.ngrok-free.app`) do not support subdomains — only a custom domain you own, with wildcard DNS delegated to ngrok on a paid plan, does (see [ngrok custom domains](https://ngrok.com/docs/universal-gateway/domains/)). `NGROK_DOMAIN` below is therefore used as-is (no `otterdog.` prefix) for the Otterdog webapp. Dependency Track is not exposed via ngrok in this dev setup — access it with `kubectl port-forward` instead (see [Optional] Configure dependency track below).
+    > **NOTE:** Free ngrok domains (e.g. `<something>.ngrok-free.dev`/`.ngrok-free.app`) do not support subdomains — only a custom domain you own, with wildcard DNS delegated to ngrok on a paid plan, does (see [ngrok custom domains](https://ngrok.com/docs/universal-gateway/domains/)). `NGROK_DOMAIN` below is therefore used as-is (no `otterdog.` prefix) for the Otterdog webapp.
 
 3. Export them in your terminal
 
@@ -346,10 +342,9 @@ We use the [ngrok Kubernetes Operator](https://ngrok.com/docs/k8s/) (minikube), 
 
 Alternative to `#### Run otterdog with tailscale` above.
 
-Make sure you have the `eclipse-csi`, `ngrok`, and `dependency-track` Helm chart repositories added:
+Make sure you have the `eclipse-csi` and `ngrok` Helm chart repositories added:
 
 ```bash
-helm repo add dependency-track https://dependencytrack.github.io/helm-charts
 helm repo add eclipse-csi https://eclipse-csi.github.io/helm-charts
 helm repo add ngrok https://charts.ngrok.com
 ```
@@ -367,14 +362,6 @@ Trigger the Otterdog initialization:
 ```bash
 curl https://<your reserved domain>/internal/init
 ```
-
-Dependency Track is not exposed via ngrok; reach it with:
-
-```bash
-kubectl port-forward -n otterdog svc/dependency-track-frontend 8080:8080
-```
-
-then open `http://localhost:8080` (it still needs to be configured — see below)
 
 #### Verify webhook delivery
 
@@ -431,20 +418,6 @@ again, e.g. after calling `/internal/init`. Its button "Propose on GitHub" valid
 otterdog, asking to confirm if it has errors, then copies it and opens it in the editor of GitHub, where the user
 creates the pull request from their own account. It opens the editor on the default branch of the configuration
 repository, which is also known once the configuration has been fetched again.
-
-#### [Optional] Configure dependency track
-
-1. Access `https://sbom.tail<some hash>.ts.net` (tailscale) or `http://localhost:8080` via `kubectl port-forward` (ngrok, see above) — [default DependencyTrack credentials](https://docs.dependencytrack.org/getting-started/initial-startup/)
-   (First time will ask to change password and re-login)
-
-2. To generate the `dependencyTrackToken`, go to `Administration` > `Access Management` > `Teams`
-
-3. Create a Team or choose one (i.e. `Automation`) create and API Key.
-
-4. Use this API Key as `dependencyTrackToken` in `values.yaml`
-
-It will reload automatically.
-
 
 #### Test otterdog client
 

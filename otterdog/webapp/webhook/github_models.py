@@ -177,26 +177,6 @@ class WorkflowJob(BaseModel):
     labels: list[str]
 
 
-class WorkflowRef(BaseModel):
-    path: str
-    ref: str | None = None
-    sha: str
-
-
-class WorkflowRun(BaseModel):
-    name: str
-    id: int
-    run_number: int
-    run_attempt: int
-    status: str
-    head_sha: str
-    head_branch: str | None = None
-    created_at: str
-    run_started_at: str
-    conclusion: str | None = None
-    referenced_workflows: list[WorkflowRef] | None
-
-
 class Commit(BaseModel):
     added: list[str]
     modified: list[str]
@@ -265,14 +245,6 @@ class WorkflowJobEvent(Event):
 
     action: str
     workflow_job: WorkflowJob
-    repository: Repository
-
-
-class WorkflowRunEvent(Event):
-    """A payload sent for workflow run events."""
-
-    action: str
-    workflow_run: WorkflowRun
     repository: Repository
 
 

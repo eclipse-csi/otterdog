@@ -70,17 +70,6 @@ profiles:
               - host:
                   command: ["sh", "-c", "while ! kubectl rollout status deployment/otterdog -n otterdog --timeout=10s 2>/dev/null; do sleep 10; done && until kubectl exec -n otterdog deploy/otterdog -- /app/init-webapp localhost 5000; do sleep 2; done"]
         releases:
-          - &dependency-track-release
-            name: dependency-track
-            remoteChart: dependency-track/dependency-track
-            version: 1.3.0
-            namespace: otterdog
-            createNamespace: true
-            valuesFiles:
-              - ./dev/dev-values-tunnel.yaml
-            setValueTemplates:
-              ingress.hostname: sbom.{{.TS_DNS}}
-              ingress.tls[0].hosts[0]: sbom.{{.TS_DNS}}
           - &tailscale-release
             name: otterdog-tailscale-operator
             remoteChart: tailscale/tailscale-operator
@@ -112,7 +101,6 @@ profiles:
       helm:
         hooks: *tunnel-hooks
         releases:
-          - *dependency-track-release
           - *tailscale-release
           - name: otterdog
             chartPath: ../helm-charts/charts/otterdog
@@ -126,8 +114,7 @@ profiles:
   # Required env vars: NGROK_API_KEY, NGROK_AUTHTOKEN, NGROK_DOMAIN
   # NGROK_DOMAIN must be the exact reserved domain (e.g. a free otterdog-<hash>.ngrok-free.dev
   # domain, or a custom domain you own): free ngrok domains do NOT support subdomains, so no
-  # "otterdog." prefix is added. Dependency Track is not exposed via ngrok; use
-  # `kubectl port-forward` to reach it (see docs/developing_otterdog/testing.md).
+  # "otterdog." prefix is added.
   - name: dev-ngrok
     deploy:
       helm:
@@ -151,12 +138,6 @@ profiles:
               - host:
                   command: ["sh", "-c", "while ! kubectl rollout status deployment/otterdog -n otterdog --timeout=10s 2>/dev/null; do sleep 10; done && until kubectl exec -n otterdog deploy/otterdog -- /app/init-webapp localhost 5000; do sleep 2; done && echo \"Otterdog is reachable at: https://$NGROK_DOMAIN\""]
         releases:
-          - &dependency-track-ngrok-release
-            name: dependency-track
-            remoteChart: dependency-track/dependency-track
-            version: 1.3.0
-            namespace: otterdog
-            createNamespace: true
           - &ngrok-release
             name: otterdog-ngrok-operator
             remoteChart: ngrok/ngrok-operator
@@ -182,7 +163,6 @@ profiles:
       helm:
         hooks: *ngrok-hooks
         releases:
-          - *dependency-track-ngrok-release
           - *ngrok-release
           - name: otterdog
             chartPath: ../helm-charts/charts/otterdog

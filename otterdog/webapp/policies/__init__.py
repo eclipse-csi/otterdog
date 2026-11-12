@@ -22,7 +22,6 @@ POLICY_PATH = "otterdog/policies"
 
 
 class PolicyType(StrEnum):
-    DEPENDENCY_TRACK_UPLOAD = "dependency_track_upload"
     MACOS_LARGE_RUNNERS_USAGE = "macos_large_runners"
 
 
@@ -92,11 +91,6 @@ def create_policy(
             from otterdog.webapp.policies.macos_large_runners import MacOSLargeRunnersUsagePolicy
 
             return MacOSLargeRunnersUsagePolicy.model_validate(data)
-
-        case PolicyType.DEPENDENCY_TRACK_UPLOAD:
-            from otterdog.webapp.policies.dependency_track_upload import DependencyTrackUploadPolicy
-
-            return DependencyTrackUploadPolicy.model_validate(data)
 
         case _:
             raise RuntimeError(f"unknown policy type '{policy_type}'")

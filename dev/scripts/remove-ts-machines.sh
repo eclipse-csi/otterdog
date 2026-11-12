@@ -22,7 +22,7 @@ if [ "$ACCESS_TOKEN" == "null" ] || [ -z "$ACCESS_TOKEN" ]; then
   exit 1
 fi
 
-MACHINES=("otterdog.${TS_DNS}" "sbom.${TS_DNS}" "tailscale-operator.${TS_DNS}")
+MACHINES=("otterdog.${TS_DNS}" "tailscale-operator.${TS_DNS}")
 
 
 echo "Fetching device list..."
