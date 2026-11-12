@@ -1,5 +1,11 @@
 # Change Log
 
+## [Unreleased]
+
+### Removed
+
+ - **Breaking**: remove the `dependency_track_upload` policy, SBOMs are uploaded to Dependency-Track with [pia](https://github.com/eclipse-csi/pia) instead. The settings `DEPENDENCY_TRACK_URL` and `DEPENDENCY_TRACK_TOKEN` are no longer used and the GitHub App no longer needs to subscribe to `workflow_run` events.
+
 ## [1.8.0] - 10/11/2026
 
 ### Security

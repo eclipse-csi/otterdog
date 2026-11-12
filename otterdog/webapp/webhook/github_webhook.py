@@ -189,13 +189,11 @@ EVENT_DESCRIPTIONS = {
     "watch": "{sender[login]} {action} watch in repository {repository[full_name]}",
     "workflow_job": "workflow '{workflow_job[name]}' on '{workflow_job[labels]}' {action} in repository "
     "{repository[full_name]}",
-    "workflow_run": "workflow '{workflow_run[name]}' {action} in repository {repository[full_name]}",
 }
 
 
 EVENT_FILTER = {
     "workflow_job": lambda data: data.get("action") == "queued",
-    "workflow_run": lambda data: data.get("action") == "completed",
 }
 
 
