@@ -98,6 +98,7 @@ class DiffOperation(Operation):
 
     @property
     def concurrency(self) -> int | None:
+        """The maximum number of requests sent concurrently to GitHub, the default of the provider if None."""
         return self._concurrency
 
     @concurrency.setter
@@ -153,7 +154,7 @@ class DiffOperation(Operation):
                 await self._gh_client.close()
 
     def setup_github_client(self, org_config: OrganizationConfig) -> GitHubProvider:
-        return GitHubProvider(self.get_credentials(org_config, only_token=self.no_web_ui))
+        return GitHubProvider(self.get_credentials(org_config, only_token=self.no_web_ui), self.concurrency)
 
     @property
     def gh_client(self) -> GitHubProvider:
@@ -308,7 +309,6 @@ class DiffOperation(Operation):
             jsonnet_config,
             self.gh_client,
             self.no_web_ui,
-            self.concurrency,
             self.repo_filter,
             exclude_teams=self.config.exclude_teams_pattern,
             exclude_environments=self.config.exclude_environments_pattern,

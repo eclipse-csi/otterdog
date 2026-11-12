@@ -16,7 +16,7 @@ from typing import TYPE_CHECKING, Any
 from otterdog.logging import get_logger
 from otterdog.providers.github.cache.file import file_cache
 
-from .requester import Requester
+from .requester import DEFAULT_MAX_CONCURRENT_REQUESTS, Requester, is_rate_limited
 
 if TYPE_CHECKING:
     from otterdog.providers.github.auth import AuthStrategy
@@ -37,10 +37,13 @@ class RestApi:
         self,
         auth_strategy: AuthStrategy | None = None,
         cache_strategy: CacheStrategy = _DEFAULT_CACHE_STRATEGY,
+        max_concurrent_requests: int = DEFAULT_MAX_CONCURRENT_REQUESTS,
     ):
         self._auth_strategy = auth_strategy
         self._cache_strategy = cache_strategy
-        self._requester = Requester(auth_strategy, cache_strategy, self._GH_API_URL_ROOT, self._GH_API_VERSION)
+        self._requester = Requester(
+            auth_strategy, cache_strategy, self._GH_API_URL_ROOT, self._GH_API_VERSION, max_concurrent_requests
+        )
 
     async def __aenter__(self):
         return self
@@ -180,7 +183,7 @@ class RestClient:
 
         is_unavailable = (
             status in unavailable_statuses
-            and not _is_rate_limited(status, body)
+            and not is_rate_limited(status, body)
             and not (raise_on_access_denied and _is_access_denied(status, body))
         )
 
@@ -196,14 +199,6 @@ class RestClient:
             raise RuntimeError(f"failed retrieving {feature_description}: {status}: {body}")
 
         return json.loads(body)
-
-
-def _is_rate_limited(status: int, body: str) -> bool:
-    """
-    Whether a response is due to a primary or secondary rate limit, returned by GitHub with status 403 or 429,
-    and a message like 'API rate limit exceeded for ...' or 'You have exceeded a secondary rate limit ...'.
-    """
-    return status in (403, 429) and "rate limit" in body.lower()
 
 
 # the messages of GitHub when the access to a resource is denied to the credentials, e.g. missing permissions

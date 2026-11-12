@@ -8,6 +8,8 @@
 
 from __future__ import annotations
 
+import asyncio
+import contextlib
 import contextvars
 import json
 import os
@@ -24,7 +26,7 @@ from otterdog.logging import _print_message, get_logger, is_info_enabled
 
 if TYPE_CHECKING:
     from argparse import Namespace
-    from collections.abc import Callable, Collection, Mapping, Sequence
+    from collections.abc import AsyncIterator, Callable, Collection, Mapping, Sequence
 
 T = TypeVar("T")
 
@@ -781,6 +783,23 @@ def debug_times(category: str):
             return wrapper_timed
 
     return decorator_timed
+
+
+@contextlib.asynccontextmanager
+async def task_group() -> AsyncIterator[asyncio.TaskGroup]:
+    """
+    Returns a task group that cancels its remaining tasks once one of them fails, and raises the failure as is,
+    like asyncio.gather, rather than in an exception group.
+    """
+    try:
+        async with asyncio.TaskGroup() as group:
+            yield group
+    except BaseExceptionGroup as error:
+        failure = error.exceptions[0]
+    else:
+        return
+
+    raise failure
 
 
 def render_chevron(content: str, context: dict[str, Any]) -> str:

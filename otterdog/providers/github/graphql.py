@@ -8,6 +8,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
 from datetime import datetime
 from functools import cache
@@ -29,6 +30,9 @@ if TYPE_CHECKING:
     from otterdog.providers.github.cache import CacheStrategy
 
 _logger = get_logger(__name__)
+
+# the maximum number of queries sent concurrently
+_MAX_CONCURRENT_QUERIES = 10
 
 
 class GraphQLClient:
@@ -58,9 +62,12 @@ class GraphQLClient:
             self._base_url = f"https://{self._GH_GRAPHQL_URL_ROOT}"
             self._use_proxy = False
 
+        # queries wait for a slot rather than for a connection of the session, as the wait for a connection
+        # counts against the connect timeout
+        self._query_slots = asyncio.Semaphore(_MAX_CONCURRENT_QUERIES)
         self._session = ClientSession(
             timeout=ClientTimeout(connect=3, sock_connect=3),
-            connector=TCPConnector(limit=10),
+            connector=TCPConnector(limit=_MAX_CONCURRENT_QUERIES),
             trace_configs=[self._recorder.trace_config()],
         )
 
@@ -449,14 +456,17 @@ class GraphQLClient:
         else:
             kwargs = {}
 
-        async with self._client.request(
-            method,
-            url=self._base_url,
-            headers=headers,
-            json={"query": query, "variables": variables},
-            trace_request_ctx={"endpoint": endpoint},
-            **kwargs,
-        ) as response:
+        async with (
+            self._query_slots,
+            self._client.request(
+                method,
+                url=self._base_url,
+                headers=headers,
+                json={"query": query, "variables": variables},
+                trace_request_ctx={"endpoint": endpoint},
+                **kwargs,
+            ) as response,
+        ):
             with self._recorder.recording_body_failures(response):
                 text = await response.text()
 

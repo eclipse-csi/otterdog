@@ -27,6 +27,7 @@ from otterdog.utils import (
     get_logger,
     is_set_and_present,
     query_json,
+    task_group,
 )
 
 _logger = get_logger(__name__)
@@ -107,19 +108,21 @@ class RepoClient(RestClient):
         try:
             repo_data = await self.get_simple_repo_data(org_id, repo_name)
 
-            archived = repo_data.get("archived", False)
-            if not archived:
-                await self._fill_vulnerability_alerts(org_id, repo_name, repo_data)
+            # every setting is filled in by its own request, they are sent concurrently
+            async with task_group() as group:
+                archived = repo_data.get("archived", False)
+                if not archived:
+                    group.create_task(self._fill_vulnerability_alerts(org_id, repo_name, repo_data))
 
-                private = repo_data.get("private", False)
-                if not private:
-                    await self._fill_private_vulnerability_reporting(org_id, repo_name, repo_data)
+                    private = repo_data.get("private", False)
+                    if not private:
+                        group.create_task(self._fill_private_vulnerability_reporting(org_id, repo_name, repo_data))
 
-            await self._fill_immutable_releases(org_id, repo_name, repo_data)
-            await self._fill_github_pages_config(org_id, repo_name, repo_data)
-            await self._fill_topics(org_id, repo_name, repo_data)
-            await self._fill_code_scanning_config(org_id, repo_name, repo_data)
-            await self._fill_custom_properties(org_id, repo_name, repo_data)
+                group.create_task(self._fill_immutable_releases(org_id, repo_name, repo_data))
+                group.create_task(self._fill_github_pages_config(org_id, repo_name, repo_data))
+                group.create_task(self._fill_topics(org_id, repo_name, repo_data))
+                group.create_task(self._fill_code_scanning_config(org_id, repo_name, repo_data))
+                group.create_task(self._fill_custom_properties(org_id, repo_name, repo_data))
 
             return repo_data
         except GitHubException as ex:
@@ -1189,18 +1192,25 @@ class RepoClient(RestClient):
         except GitHubException as ex:
             raise RuntimeError(f"failed retrieving workflow settings for repo '{org_id}/{repo_name}':\n{ex}") from ex
 
-        allowed_actions = permissions.get("allowed_actions", "none")
-        if allowed_actions == "selected":
-            workflow_settings.update(await self._get_selected_actions_for_workflow_settings(org_id, repo_name))
+        # the other settings are retrieved concurrently, and added in a fixed order
+        async with task_group() as group:
+            settings = []
 
-        if permissions.get("enabled", False) is not False:
-            workflow_settings.update(await self._get_default_workflow_permissions(org_id, repo_name))
+            allowed_actions = permissions.get("allowed_actions", "none")
+            if allowed_actions == "selected":
+                settings.append(group.create_task(self._get_selected_actions_for_workflow_settings(org_id, repo_name)))
 
-        if not is_private:
-            workflow_settings.update(await self._get_fork_pr_approval_policy(org_id, repo_name))
+            if permissions.get("enabled", False) is not False:
+                settings.append(group.create_task(self._get_default_workflow_permissions(org_id, repo_name)))
 
-        if included_keys is None or "max_cache_size_gb" in included_keys:
-            workflow_settings.update(await self._get_max_cache_size_gb(org_id, repo_name))
+            if not is_private:
+                settings.append(group.create_task(self._get_fork_pr_approval_policy(org_id, repo_name)))
+
+            if included_keys is None or "max_cache_size_gb" in included_keys:
+                settings.append(group.create_task(self._get_max_cache_size_gb(org_id, repo_name)))
+
+        for setting in settings:
+            workflow_settings.update(setting.result())
 
         return workflow_settings
 

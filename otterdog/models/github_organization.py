@@ -14,8 +14,9 @@ import dataclasses
 import json
 import os
 import re
+from functools import partial
 from io import StringIO
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any, TypeVar, cast
 
 from importlib_resources import as_file, files
 from jsonbender import F, Forall, OptionalS, S, bend  # type: ignore
@@ -68,10 +69,11 @@ from otterdog.utils import (
     is_set_and_present,
     is_set_and_valid,
     jsonnet_evaluate_file,
+    task_group,
 )
 
 if TYPE_CHECKING:
-    from collections.abc import AsyncIterator, Callable, Iterable, Iterator
+    from collections.abc import AsyncIterator, Awaitable, Callable, Iterable, Iterator
 
     from otterdog.config import JsonnetConfig, OtterdogConfig, SecretResolver
     from otterdog.credentials.secret_access_policy import SecretAccessPolicy
@@ -83,6 +85,11 @@ if TYPE_CHECKING:
 _ORG_SCHEMA = json.loads(files(resources).joinpath("schemas/organization.json").read_text())
 
 _logger = get_logger(__name__)
+
+# the maximum number of repositories whose data are retrieved concurrently
+_MAX_CONCURRENT_REPOS = 50
+
+MT = TypeVar("MT", bound=ModelObject)
 
 
 def _additional_properties(error: Any) -> list[str]:
@@ -1203,7 +1210,6 @@ class GitHubOrganization:
         jsonnet_config: JsonnetConfig,
         provider: GitHubProvider,
         no_web_ui: bool = False,
-        concurrency: int | None = None,
         repo_filter: str | None = None,
         exclude_teams: ExclusionPatterns | None = None,
         expected_org: GitHubOrganization | None = None,
@@ -1385,7 +1391,6 @@ class GitHubOrganization:
                     provider,
                     jsonnet_config,
                     app_installations,
-                    concurrency,
                     repo_filter,
                     expected_org,
                     exclude_teams,
@@ -1675,159 +1680,273 @@ async def _process_single_repo(
     workflow_included_keys = {k for k, v in default_repo_workflows.items() if v is not None}
     if expected_repo is not None:
         workflow_included_keys.update(_configured_keys(expected_repo.workflows))
-    github_repo_workflow_data = await rest_api.repo.get_workflow_settings(
-        github_id, repo_name, is_private=is_private, included_keys=workflow_included_keys
-    )
-    repo.workflows = RepositoryWorkflowSettings.from_provider_data(github_id, github_repo_workflow_data)
-    if repo_permissions is not None:
-        repo_permission = repo_permissions.get(repo_name, [])
-        # permissions of excluded teams are managed outside otterdog, unless the repo explicitly declares them.
-        # without an expected repo (e.g. import), keep the teams declared by the default repo config.
-        declared_permissions = (
-            expected_repo.team_permissions
-            if expected_repo is not None
-            else (jsonnet_config.default_repo_config or {}).get("team_permissions")
-        )
-        declared_teams = set(declared_permissions) if is_set_and_present(declared_permissions) else set()
-        repo.set_team_permissions(
-            {
-                entry["name"]: entry["permission"]
-                for entry in repo_permission
-                if exclude_teams is None or not exclude_teams.match(entry["name"]) or entry["name"] in declared_teams
-            }
-        )
-    else:
-        repo.unset_team_permissions()
 
-    if jsonnet_config.default_branch_protection_rule_config is not None:
-        # get branch protection rules of the repo
-        rules = await gh_client.get_branch_protection_rules(github_id, repo_name)
-        for github_rule in rules:
-            repo.add_branch_protection_rule(BranchProtectionRule.from_provider_data(github_id, github_rule))
-    else:
-        _logger.debug("not reading branch protection rules, no default config available")
-
-    if jsonnet_config.default_repo_ruleset_config is not None:
-        # get rulesets of the repo
-        rulesets = await rest_api.repo.get_rulesets(github_id, repo_name)
-        for github_ruleset in rulesets:
-            # FIXME: need to associate an app id to its slug
-            #        GitHub does not support that atm, so we lookup the currently installed
-            #        apps for an organization which provide a mapping from id to slug.
-            for actor in github_ruleset.get("bypass_actors", []):
-                if actor.get("actor_type", None) == "Integration":
-                    actor_id = str(actor.get("actor_id", 0))
-                    if actor_id in app_installations:
-                        actor["app_slug"] = app_installations[actor_id]
-                elif actor.get("actor_type", None) == "Team":
-                    actor_id = str(actor.get("actor_id", 0))
-                    if actor_id in teams:
-                        actor["team_slug"] = teams[actor_id]
-
-            await _enrich_user_bypass_actors([github_ruleset], gh_client)
-            await _enrich_workflow_repositories([github_ruleset], gh_client)
-
-            for rule in github_ruleset.get("rules", []):
-                if rule.get("type", None) == "required_status_checks":
-                    required_status_checks = rule.get("parameters", {}).get("required_status_checks", [])
-                    for status_check in required_status_checks:
-                        integration_id = str(status_check.get("integration_id", 0))
-                        if integration_id in app_installations:
-                            status_check["app_slug"] = app_installations[integration_id]
-
-            repo.add_ruleset(RepositoryRuleset.from_provider_data(github_id, github_ruleset))
-    else:
-        _logger.debug("not reading repo rulesets, no default config available")
-
-    if jsonnet_config.default_org_webhook_config is not None:
-        # get webhooks of the repo
-        webhooks = await rest_api.repo.get_webhooks(github_id, repo_name)
-        for github_webhook in webhooks:
-            repo.add_webhook(RepositoryWebhook.from_provider_data(github_id, github_webhook))
-    else:
-        _logger.debug("not reading repo webhooks, no default config available")
-
-    if jsonnet_config.default_repo_secret_config is not None:
-        # get secrets of the repo
-        secrets = await gh_client.get_repo_secrets(github_id, repo_name)
-        for github_secret in secrets:
-            repo.add_secret(RepositorySecret.from_provider_data(github_id, github_secret))
-    else:
-        _logger.debug("not reading repo secrets, no default config available")
-
-    if jsonnet_config.default_repo_dependabot_secret_config is not None:
-        secrets = await gh_client.get_repo_dependabot_secrets(github_id, repo_name)
-        for github_secret in secrets:
-            repo.add_dependabot_secret(RepositoryDependabotSecret.from_provider_data(github_id, github_secret))
-    else:
-        _logger.debug("not reading repo Dependabot secrets, no default config available")
-
-    if jsonnet_config.default_repo_codespaces_secret_config is not None:
-        try:
-            secrets = await gh_client.get_repo_codespaces_secrets(github_id, repo_name)
-        except SecretsNotAvailableError as ex:
-            _skip_unavailable_secrets(
-                ex, github_id, expected_repo.codespaces_secrets if expected_repo is not None else None
+    # the other resources of the repo do not depend on each other, they are retrieved concurrently
+    async with task_group() as group:
+        workflows = group.create_task(
+            rest_api.repo.get_workflow_settings(
+                github_id, repo_name, is_private=is_private, included_keys=workflow_included_keys
             )
-            secrets = []
-
-        for github_secret in secrets:
-            repo.add_codespaces_secret(RepositoryCodespacesSecret.from_provider_data(github_id, github_secret))
-    else:
-        _logger.debug("not reading repo Codespaces secrets, no default config available")
-
-    if jsonnet_config.default_repo_variable_config is not None:
-        # get variables of the repo
-        variables = await rest_api.repo.get_variables(github_id, repo_name)
-        for github_variable in variables:
-            repo.add_variable(RepositoryVariable.from_provider_data(github_id, github_variable))
-    else:
-        _logger.debug("not reading repo variables, no default config available")
-
-    if jsonnet_config.default_environment_config is not None:
-        # get environments of the repo
-        environments = await rest_api.repo.get_environments(github_id, repo_name)
-        # environments managed outside otterdog are ignored, unless the repo explicitly declares them.
-        declared_environments = (
-            {env.name for env in expected_repo.environments}
-            if expected_repo is not None and is_set_and_present(expected_repo.environments)
-            else set()
         )
-        for github_environment in environments:
-            env = Environment.from_provider_data(github_id, github_environment)
-            env.repo_name = repo_name
+        branch_protection_rules = group.create_task(
+            _load_resources(
+                jsonnet_config.default_branch_protection_rule_config,
+                "branch protection rules",
+                lambda: gh_client.get_branch_protection_rules(github_id, repo_name),
+                partial(BranchProtectionRule.from_provider_data, github_id),
+            )
+        )
+        rulesets = group.create_task(
+            _load_resources(
+                jsonnet_config.default_repo_ruleset_config,
+                "repo rulesets",
+                lambda: _get_repo_rulesets(gh_client, github_id, repo_name, teams, app_installations),
+                partial(RepositoryRuleset.from_provider_data, github_id),
+            )
+        )
+        webhooks = group.create_task(
+            _load_resources(
+                jsonnet_config.default_org_webhook_config,
+                "repo webhooks",
+                lambda: rest_api.repo.get_webhooks(github_id, repo_name),
+                partial(RepositoryWebhook.from_provider_data, github_id),
+            )
+        )
+        secrets = group.create_task(
+            _load_resources(
+                jsonnet_config.default_repo_secret_config,
+                "repo secrets",
+                lambda: gh_client.get_repo_secrets(github_id, repo_name),
+                partial(RepositorySecret.from_provider_data, github_id),
+            )
+        )
+        dependabot_secrets = group.create_task(
+            _load_resources(
+                jsonnet_config.default_repo_dependabot_secret_config,
+                "repo Dependabot secrets",
+                lambda: gh_client.get_repo_dependabot_secrets(github_id, repo_name),
+                partial(RepositoryDependabotSecret.from_provider_data, github_id),
+            )
+        )
+        codespaces_secrets = group.create_task(
+            _load_resources(
+                jsonnet_config.default_repo_codespaces_secret_config,
+                "repo Codespaces secrets",
+                lambda: _get_repo_codespaces_secrets(gh_client, github_id, repo_name, expected_repo),
+                partial(RepositoryCodespacesSecret.from_provider_data, github_id),
+            )
+        )
+        variables = group.create_task(
+            _load_resources(
+                jsonnet_config.default_repo_variable_config,
+                "repo variables",
+                lambda: rest_api.repo.get_variables(github_id, repo_name),
+                partial(RepositoryVariable.from_provider_data, github_id),
+            )
+        )
+        environments = group.create_task(
+            _load_repo_environments(
+                gh_client, github_id, repo_name, jsonnet_config, expected_repo, exclude_environments
+            )
+        )
 
-            if (
-                exclude_environments is not None
-                and exclude_environments.match(env.name)
-                and env.name not in declared_environments
-            ):
-                _logger.debug("ignoring excluded environment '%s' of repo '%s'", env.name, repo_name)
-                continue
+    repo.workflows = RepositoryWorkflowSettings.from_provider_data(github_id, workflows.result())
+    _set_team_permissions(repo, repo_name, repo_permissions, jsonnet_config, expected_repo, exclude_teams)
 
-            if jsonnet_config.default_environment_secret_config is not None:
-                # get secrets of the environment
-                env_secrets = await gh_client.get_environment_secrets(github_id, repo_name, env.name)
-                for github_secret in env_secrets:
-                    env.add_secret(EnvironmentSecret.from_provider_data(github_id, github_secret))
-            else:
-                _logger.debug("not reading environment secrets, no default config available")
-
-            if jsonnet_config.default_environment_variable_config is not None:
-                # get variables of the environment
-                env_variables = await rest_api.repo.get_environment_variables(github_id, repo_name, env.name)
-                for github_variable in env_variables:
-                    env.add_variable(EnvironmentVariable.from_provider_data(github_id, github_variable))
-            else:
-                _logger.debug("not reading environment variables, no default config available")
-
-            repo.add_environment(env)
-    else:
-        _logger.debug("not reading environments, no default config available")
+    for rule in branch_protection_rules.result():
+        repo.add_branch_protection_rule(rule)
+    for ruleset in rulesets.result():
+        repo.add_ruleset(ruleset)
+    for webhook in webhooks.result():
+        repo.add_webhook(webhook)
+    for secret in secrets.result():
+        repo.add_secret(secret)
+    for dependabot_secret in dependabot_secrets.result():
+        repo.add_dependabot_secret(dependabot_secret)
+    for codespaces_secret in codespaces_secrets.result():
+        repo.add_codespaces_secret(codespaces_secret)
+    for variable in variables.result():
+        repo.add_variable(variable)
+    for env in environments.result():
+        repo.add_environment(env)
 
     _logger.debug("done retrieving data for repo '%s'", repo_name)
 
     return repo_name, repo
+
+
+async def _load_resources(
+    default_config: dict[str, Any] | None,
+    description: str,
+    get_provider_data: Callable[[], Awaitable[list[dict[str, Any]]]],
+    from_provider_data: Callable[[dict[str, Any]], MT],
+) -> list[MT]:
+    """Retrieves the resources of a kind, only if the default config defines them, otherwise they are not requested."""
+    if default_config is None:
+        _logger.debug("not reading %s, no default config available", description)
+        return []
+
+    return [from_provider_data(data) for data in await get_provider_data()]
+
+
+def _set_team_permissions(
+    repo: Repository,
+    repo_name: str,
+    repo_permissions: dict[str, list[dict[str, Any]]] | None,
+    jsonnet_config: JsonnetConfig,
+    expected_repo: Repository | None,
+    exclude_teams: ExclusionPatterns | None,
+) -> None:
+    if repo_permissions is None:
+        repo.unset_team_permissions()
+        return
+
+    repo_permission = repo_permissions.get(repo_name, [])
+    # permissions of excluded teams are managed outside otterdog, unless the repo explicitly declares them.
+    # without an expected repo (e.g. import), keep the teams declared by the default repo config.
+    declared_permissions = (
+        expected_repo.team_permissions
+        if expected_repo is not None
+        else (jsonnet_config.default_repo_config or {}).get("team_permissions")
+    )
+    declared_teams = set(declared_permissions) if is_set_and_present(declared_permissions) else set()
+    repo.set_team_permissions(
+        {
+            entry["name"]: entry["permission"]
+            for entry in repo_permission
+            if exclude_teams is None or not exclude_teams.match(entry["name"]) or entry["name"] in declared_teams
+        }
+    )
+
+
+async def _get_repo_rulesets(
+    gh_client: GitHubProvider,
+    github_id: str,
+    repo_name: str,
+    teams: dict[str, Any],
+    app_installations: dict[str, str],
+) -> list[dict[str, Any]]:
+    rulesets = await gh_client.rest_api.repo.get_rulesets(github_id, repo_name)
+
+    for github_ruleset in rulesets:
+        _enrich_bypass_actor_slugs(github_ruleset, teams, app_installations)
+        _enrich_status_check_app_slugs(github_ruleset, app_installations)
+
+    await _enrich_user_bypass_actors(rulesets, gh_client)
+    await _enrich_workflow_repositories(rulesets, gh_client)
+    return rulesets
+
+
+def _enrich_bypass_actor_slugs(ruleset: dict[str, Any], teams: dict[str, Any], app_installations: dict[str, str]):
+    # FIXME: need to associate an app id to its slug
+    #        GitHub does not support that atm, so we lookup the currently installed
+    #        apps for an organization which provide a mapping from id to slug.
+    for actor in ruleset.get("bypass_actors", []):
+        actor_type = actor.get("actor_type", None)
+        actor_id = str(actor.get("actor_id", 0))
+
+        if actor_type == "Integration" and actor_id in app_installations:
+            actor["app_slug"] = app_installations[actor_id]
+        elif actor_type == "Team" and actor_id in teams:
+            actor["team_slug"] = teams[actor_id]
+
+
+def _enrich_status_check_app_slugs(ruleset: dict[str, Any], app_installations: dict[str, str]):
+    for rule in ruleset.get("rules", []):
+        if rule.get("type", None) != "required_status_checks":
+            continue
+
+        for status_check in rule.get("parameters", {}).get("required_status_checks", []):
+            integration_id = str(status_check.get("integration_id", 0))
+            if integration_id in app_installations:
+                status_check["app_slug"] = app_installations[integration_id]
+
+
+async def _get_repo_codespaces_secrets(
+    gh_client: GitHubProvider,
+    github_id: str,
+    repo_name: str,
+    expected_repo: Repository | None,
+) -> list[dict[str, Any]]:
+    try:
+        return await gh_client.get_repo_codespaces_secrets(github_id, repo_name)
+    except SecretsNotAvailableError as ex:
+        _skip_unavailable_secrets(
+            ex, github_id, expected_repo.codespaces_secrets if expected_repo is not None else None
+        )
+        return []
+
+
+async def _load_repo_environments(
+    gh_client: GitHubProvider,
+    github_id: str,
+    repo_name: str,
+    jsonnet_config: JsonnetConfig,
+    expected_repo: Repository | None,
+    exclude_environments: ExclusionPatterns | None,
+) -> list[Environment]:
+    if jsonnet_config.default_environment_config is None:
+        _logger.debug("not reading environments, no default config available")
+        return []
+
+    # environments managed outside otterdog are ignored, unless the repo explicitly declares them.
+    declared_environments = (
+        {env.name for env in expected_repo.environments}
+        if expected_repo is not None and is_set_and_present(expected_repo.environments)
+        else set()
+    )
+
+    environments = []
+    for github_environment in await gh_client.rest_api.repo.get_environments(github_id, repo_name):
+        env = Environment.from_provider_data(github_id, github_environment)
+        env.repo_name = repo_name
+
+        if (
+            exclude_environments is not None
+            and exclude_environments.match(env.name)
+            and env.name not in declared_environments
+        ):
+            _logger.debug("ignoring excluded environment '%s' of repo '%s'", env.name, repo_name)
+            continue
+
+        environments.append(env)
+
+    async with task_group() as group:
+        for env in environments:
+            group.create_task(_load_environment_resources(gh_client, github_id, repo_name, env, jsonnet_config))
+
+    return environments
+
+
+async def _load_environment_resources(
+    gh_client: GitHubProvider,
+    github_id: str,
+    repo_name: str,
+    env: Environment,
+    jsonnet_config: JsonnetConfig,
+) -> None:
+    async with task_group() as group:
+        secrets = group.create_task(
+            _load_resources(
+                jsonnet_config.default_environment_secret_config,
+                "environment secrets",
+                lambda: gh_client.get_environment_secrets(github_id, repo_name, env.name),
+                partial(EnvironmentSecret.from_provider_data, github_id),
+            )
+        )
+        variables = group.create_task(
+            _load_resources(
+                jsonnet_config.default_environment_variable_config,
+                "environment variables",
+                lambda: gh_client.rest_api.repo.get_environment_variables(github_id, repo_name, env.name),
+                partial(EnvironmentVariable.from_provider_data, github_id),
+            )
+        )
+
+    for secret in secrets.result():
+        env.add_secret(secret)
+    for variable in variables.result():
+        env.add_variable(variable)
 
 
 def build_repo_permissions(teams: list[dict[str, Any]]) -> dict[str, list[dict[str, Any]]]:
@@ -1859,7 +1978,6 @@ async def _load_repos_from_provider(
     provider: GitHubProvider,
     jsonnet_config: JsonnetConfig,
     app_installations: dict[str, str],
-    concurrency: int | None = None,
     repo_filter: str | None = None,
     expected_org: GitHubOrganization | None = None,
     exclude_teams: ExclusionPatterns | None = None,
@@ -1880,8 +1998,8 @@ async def _load_repos_from_provider(
     else:
         repo_permissions = None
 
-    # limit the number of repos that are processed concurrently to avoid hitting secondary rate limits
-    sem = asyncio.Semaphore(50 if concurrency is None else concurrency)
+    # the requests sent concurrently are limited by the provider, this only bounds the repos in progress
+    sem = asyncio.Semaphore(_MAX_CONCURRENT_REPOS)
 
     async def safe_process(repo_name):
         async with sem:
@@ -1898,24 +2016,9 @@ async def _load_repos_from_provider(
                 exclude_environments,
             )
 
-    if concurrency is not None:
-        chunk_size = 50
-        result = []
-        for chunk in divide_chunks(repo_names, chunk_size):
-            result.extend(await asyncio.gather(*[safe_process(repo_name) for repo_name in chunk]))
+    async with task_group() as group:
+        tasks = [group.create_task(safe_process(repo_name)) for repo_name in repo_names]
 
-            # after processing a full chunk, wait for 30s to avoid hitting secondary rate limits
-            if len(chunk) == chunk_size:
-                await asyncio.sleep(30)
-    else:
-        result = await asyncio.gather(*[safe_process(repo_name) for repo_name in repo_names])
-
-    for data in result:
-        _, repo_data = data
+    for task in tasks:
+        _, repo_data = task.result()
         yield repo_data
-
-
-def divide_chunks(input_list, n):
-    # looping till length of input_list
-    for i in range(0, len(input_list), n):
-        yield input_list[i : i + n]

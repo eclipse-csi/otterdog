@@ -129,3 +129,9 @@ are ignored, as they carry the rate limit of the original request. As the quota 
 the same credentials, it can not be used to derive the consumption of a single run.
 
 GitHub also enforces secondary rate limits, e.g. on concurrent requests, which are not measured.
+
+To avoid them, otterdog sends at most 30 REST requests at the same time. A REST request that hits a rate limit is
+sent again, up to 3 times, after the wait GitHub asks for, given by the header `retry-after` or by the reset of an
+exhausted rate limit, otherwise after one minute, doubled for every retry. The other requests wait as well, and the
+repeated requests are counted as `Retries`. A wait longer than 5 minutes, e.g. until the reset of an exhausted
+quota, is not awaited: the request fails.

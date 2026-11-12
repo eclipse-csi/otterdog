@@ -576,6 +576,8 @@ async def test_failed_graphql_attempts_are_unpriced(github):
 
 async def test_attempt_waiting_for_a_connection_is_not_a_request(github):
     client = GraphQLClient(token_auth(_TOKEN), ghproxy_cache(github.url))
+    # queries normally wait for a slot before the connection pool, let one more wait for a connection
+    client._query_slots = asyncio.Semaphore(11)
     usage = ApiUsage()
 
     try:
@@ -593,6 +595,27 @@ async def test_attempt_waiting_for_a_connection_is_not_a_request(github):
     assert usage.graphql.total_requests == 10
     assert usage.graphql.interrupted_requests == 10
     assert usage.graphql.unsent_attempts == {"interrupted": 1}
+
+
+async def test_query_waiting_for_a_slot_is_not_attempted(github):
+    client = GraphQLClient(token_auth(_TOKEN), ghproxy_cache(github.url))
+    usage = ApiUsage()
+
+    try:
+        with collect_api_usage(usage):
+            tasks = [asyncio.create_task(client.get_pull_requests("acme", "website", "main")) for _ in range(11)]
+            await asyncio.wait_for(github.graphql_pool_exhausted.wait(), timeout=10)
+
+            for task in tasks:
+                task.cancel()
+            await asyncio.gather(*tasks, return_exceptions=True)
+    finally:
+        await client.close()
+
+    # at most 10 queries are sent concurrently, the 11th waits for a slot and is never attempted
+    assert github.hits["/graphql"] == 10
+    assert usage.graphql.total_requests == 10
+    assert len(usage.graphql.unsent_attempts) == 0
 
 
 async def test_encoded_slash_remains_part_of_a_name(requester):

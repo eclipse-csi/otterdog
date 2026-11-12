@@ -6,8 +6,11 @@
 #  SPDX-License-Identifier: EPL-2.0
 #  *******************************************************************************
 
+import asyncio
+import contextlib
 import json
-from collections.abc import AsyncGenerator, AsyncIterable, Mapping
+import time
+from collections.abc import AsyncGenerator, AsyncIterable, AsyncIterator, Mapping
 from typing import Any
 
 from aiohttp import ClientResponse, ClientSession, ClientTimeout, TCPConnector
@@ -28,6 +31,51 @@ from otterdog.utils import get_logger
 
 _logger = get_logger(__name__)
 
+# the maximum number of requests sent concurrently, GitHub answers too many concurrent requests
+# with a secondary rate limit
+DEFAULT_MAX_CONCURRENT_REQUESTS = 30
+
+# how many times a request that hit a rate limit is sent again
+_MAX_RATE_LIMIT_RETRIES = 3
+# the wait before sending again a request that hit a secondary rate limit, when GitHub does not tell it,
+# doubled for every further retry
+_DEFAULT_RATE_LIMIT_WAIT_SECONDS = 60
+# the longest wait before sending a request again, a longer one, e.g. until an exhausted primary rate limit
+# is reset, fails the request instead
+_MAX_RATE_LIMIT_WAIT_SECONDS = 300
+
+
+def is_rate_limited(status: int, body: str) -> bool:
+    """
+    Whether a response is due to a primary or secondary rate limit, returned by GitHub with status 403 or 429,
+    and a message like 'API rate limit exceeded for ...' or 'You have exceeded a secondary rate limit ...'.
+    """
+    return status in (403, 429) and "rate limit" in body.lower()
+
+
+def get_rate_limit_wait(status: int, body: str, headers: Mapping[str, str], retries: int) -> float | None:
+    """
+    Returns how many seconds to wait before sending again a request whose response hit a rate limit, as recommended
+    by GitHub: the time given by the header 'retry-after', or until the reset of an exhausted rate limit, otherwise
+    one minute, doubled for every retry.
+
+    Returns None if the response did not hit a rate limit, or if the wait would exceed 5 minutes.
+    """
+    if not is_rate_limited(status, body):
+        return None
+
+    retry_after = headers.get("retry-after", "")
+    reset = headers.get("x-ratelimit-reset", "")
+
+    if retry_after.isdigit():
+        wait = float(retry_after)
+    elif headers.get("x-ratelimit-remaining") == "0" and reset.isdigit():
+        wait = max(int(reset) - time.time(), 0) + 1
+    else:
+        wait = float(_DEFAULT_RATE_LIMIT_WAIT_SECONDS * 2**retries)
+
+    return wait if wait <= _MAX_RATE_LIMIT_WAIT_SECONDS else None
+
 
 class Requester:
     def __init__(
@@ -36,6 +84,7 @@ class Requester:
         cache_strategy: CacheStrategy,
         base_url: str,
         api_version: str,
+        max_concurrent_requests: int = DEFAULT_MAX_CONCURRENT_REQUESTS,
     ):
         self._auth = auth_strategy.get_auth() if auth_strategy is not None else None
 
@@ -50,6 +99,13 @@ class Requester:
         self._recorder = RequestRecorder("rest", self._statistics, charge_responses=True, default_resource="core")
         self._cache_strategy = cache_strategy
 
+        # requests wait for a slot rather than for a connection of the session, as the wait for a connection
+        # counts against the connect timeout
+        self._max_concurrent_requests = max_concurrent_requests
+        self._request_slots = asyncio.Semaphore(max_concurrent_requests)
+        # the monotonic time until which no request is sent, set when a request hits a rate limit
+        self._paused_until = 0.0
+
         if self._cache_strategy.is_external():
             self._base_url = cache_strategy.replace_base_url(f"https://{base_url}")
             self._session = ClientSession(trace_configs=[self._recorder.trace_config()])
@@ -59,7 +115,7 @@ class Requester:
                 cache=self._record_body_failures_while_caching(self._cache_strategy.get_cache_backend()),
                 timeout=ClientTimeout(connect=3, sock_connect=3),
                 connector=TCPConnector(
-                    limit=30,
+                    limit=max_concurrent_requests,
                 ),
                 trace_configs=[self._recorder.trace_config()],
             )
@@ -72,6 +128,10 @@ class Requester:
     @property
     def statistics(self) -> RequestStatistics:
         return self._statistics
+
+    @property
+    def max_concurrent_requests(self) -> int:
+        return self._max_concurrent_requests
 
     def _record_body_failures_while_caching(self, backend: CacheBackend | None) -> CacheBackend | None:
         """
@@ -192,14 +252,65 @@ class Requester:
     ) -> tuple[int, str, str | None, str]:
         _logger.trace("'%s' url = %s, data = %s, params = %s", method, url_path, data, params)
 
+        retries = 0
+        while True:
+            async with self._request_slot():
+                status, text, next_url, response_headers = await self._send(method, url_path, data, params)
+
+                wait = (
+                    get_rate_limit_wait(status, text, response_headers, retries)
+                    if retries < _MAX_RATE_LIMIT_RETRIES
+                    else None
+                )
+                if wait is None:
+                    break
+
+                # all requests are paused, sending others would only hit the rate limit as well
+                self._paused_until = max(self._paused_until, time.monotonic() + wait)
+
+            retries += 1
+            _logger.warning(
+                "'%s %s' hit a rate limit of GitHub (status=%d), sending it again in %ds (retry %d of %d)",
+                method,
+                url_path,
+                status,
+                wait,
+                retries,
+                _MAX_RATE_LIMIT_RETRIES,
+            )
+            self._recorder.record_retry()
+
+        self._check_permissions(url_path, status, text, response_headers)
+
+        return (
+            status,
+            text,
+            next_url,
+            response_headers.get("X-OAuth-Scopes", ""),
+        )
+
+    @contextlib.asynccontextmanager
+    async def _request_slot(self) -> AsyncIterator[None]:
+        async with self._request_slots:
+            while (pause := self._paused_until - time.monotonic()) > 0:
+                await asyncio.sleep(pause)
+
+            yield
+
+    async def _send(
+        self,
+        method: str,
+        url_path: str,
+        data: str | None,
+        params: dict[str, Any] | None,
+    ) -> tuple[int, str, str | None, Mapping[str, str]]:
         headers = self._headers.copy()
         if self._auth is not None:
             self._auth.update_headers_with_authorization(headers)
 
-        url = self._build_url(url_path)
         async with self._client.request(
             method,
-            url=url,
+            url=self._build_url(url_path),
             headers=headers,
             params=params,
             data=data,
@@ -208,19 +319,11 @@ class Requester:
             with self._recorder.recording_body_failures(response):
                 text = await response.text()
 
-            status = response.status
             links = response.links
             next_link = links.get("next", None) if links is not None else None
             next_url = next_link.get("url", None) if next_link is not None else None
 
-            self._check_permissions(url_path, status, text, response.headers)
-
-            return (
-                status,
-                text,
-                str(next_url) if next_url is not None else None,
-                response.headers.get("X-OAuth-Scopes", ""),
-            )
+            return response.status, text, str(next_url) if next_url is not None else None, response.headers
 
     async def request_stream(
         self,

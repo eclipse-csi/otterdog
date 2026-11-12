@@ -69,7 +69,7 @@ class LocalPlanOperation(PlanOperation):
         return True
 
     def setup_github_client(self, org_config: OrganizationConfig) -> GitHubProvider:
-        return GitHubProvider(self.get_credentials(org_config, only_token=True))
+        return GitHubProvider(self.get_credentials(org_config, only_token=True), self.concurrency)
 
     async def load_current_org(
         self,
