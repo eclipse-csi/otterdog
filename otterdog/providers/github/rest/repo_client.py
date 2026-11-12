@@ -698,6 +698,16 @@ class RepoClient(RestClient):
                 config["languages"] = [lang for lang in config["languages"] if lang != "javascript-typescript"]
             repo_data["code_scanning_default_config"] = config
 
+    async def _get_analyzed_code_scanning_languages(self, org_id: str, repo_name: str) -> list[str]:
+        current_data: dict[str, Any] = {}
+        await self._fill_code_scanning_config(org_id, repo_name, current_data)
+
+        current_config = current_data.get("code_scanning_default_config", {})
+        if current_config.get("state") != "configured":
+            return []
+
+        return list(current_config.get("languages", []))
+
     @staticmethod
     def _to_default_setup_update_languages(languages: list[str]) -> list[str]:
         # GitHub reports 'javascript' and 'typescript' separately for the default setup, but the
@@ -714,6 +724,10 @@ class RepoClient(RestClient):
 
         languages = code_scanning.get("languages")
         if isinstance(languages, list):
+            if len(languages) > 0:
+                # the configured languages are the minimum set of languages to analyze, keep the ones analyzed
+                # by the current default setup, e.g. added by GitHub when it detected a new language
+                languages = [*await self._get_analyzed_code_scanning_languages(org_id, repo_name), *languages]
             code_scanning = {**code_scanning, "languages": self._to_default_setup_update_languages(languages)}
 
         try:

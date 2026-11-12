@@ -854,3 +854,98 @@ async def test_explicit_single_code_scanning_language_must_be_detected(configure
 
     assert len(failures) == 1
     assert f"'{missing}'" in failures[0]
+
+
+def _code_scanning_repo(repository_test, enabled, languages):
+    repo = Repository.from_model_data(repository_test.model_data)
+    repo.code_scanning_default_setup_enabled = enabled
+    repo.code_scanning_default_query_suite = "default"
+    repo.code_scanning_default_languages = languages
+    return repo
+
+
+@pytest.mark.parametrize(
+    "configured,analyzed",
+    [
+        # without configured languages, the languages to analyze are left to GitHub
+        ([], ["actions", "python"]),
+        ([], None),
+        # the configured languages are a minimum, GitHub might analyze additional ones
+        (["actions"], ["actions", "go", "python"]),
+        (["actions", "python"], ["python", "actions"]),
+        # CodeQL analyzes JavaScript and TypeScript together
+        (["typescript"], ["javascript"]),
+        (["javascript", "typescript"], ["actions", "javascript", "typescript"]),
+    ],
+)
+def test_code_scanning_languages_analyzed_by_github_are_no_difference(repository_test, configured, analyzed):
+    expected = _code_scanning_repo(repository_test, True, configured)
+    current = _code_scanning_repo(repository_test, True, analyzed)
+
+    assert expected.get_difference_from(current) == {}
+
+
+@pytest.mark.parametrize(
+    "configured,analyzed,applied",
+    [
+        (["actions", "java-kotlin"], ["actions", "python"], ["actions", "python", "java-kotlin"]),
+        (["c-cpp", "c-cpp"], ["actions"], ["actions", "c-cpp"]),
+        (["javascript", "typescript"], ["python"], ["python", "javascript", "typescript"]),
+        (["actions"], [], ["actions"]),
+        (["actions"], None, ["actions"]),
+    ],
+)
+def test_missing_code_scanning_languages_are_added_to_the_analyzed_ones(repository_test, configured, analyzed, applied):
+    expected = _code_scanning_repo(repository_test, True, configured)
+    current = _code_scanning_repo(repository_test, True, analyzed)
+
+    assert expected.get_difference_from(current) == {"code_scanning_default_languages": Change(analyzed, applied)}
+
+
+def test_code_scanning_languages_are_added_when_enabling_default_setup(repository_test):
+    expected = _code_scanning_repo(repository_test, True, ["actions"])
+    current = _code_scanning_repo(repository_test, False, [])
+
+    assert expected.get_difference_from(current) == {
+        "code_scanning_default_setup_enabled": Change(False, True),
+        "code_scanning_default_languages": Change([], ["actions"]),
+    }
+
+
+def test_live_patch_ignores_code_scanning_languages_added_by_github(repository_test):
+    from otterdog.models import LivePatchContext
+    from otterdog.models.organization_settings import OrganizationSettings
+
+    org_settings = OrganizationSettings.from_model_data(
+        repository_test.load_json_resource("otterdog-org-settings.json")
+    )
+    context = LivePatchContext("test-org", "", False, False, "*", org_settings, org_settings)
+
+    expected = _code_scanning_repo(repository_test, True, [])
+    current = _code_scanning_repo(repository_test, True, ["actions", "go", "python"])
+
+    patches = []
+    Repository.generate_live_patch(expected, current, None, context, patches.append)
+
+    assert patches == []
+
+
+@pytest.mark.parametrize("languages", [[], None])
+async def test_code_scanning_without_languages_to_provider(repository_test, languages):
+    repo = _code_scanning_repo(repository_test, True, languages)
+
+    provider_data = await repo.to_provider_data(repository_test.org_id, repository_test.provider)
+
+    assert provider_data["code_scanning_default_config"] == {"state": "configured", "query_suite": "default"}
+
+
+async def test_code_scanning_languages_to_provider(repository_test):
+    repo = _code_scanning_repo(repository_test, True, ["actions", "python"])
+
+    provider_data = await repo.to_provider_data(repository_test.org_id, repository_test.provider)
+
+    assert provider_data["code_scanning_default_config"] == {
+        "state": "configured",
+        "query_suite": "default",
+        "languages": ["actions", "python"],
+    }

@@ -75,10 +75,28 @@ of a public repository, see
 Default setup lets GitHub configure and run CodeQL. It is configured with:
 
 - `code_scanning_default_setup_enabled`: enables default setup
-- `code_scanning_default_languages`: the languages to analyze
+- `code_scanning_default_languages`: the languages to analyze at least
 - `code_scanning_default_query_suite`: `default` or `extended`
 
 The languages and the query suite are only taken into account when default setup is enabled.
+
+### Languages analyzed by GitHub
+
+Default setup analyzes the CodeQL languages that GitHub detects in the repository, and GitHub adds the languages
+that it detects later on, e.g. once Python code is pushed to the repository, see
+[About setup types for code scanning](https://docs.github.com/en/code-security/concepts/code-scanning/setup-types).
+The configured languages are thus the minimum set of languages to analyze:
+
+- without configured languages (an empty list), the languages to analyze are left to GitHub, `plan` and
+  `check-sync` do not report the languages that GitHub analyzes
+- a configured language that is not analyzed is added to the analyzed languages
+- languages that GitHub analyzes in addition to the configured ones are kept, they are not removed and not
+  reported as a difference
+
+!!! tip "Recommendation"
+
+    Leave the languages to GitHub, and only configure a language that GitHub does not analyze on its own, e.g. a
+    compiled language.
 
 ### Supported languages
 
@@ -136,11 +154,11 @@ orgs.newOrg('my-project', 'my-org') {
 }
 ```
 
-1. Without configured languages, the languages to analyze are left to GitHub. Once the repository contains code,
-   configure the languages explicitly, so that the configuration shows what is analyzed.
+1. Without configured languages, the languages to analyze are left to GitHub, see
+   [Languages analyzed by GitHub](#languages-analyzed-by-github).
 
-Once the repository contains code, e.g. Java, Kotlin and TypeScript code as well as workflows, the languages are
-configured with their CodeQL identifiers:
+Once the repository contains code, e.g. Java, Kotlin and TypeScript code as well as workflows, languages to analyze
+at least are configured with their CodeQL identifiers:
 
 ``` jsonnet
 orgs.newOrg('my-project', 'my-org') {
