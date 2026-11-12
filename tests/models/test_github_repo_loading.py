@@ -133,13 +133,12 @@ async def test_failure_of_a_resource_fails_the_repo_and_cancels_the_others():
     )
     provider = stub(rest_api=stub(repo=rest_repo))
 
-    # the variables are never retrieved, the repo would never fail if they were not cancelled
     with (
         patch("otterdog.models.github_organization.Repository.from_provider_data"),
         patch.object(RepositoryWorkflowSettings, "from_provider_data"),
-        pytest.raises(RuntimeError, match="failed retrieving webhooks"),
     ):
-        await asyncio.wait_for(
-            _process_single_repo(provider, "eclipse-cbi", "backend", config(), {}, None, {}),
-            timeout=5,
-        )
+        loading = _process_single_repo(provider, "eclipse-cbi", "backend", config(), {}, None, {})
+
+        # the variables are never retrieved, the repo would never fail if they were not cancelled
+        with pytest.raises(RuntimeError, match="failed retrieving webhooks"):
+            await asyncio.wait_for(loading, timeout=5)

@@ -360,21 +360,31 @@ async def test_task_group_returns_the_results_of_its_tasks():
 
 
 async def test_task_group_raises_the_failure_of_a_task_as_is_and_cancels_the_others():
+    pending: list[asyncio.Task] = []
+
     async def fail() -> None:
         raise ValueError("failed")
 
-    with pytest.raises(ValueError, match="failed"):
+    async def run_failing_task() -> None:
         async with task_group() as group:
-            pending = group.create_task(asyncio.Event().wait())
+            pending.append(group.create_task(asyncio.Event().wait()))
             group.create_task(fail())
 
-    assert pending.cancelled()
+    with pytest.raises(ValueError, match="failed"):
+        await run_failing_task()
+
+    assert pending[0].cancelled()
 
 
 async def test_task_group_raises_the_failure_of_its_body_as_is():
-    with pytest.raises(KeyError):
+    pending: list[asyncio.Task] = []
+
+    async def run_failing_body() -> None:
         async with task_group() as group:
-            pending = group.create_task(asyncio.Event().wait())
+            pending.append(group.create_task(asyncio.Event().wait()))
             raise KeyError("body")
 
-    assert pending.cancelled()
+    with pytest.raises(KeyError):
+        await run_failing_body()
+
+    assert pending[0].cancelled()
