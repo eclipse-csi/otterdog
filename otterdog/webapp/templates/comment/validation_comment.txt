@@ -17,6 +17,19 @@ Please find below the validation of the requested configuration changes:
 - {{ warning }}
 {% endfor %}
 
+{% endif %}
+{% if (auto_merge_blockers is defined) and auto_merge_blockers %}
+> [!NOTE]
+> This pull request cannot be auto-merged via `/otterdog merge`:
+>
+{% for blocker in auto_merge_blockers -%}
+> - {{ blocker }}
+{% endfor -%}
+>
+> It needs to be reviewed and merged by a member of the admin team(s).
+
+{% endif %}
+{% if ((warnings is defined) and warnings) or ((auto_merge_blockers is defined) and auto_merge_blockers) %}
 {% for admin_team in admin_teams %}
 cc @{{ admin_team }}
 {% endfor %}
