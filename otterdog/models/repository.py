@@ -963,6 +963,56 @@ class Repository(ModelObject):
 
         return True
 
+    def get_difference_from(self, other: Self) -> dict[str, Change[Any]]:
+        diff: dict[str, Change[Any]] = super().get_difference_from(other)
+
+        languages_change = diff.get("code_scanning_default_languages")
+        if languages_change is not None:
+            languages_change = self._get_code_scanning_languages_change(languages_change)
+            if languages_change is None:
+                diff.pop("code_scanning_default_languages")
+            else:
+                diff["code_scanning_default_languages"] = languages_change
+
+        return diff
+
+    @classmethod
+    def _get_code_scanning_languages_change(cls, change: Change[Any]) -> Change[Any] | None:
+        """
+        Returns the change of the code scanning default languages that needs to be applied, if any.
+
+        Default setup analyzes the languages that GitHub detects in the repository and adds the languages
+        detected later on, the configured languages are thus the minimum set of languages to analyze:
+        - without any configured language, the languages to analyze are left to GitHub
+        - languages analyzed in addition to the configured ones are kept
+
+        The change goes from the configured languages that are already analyzed to the configured languages, so
+        that it only shows the missing ones. It does not contain the other languages of the current object, which
+        is the previous configuration when applying a merged pull request: the languages analyzed on GitHub are
+        only kept when the change is applied, see RepoClient._update_code_scanning_config.
+        """
+        expected_languages = change.to_value
+        if not isinstance(expected_languages, list) or len(expected_languages) == 0:
+            return None
+
+        current_languages = change.from_value if isinstance(change.from_value, list) else []
+        analyzed_languages = {cls._get_code_scanning_analyzed_language(x) for x in current_languages}
+
+        configured_languages = list(dict.fromkeys(expected_languages))
+        already_analyzed_languages = [
+            x for x in configured_languages if cls._get_code_scanning_analyzed_language(x) in analyzed_languages
+        ]
+
+        if len(already_analyzed_languages) == len(configured_languages):
+            return None
+
+        return Change(already_analyzed_languages, configured_languages)
+
+    @classmethod
+    def _get_code_scanning_analyzed_language(cls, language: str) -> str:
+        # CodeQL analyzes JavaScript and TypeScript together, analyzing one of them analyzes both
+        return "javascript-typescript" if language in cls._combined_code_scanning_languages else language
+
     def include_for_live_patch(self, context: LivePatchContext) -> bool:
         import fnmatch
 
@@ -1212,7 +1262,10 @@ class Repository(ModelObject):
 
         if "code_scanning_default_languages" in data:
             mapping.pop("code_scanning_default_languages")
-            code_scanning_mapping["languages"] = S("code_scanning_default_languages")
+            # without any configured language, GitHub analyzes the languages it detects in the repository
+            languages = data["code_scanning_default_languages"]
+            if is_set_and_valid(languages) and len(languages) > 0:
+                code_scanning_mapping["languages"] = S("code_scanning_default_languages")
 
         if len(code_scanning_mapping) > 0:
             mapping["code_scanning_default_config"] = code_scanning_mapping

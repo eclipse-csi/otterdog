@@ -126,3 +126,44 @@ async def test_update_repo_propagates_unavailable_code_scanning_when_enabled(git
             REPO_NAME,
             {"code_scanning_default_config": {"state": "configured"}},
         )
+
+
+async def test_update_repo_keeps_code_scanning_languages_analyzed_by_github(github: GitHubProviderTestKit):
+    """Configured languages are added to the ones analyzed by the current default setup, which are kept."""
+    github.http.expect(
+        "GET",
+        CODE_SCANNING_URL,
+        response_json={
+            "state": "configured",
+            "languages": ["actions", "javascript", "javascript-typescript", "python", "typescript"],
+        },
+    )
+    github.http.expect(
+        "PATCH",
+        CODE_SCANNING_URL,
+        request_json={"languages": ["actions", "javascript-typescript", "python", "java-kotlin"]},
+        response_json={"state": "configured"},
+    )
+
+    await github.provider.update_repo(
+        ORG_ID,
+        REPO_NAME,
+        {"code_scanning_default_config": {"languages": ["java-kotlin"]}},
+    )
+
+
+async def test_update_repo_fails_if_analyzed_code_scanning_languages_cannot_be_read(github: GitHubProviderTestKit):
+    """Without the analyzed languages, updating the languages would remove the ones that are not configured."""
+    github.http.expect(
+        "GET",
+        CODE_SCANNING_URL,
+        response_status=500,
+        response_json={"message": "Server Error"},
+    )
+
+    with pytest.raises(RuntimeError, match="needed to keep its analyzed languages"):
+        await github.provider.update_repo(
+            ORG_ID,
+            REPO_NAME,
+            {"code_scanning_default_config": {"languages": ["java-kotlin"]}},
+        )

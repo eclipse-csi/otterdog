@@ -97,7 +97,15 @@ class TestRepoClientCodeScanningConfig:
         async def mock_request_json(method, url, data=None):
             return {}
 
-        mocked_restapi = pretend.stub(requester=pretend.stub(request_json=pretend.call_recorder(mock_request_json)))
+        async def mock_request_raw(method, url):
+            return (200, json.dumps({"state": "not-configured", "languages": []}))
+
+        mocked_restapi = pretend.stub(
+            requester=pretend.stub(
+                request_json=pretend.call_recorder(mock_request_json),
+                request_raw=mock_request_raw,
+            )
+        )
         repo_client = RepoClient(mocked_restapi)
 
         code_scanning = {"state": "configured", "languages": languages}
@@ -113,6 +121,82 @@ class TestRepoClientCodeScanningConfig:
         ]
         # the config passed by the caller is left untouched
         assert code_scanning == {"state": "configured", "languages": languages}
+
+    @pytest.mark.parametrize(
+        "current_config,languages,expected_languages",
+        [
+            (
+                {"state": "configured", "languages": ["actions", "python"]},
+                ["actions", "java-kotlin"],
+                ["actions", "python", "java-kotlin"],
+            ),
+            (
+                {"state": "configured", "languages": ["javascript", "javascript-typescript", "typescript"]},
+                ["actions", "javascript"],
+                ["javascript-typescript", "actions"],
+            ),
+            (
+                {"state": "not-configured", "languages": ["python"]},
+                ["actions"],
+                ["actions"],
+            ),
+        ],
+    )
+    async def test_update_code_scanning_config_keeps_analyzed_languages(
+        self, current_config, languages, expected_languages
+    ):
+        async def mock_request_json(method, url, data=None):
+            return {}
+
+        async def mock_request_raw(method, url):
+            return (200, json.dumps(current_config))
+
+        mocked_restapi = pretend.stub(
+            requester=pretend.stub(
+                request_json=pretend.call_recorder(mock_request_json),
+                request_raw=pretend.call_recorder(mock_request_raw),
+            )
+        )
+        repo_client = RepoClient(mocked_restapi)
+
+        await repo_client._update_code_scanning_config(
+            "test-org", "test-repo", {"state": "configured", "languages": languages}
+        )
+
+        assert repo_client.requester.request_raw.calls == [
+            pretend.call("GET", "/repos/test-org/test-repo/code-scanning/default-setup"),
+        ]
+        assert repo_client.requester.request_json.calls == [
+            pretend.call(
+                "PATCH",
+                "/repos/test-org/test-repo/code-scanning/default-setup",
+                data={"state": "configured", "languages": expected_languages},
+            ),
+        ]
+
+    @pytest.mark.parametrize("status_code", [403, 404, 500])
+    async def test_update_code_scanning_config_fails_if_analyzed_languages_cannot_be_read(self, status_code):
+        async def mock_request_json(method, url, data=None):
+            return {}
+
+        async def mock_request_raw(method, url):
+            return (status_code, "error")
+
+        mocked_restapi = pretend.stub(
+            requester=pretend.stub(
+                request_json=pretend.call_recorder(mock_request_json),
+                request_raw=mock_request_raw,
+            )
+        )
+        repo_client = RepoClient(mocked_restapi)
+
+        with pytest.raises(RuntimeError, match="needed to keep its analyzed languages"):
+            await repo_client._update_code_scanning_config(
+                "test-org", "test-repo", {"state": "configured", "languages": ["java-kotlin"]}
+            )
+
+        # the languages analyzed in addition to the configured ones would be removed by an update
+        assert repo_client.requester.request_json.calls == []
 
     async def test_update_code_scanning_config_without_languages(self):
         async def mock_request_json(method, url, data=None):
