@@ -179,10 +179,8 @@ async def test_validate_pull_request_task_exposes_patch_safety_flags(monkeypatch
         "otterdog.webapp.tasks.validate_pull_request.get_otterdog_config",
         AsyncMock(return_value=pretend.stub(cost_policy=CostPolicy())),
     )
-    monkeypatch.setattr(
-        "otterdog.webapp.tasks.validate_pull_request.render_template",
-        AsyncMock(return_value="validation comment"),
-    )
+    render_template = AsyncMock(return_value="validation comment")
+    monkeypatch.setattr("otterdog.webapp.tasks.validate_pull_request.render_template", render_template)
     monkeypatch.setattr(
         "otterdog.webapp.tasks.validate_pull_request.get_full_admin_team_slugs",
         AsyncMock(return_value=[]),
@@ -195,4 +193,10 @@ async def test_validate_pull_request_task_exposes_patch_safety_flags(monkeypatch
     assert validation_result.requires_web_ui is False
     assert validation_result.cost_related is True
     assert validation_result.includes_deletions is True
+    assert validation_result.supports_auto_merge is False
+    assert render_template.await_args.kwargs["auto_merge_blockers"] == [
+        "some of the requested changes require secrets",
+        "some of the requested changes may incur costs",
+        "some of the requested changes remove resources",
+    ]
     rest_api.issue.create_comment.assert_awaited_once()

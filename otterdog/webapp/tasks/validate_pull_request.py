@@ -50,6 +50,25 @@ class ValidationResult:
     cost_related: bool | None = None
     includes_deletions: bool | None = None
 
+    def auto_merge_blockers(self) -> list[str]:
+        """Reasons why the pull request cannot be merged via `/otterdog merge`."""
+        blockers = []
+        if self.requires_secrets:
+            blockers.append("some of the requested changes require secrets")
+        if self.requires_web_ui:
+            blockers.append("some of the requested changes require accessing the Web UI")
+        if self.cost_related:
+            blockers.append("some of the requested changes may incur costs")
+        if self.includes_deletions:
+            blockers.append("some of the requested changes remove resources")
+        if self.touches_non_configuration:
+            blockers.append("the pull request modifies files other than the organization configuration")
+        return blockers
+
+    @property
+    def supports_auto_merge(self) -> bool:
+        return not self.auto_merge_blockers()
+
 
 @dataclass(repr=False)
 class ValidatePullRequestTask(InstallationBasedTask, Task[ValidationResult]):
@@ -208,6 +227,7 @@ class ValidatePullRequestTask(InstallationBasedTask, Task[ValidationResult]):
                 sha=self._pull_request.head.sha,
                 result=escape_for_github(validation_result.plan_output),
                 warnings=warnings,
+                auto_merge_blockers=validation_result.auto_merge_blockers(),
                 admin_teams=await get_full_admin_team_slugs(self.org_id),
             )
 
@@ -275,14 +295,7 @@ class ValidatePullRequestTask(InstallationBasedTask, Task[ValidationResult]):
             self._pull_request,
             valid=validation_result.validation_success,
             requires_manual_apply=(validation_result.requires_secrets or validation_result.requires_web_ui),
-            supports_auto_merge=not (
-                validation_result.requires_secrets
-                or validation_result.requires_web_ui
-                # Cost-affecting changes require explicit review before merging.
-                or validation_result.cost_related
-                or validation_result.includes_deletions
-                or validation_result.touches_non_configuration
-            ),
+            supports_auto_merge=validation_result.supports_auto_merge,
         )
 
         if await pull_request_model.can_be_automerged():
