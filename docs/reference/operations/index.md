@@ -15,6 +15,7 @@ Options:
 Commands:
   apply              Apply changes based on the current configuration to the live configuration at GitHub.
   canonical-diff     Displays a diff of the current configuration to a canonical version.
+  check-status       Check for sync with live configuration on GitHub.
   delete-file        Deletes a specified file in a repository.
   dispatch-workflow  Dispatches a specified workflow in a repository.
   fetch-config       Fetches the configuration from the corresponding config repo of an organization.
