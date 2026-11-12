@@ -140,9 +140,9 @@ The languages supported by CodeQL are listed in
 are shown in the sidebar of the repository: a language that is not detected, e.g. `python` for a repository without
 Python code, is reported as error, with the list of detected languages. Only `actions` is always accepted.
 
-As a consequence, languages can only be configured for repositories that already exist and contain code: create
-the repository first, then configure the languages in a second change. A new repository can enable default setup
-without languages:
+As a consequence, languages can only be configured for repositories that already exist and contain code. A new
+repository enables default setup without languages, GitHub then analyzes the languages it detects once code is
+pushed:
 
 ``` jsonnet
 orgs.newOrg('my-project', 'my-org') {

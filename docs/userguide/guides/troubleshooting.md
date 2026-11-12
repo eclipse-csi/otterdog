@@ -44,8 +44,9 @@ Its **Validate** button also has the configuration of an organization validated 
 **`<repository> has 'code_scanning_default_languages' configured while the repository does not yet exist.`**
 
 : Languages are checked against the languages detected in the repository, which requires the repository to exist.
-  Create the repository first, with default setup enabled but without languages, then configure the languages in a
-  second change, see [Languages must be detected in the repository](repository-security.md#languages-must-be-detected-in-the-repository).
+  Create the repository with default setup enabled but without languages: GitHub analyzes the languages it detects
+  once code is pushed. Only configure a language in a second change if GitHub does not analyze it on its own, e.g. a
+  compiled language, see [Languages analyzed by GitHub](repository-security.md#languages-analyzed-by-github).
 
 **`<repository> has 'code_scanning_default_languages' configured with '<language>' but this language is not detected in the repository. Detected languages: ...`**
 
@@ -162,6 +163,12 @@ Its **Validate** button also has the configuration of an organization validated 
 : Otterdog manages all protections of the configured repositories, a protection that is not part of the
   configuration is removed when deletions are applied. Add it to the configuration instead, see the warning in
   [Otterdog specifics](rulesets-vs-branch-protection.md#otterdog-specifics).
+
+**A language removed from `code_scanning_default_languages` is still analyzed**
+
+: The configured languages are the minimum set of languages to analyze: languages that GitHub analyzes in addition
+  are kept, and `plan` does not report them. To stop analyzing a language, change the default setup in the GitHub
+  web interface, see [Languages analyzed by GitHub](repository-security.md#languages-analyzed-by-github).
 
 **A rotated secret is not updated on GitHub**
 

@@ -886,20 +886,34 @@ def test_code_scanning_languages_analyzed_by_github_are_no_difference(repository
 
 
 @pytest.mark.parametrize(
-    "configured,analyzed,applied",
+    "configured,current,change",
     [
-        (["actions", "java-kotlin"], ["actions", "python"], ["actions", "python", "java-kotlin"]),
-        (["c-cpp", "c-cpp"], ["actions"], ["actions", "c-cpp"]),
-        (["javascript", "typescript"], ["python"], ["python", "javascript", "typescript"]),
-        (["actions"], [], ["actions"]),
-        (["actions"], None, ["actions"]),
+        # the change only shows the missing languages, the other analyzed languages are kept when it is applied
+        (["actions", "java-kotlin"], ["actions", "python"], Change(["actions"], ["actions", "java-kotlin"])),
+        (["c-cpp", "c-cpp"], ["actions"], Change([], ["c-cpp"])),
+        (["typescript", "python"], ["javascript", "go"], Change(["typescript"], ["typescript", "python"])),
+        (["actions"], [], Change([], ["actions"])),
+        (["actions"], None, Change([], ["actions"])),
+        # when applying a merged pull request, the current languages are the ones of the previous configuration,
+        # a language removed from the configuration must not be applied
+        (["java-kotlin"], ["python"], Change([], ["java-kotlin"])),
     ],
 )
-def test_missing_code_scanning_languages_are_added_to_the_analyzed_ones(repository_test, configured, analyzed, applied):
+def test_missing_code_scanning_languages_are_planned(repository_test, configured, current, change):
     expected = _code_scanning_repo(repository_test, True, configured)
-    current = _code_scanning_repo(repository_test, True, analyzed)
+    current = _code_scanning_repo(repository_test, True, current)
 
-    assert expected.get_difference_from(current) == {"code_scanning_default_languages": Change(analyzed, applied)}
+    assert expected.get_difference_from(current) == {"code_scanning_default_languages": change}
+
+
+async def test_only_configured_code_scanning_languages_are_sent_to_provider(repository_test):
+    expected = _code_scanning_repo(repository_test, True, ["java-kotlin"])
+    previous = _code_scanning_repo(repository_test, True, ["python"])
+
+    changes = expected.get_difference_from(previous)
+    provider_data = await Repository.changes_to_provider(repository_test.org_id, changes, repository_test.provider)
+
+    assert provider_data == {"code_scanning_default_config": {"languages": ["java-kotlin"]}}
 
 
 def test_code_scanning_languages_are_added_when_enabling_default_setup(repository_test):

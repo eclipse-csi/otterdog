@@ -173,6 +173,30 @@ class TestRepoClientCodeScanningConfig:
             ),
         ]
 
+    @pytest.mark.parametrize("status_code", [403, 404, 500])
+    async def test_update_code_scanning_config_fails_if_analyzed_languages_cannot_be_read(self, status_code):
+        async def mock_request_json(method, url, data=None):
+            return {}
+
+        async def mock_request_raw(method, url):
+            return (status_code, "error")
+
+        mocked_restapi = pretend.stub(
+            requester=pretend.stub(
+                request_json=pretend.call_recorder(mock_request_json),
+                request_raw=mock_request_raw,
+            )
+        )
+        repo_client = RepoClient(mocked_restapi)
+
+        with pytest.raises(RuntimeError, match="needed to keep its analyzed languages"):
+            await repo_client._update_code_scanning_config(
+                "test-org", "test-repo", {"state": "configured", "languages": ["java-kotlin"]}
+            )
+
+        # the languages analyzed in addition to the configured ones would be removed by an update
+        assert repo_client.requester.request_json.calls == []
+
     async def test_update_code_scanning_config_without_languages(self):
         async def mock_request_json(method, url, data=None):
             return {}

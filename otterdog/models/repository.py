@@ -985,25 +985,28 @@ class Repository(ModelObject):
         detected later on, the configured languages are thus the minimum set of languages to analyze:
         - without any configured language, the languages to analyze are left to GitHub
         - languages analyzed in addition to the configured ones are kept
+
+        The change goes from the configured languages that are already analyzed to the configured languages, so
+        that it only shows the missing ones. It does not contain the other languages of the current object, which
+        is the previous configuration when applying a merged pull request: the languages analyzed on GitHub are
+        only kept when the change is applied, see RepoClient._update_code_scanning_config.
         """
         expected_languages = change.to_value
         if not isinstance(expected_languages, list) or len(expected_languages) == 0:
             return None
 
-        current_languages = list(change.from_value) if isinstance(change.from_value, list) else []
+        current_languages = change.from_value if isinstance(change.from_value, list) else []
         analyzed_languages = {cls._get_code_scanning_analyzed_language(x) for x in current_languages}
 
-        missing_languages: list[str] = []
-        for language in expected_languages:
-            if language not in missing_languages and (
-                cls._get_code_scanning_analyzed_language(language) not in analyzed_languages
-            ):
-                missing_languages.append(language)
+        configured_languages = list(dict.fromkeys(expected_languages))
+        already_analyzed_languages = [
+            x for x in configured_languages if cls._get_code_scanning_analyzed_language(x) in analyzed_languages
+        ]
 
-        if len(missing_languages) == 0:
+        if len(already_analyzed_languages) == len(configured_languages):
             return None
 
-        return Change(change.from_value, current_languages + missing_languages)
+        return Change(already_analyzed_languages, configured_languages)
 
     @classmethod
     def _get_code_scanning_analyzed_language(cls, language: str) -> str:

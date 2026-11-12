@@ -699,14 +699,23 @@ class RepoClient(RestClient):
             repo_data["code_scanning_default_config"] = config
 
     async def _get_analyzed_code_scanning_languages(self, org_id: str, repo_name: str) -> list[str]:
-        current_data: dict[str, Any] = {}
-        await self._fill_code_scanning_config(org_id, repo_name, current_data)
+        _logger.debug("retrieving analyzed code scanning languages for '%s/%s'", org_id, repo_name)
 
-        current_config = current_data.get("code_scanning_default_config", {})
-        if current_config.get("state") != "configured":
+        status, body = await self.requester.request_raw(
+            "GET", f"/repos/{org_id}/{repo_name}/code-scanning/default-setup"
+        )
+        if status != 200:
+            # without the analyzed languages, the update would remove the ones that are not configured
+            raise RuntimeError(
+                f"failed to retrieve the code scanning config of repo '{org_id}/{repo_name}', "
+                f"needed to keep its analyzed languages: {status}: {body}"
+            )
+
+        config = json.loads(body)
+        if config.get("state") != "configured":
             return []
 
-        return list(current_config.get("languages", []))
+        return list(config.get("languages", []))
 
     @staticmethod
     def _to_default_setup_update_languages(languages: list[str]) -> list[str]:
