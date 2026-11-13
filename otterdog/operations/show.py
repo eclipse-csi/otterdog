@@ -273,6 +273,15 @@ class ShowOperation(Operation):
             self.printer.println("No rulesets.")
         self.printer.level_down()
 
+        self.printer.println('=== "Actions Policies"')
+        self.printer.level_up()
+        if len(repo.actions_policies) > 0:
+            for policy in repo.actions_policies:
+                self._print_model_object(policy)
+        else:
+            self.printer.println("No actions policies.")
+        self.printer.level_down()
+
         async with open(path.join(self.output_dir, f"repo-{repo.name}.md"), "w") as file:
             await file.write(writer.getvalue())
 

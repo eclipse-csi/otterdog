@@ -511,6 +511,81 @@ class RepoClient(RestClient):
 
         _logger.debug("removed repo ruleset with name '%s'", name)
 
+    async def get_actions_policies(self, org_id: str, repo_name: str) -> list[dict[str, Any]]:
+        _logger.debug("retrieving actions policies for repo '%s/%s'", org_id, repo_name)
+
+        try:
+            # the policies configured at organization or enterprise level that apply to the repository are not
+            # managed as part of the repository
+            params = {"has_parents": "false"}
+            response = await self.requester.request_paged_json(
+                "GET", f"/repos/{org_id}/{repo_name}/actions/policies", params=params, entries_key="policies"
+            )
+            return [
+                await self.get_actions_policy(org_id, repo_name, str(policy["id"]))
+                for policy in response
+                if policy.get("source_type", "Repository") == "Repository"
+            ]
+        except GitHubException as ex:
+            if ex.status in (403, 404):
+                _logger.debug(
+                    "actions policies not available for repo '%s/%s' (status=%s)", org_id, repo_name, ex.status
+                )
+                return []
+            raise RuntimeError(f"failed retrieving actions policies for repo '{org_id}/{repo_name}':\n{ex}") from ex
+
+    async def get_actions_policy(self, org_id: str, repo_name: str, policy_id: str) -> dict[str, Any]:
+        _logger.debug("retrieving actions policy '%s' for repo '%s/%s'", policy_id, org_id, repo_name)
+
+        try:
+            return await self.requester.request_json("GET", f"/repos/{org_id}/{repo_name}/actions/policies/{policy_id}")
+        except GitHubException as ex:
+            raise RuntimeError(f"failed retrieving actions policy for repo '{org_id}/{repo_name}':\n{ex}") from ex
+
+    async def get_actions_policy_id(self, org_id: str, repo_name: str, name: str) -> int:
+        _logger.debug("retrieving id for actions policy with name '%s' for repo '%s/%s'", name, org_id, repo_name)
+
+        for policy in await self.get_actions_policies(org_id, repo_name):
+            if policy["name"] == name:
+                return policy["id"]
+
+        raise RuntimeError(f"failed to find actions policy with name '{name}' for repo '{org_id}/{repo_name}'")
+
+    async def update_actions_policy(self, org_id: str, repo_name: str, policy_id: int, data: dict[str, Any]) -> None:
+        _logger.debug("updating actions policy '%d' for repo '%s/%s'", policy_id, org_id, repo_name)
+
+        try:
+            await self.requester.request_json("PUT", f"/repos/{org_id}/{repo_name}/actions/policies/{policy_id}", data)
+            _logger.debug("updated actions policy '%d'", policy_id)
+        except GitHubException as ex:
+            raise RuntimeError(
+                f"failed to update actions policy {policy_id} for repo '{org_id}/{repo_name}':\n{ex}"
+            ) from ex
+
+    async def add_actions_policy(self, org_id: str, repo_name: str, data: dict[str, Any]) -> None:
+        name = data["name"]
+        _logger.debug("adding actions policy with name '%s' for repo '%s/%s'", name, org_id, repo_name)
+
+        try:
+            await self.requester.request_json("POST", f"/repos/{org_id}/{repo_name}/actions/policies", data)
+            _logger.debug("added actions policy with name '%s'", name)
+        except GitHubException as ex:
+            raise RuntimeError(
+                f"failed to add actions policy with name '{name}' for repo '{org_id}/{repo_name}':\n{ex}"
+            ) from ex
+
+    async def delete_actions_policy(self, org_id: str, repo_name: str, policy_id: int, name: str) -> None:
+        _logger.debug("deleting actions policy with name '%s' for repo '%s/%s'", name, org_id, repo_name)
+
+        status, _ = await self.requester.request_raw(
+            "DELETE", f"/repos/{org_id}/{repo_name}/actions/policies/{policy_id}"
+        )
+
+        if status != 204:
+            raise RuntimeError(f"failed to delete actions policy with name '{name}' for repo '{org_id}/{repo_name}'")
+
+        _logger.debug("removed actions policy with name '%s'", name)
+
     @staticmethod
     def _render_template_content(org_id: str, repo_name: str, content: str) -> str:
         variables = {"org": org_id, "repo": repo_name}

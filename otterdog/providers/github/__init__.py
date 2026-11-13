@@ -392,6 +392,25 @@ class GitHubProvider:
 
         await self.rest_api.org.delete_ruleset(org_id, ruleset_id, name)
 
+    async def get_org_actions_policies(self, org_id: str) -> list[dict[str, Any]]:
+        return await self.rest_api.org.get_actions_policies(org_id)
+
+    async def update_org_actions_policy(self, org_id: str, policy_id: int, name: str, data: dict[str, Any]) -> None:
+        if len(data) > 0:
+            if not is_set_and_present(policy_id):
+                policy_id = await self.rest_api.org.get_actions_policy_id(org_id, name)
+
+            await self.rest_api.org.update_actions_policy(org_id, policy_id, data)
+
+    async def add_org_actions_policy(self, org_id: str, data: dict[str, Any]) -> None:
+        await self.rest_api.org.add_actions_policy(org_id, data)
+
+    async def delete_org_actions_policy(self, org_id: str, policy_id: int, name: str) -> None:
+        if not is_set_and_present(policy_id):
+            policy_id = await self.rest_api.org.get_actions_policy_id(org_id, name)
+
+        await self.rest_api.org.delete_actions_policy(org_id, policy_id, name)
+
     async def get_repos(self, org_id: str) -> list[str]:
         # filter out repos which are created to work on GitHub Security Advisories
         # they should not be part of the visible configuration
@@ -491,6 +510,27 @@ class GitHubProvider:
             ruleset_id = await self.rest_api.repo.get_ruleset_id(org_id, repo_name, name)
 
         await self.rest_api.repo.delete_ruleset(org_id, repo_name, ruleset_id, name)
+
+    async def get_repo_actions_policies(self, org_id: str, repo_name: str) -> list[dict[str, Any]]:
+        return await self.rest_api.repo.get_actions_policies(org_id, repo_name)
+
+    async def update_repo_actions_policy(
+        self, org_id: str, repo_name: str, policy_id: int, name: str, data: dict[str, Any]
+    ) -> None:
+        if len(data) > 0:
+            if not is_set_and_present(policy_id):
+                policy_id = await self.rest_api.repo.get_actions_policy_id(org_id, repo_name, name)
+
+            await self.rest_api.repo.update_actions_policy(org_id, repo_name, policy_id, data)
+
+    async def add_repo_actions_policy(self, org_id: str, repo_name: str, data: dict[str, Any]) -> None:
+        await self.rest_api.repo.add_actions_policy(org_id, repo_name, data)
+
+    async def delete_repo_actions_policy(self, org_id: str, repo_name: str, policy_id: int, name: str) -> None:
+        if not is_set_and_present(policy_id):
+            policy_id = await self.rest_api.repo.get_actions_policy_id(org_id, repo_name, name)
+
+        await self.rest_api.repo.delete_actions_policy(org_id, repo_name, policy_id, name)
 
     async def get_repo_webhooks(self, org_id: str, repo_name: str) -> list[dict[str, Any]]:
         return await self.rest_api.repo.get_webhooks(org_id, repo_name)

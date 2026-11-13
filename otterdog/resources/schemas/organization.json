@@ -42,6 +42,10 @@
       "type": "array",
       "items": { "$ref": "org-code-security-configuration.json" }
     },
+    "actions_policies": {
+      "type": "array",
+      "items": { "$ref": "org-actions-policy.json" }
+    },
     "repositories": {
       "type": "array",
       "items": { "$ref": "repository.json" }
