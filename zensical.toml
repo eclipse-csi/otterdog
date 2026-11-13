@@ -33,6 +33,7 @@ nav = [
         { "Organization Variable" = "reference/organization/variable.md" },
         { "Organization Ruleset" = "reference/organization/ruleset.md" },
         { "Organization Code Security Configuration" = "reference/organization/code-security-configuration.md" },
+        { "Organization Actions Policy" = "reference/organization/actions-policy.md" },
         { "Custom Property" = "reference/organization/custom-property.md" },
         { "Team" = [
           "reference/organization/team/index.md",
@@ -52,9 +53,11 @@ nav = [
           ] },
           { "Branch Protection Rule" = "reference/organization/repository/branch-protection-rule.md" },
           { "Repository Ruleset" = "reference/organization/repository/ruleset.md" },
+          { "Repository Actions Policy" = "reference/organization/repository/actions-policy.md" },
         ] },
         { "Referenced Types" = [
           { "Actor" = "reference/organization/repository/actor.md" },
+          { "Allowed Actor" = "reference/organization/repository/allowed-actor.md" },
           { "Branch or Tag" = "reference/organization/repository/branch-or-tag.md" },
           { "Bypass Actor" = "reference/organization/repository/bypass-actor.md" },
           { "Repo Name Matcher" = "reference/organization/repo-name-matcher.md" },

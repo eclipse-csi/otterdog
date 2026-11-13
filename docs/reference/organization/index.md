@@ -13,7 +13,8 @@ This resource represents a GitHub organization with all supported settings and n
         variables+: [ ... ], // (6)!
         rulesets+: [ ... ], // (7)!
         code_security_configurations+: [ ... ], // (8)!
-        _repositories+:: [ ... ], // (9)!
+        actions_policies+: [ ... ], // (9)!
+        _repositories+:: [ ... ], // (10)!
     }
     ```
 
@@ -25,7 +26,8 @@ This resource represents a GitHub organization with all supported settings and n
     6. see [Organization Variable](variable.md)
     7. see [Organization Ruleset](ruleset.md)
     8. see [Organization Code Security Configuration](code-security-configuration.md)
-    9. see [Repository](repository/index.md)
+    9. see [Organization Actions Policy](actions-policy.md)
+    10. see [Repository](repository/index.md)
 
 !!! note
 

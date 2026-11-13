@@ -124,6 +124,9 @@ local newRepo(name) = {
   # rulesets
   rulesets: [],
 
+  # actions policies
+  actions_policies: [],
+
   # team permissions
   team_permissions: {},
 
@@ -287,6 +290,31 @@ local newOrgRuleset(name) = newRepoRuleset(name) {
   exclude_repo_names: [],
   protect_repo_names: false,
 };
+
+# --8<-- [start:actions_policy]
+# Function to create a new repository actions policy with default settings.
+local newRepoActionsPolicy(name) = {
+  name: name,
+  enforcement: "active",
+
+  # the workflows targeted by the policy, '~ALL' targets all workflows
+  include_workflows: ["~ALL"],
+  exclude_workflows: [],
+
+  # the rules of the policy, null does not require a rule
+  # the actors allowed to run the targeted workflows
+  allowed_actors: null,
+  # the events allowed to trigger the targeted workflows
+  allowed_events: null,
+};
+
+# Function to create a new organization actions policy with default settings.
+local newOrgActionsPolicy(name) = newRepoActionsPolicy(name) {
+  include_repo_names: [],
+  exclude_repo_names: [],
+  protect_repo_names: false,
+};
+# --8<-- [end:actions_policy]
 
 # --8<-- [start:code_security_configuration]
 # Function to create a new organization code security configuration with default settings.
@@ -584,6 +612,9 @@ local newOrg(name, id=name) = {
   # organization code security configurations
   code_security_configurations: [],
 
+  # organization actions policies
+  actions_policies: [],
+
   # List of repositories of the organization.
   # Entries here can be extended during template manifestation:
   #  * new repos should be defined using the newRepo template
@@ -608,6 +639,7 @@ local newOrg(name, id=name) = {
   newOrgVariable:: newOrgVariable,
   newOrgRuleset:: newOrgRuleset,
   newOrgCodeSecurityConfiguration:: newOrgCodeSecurityConfiguration,
+  newOrgActionsPolicy:: newOrgActionsPolicy,
   newCustomProperty:: newCustomProperty,
   newRepo:: newRepo,
   extendRepo:: extendRepo,
@@ -618,6 +650,7 @@ local newOrg(name, id=name) = {
   newRepoVariable:: newRepoVariable,
   newBranchProtectionRule:: newBranchProtectionRule,
   newRepoRuleset:: newRepoRuleset,
+  newRepoActionsPolicy:: newRepoActionsPolicy,
   newEnvironment:: newEnvironment,
   newEnvSecret:: newEnvSecret,
   newEnvVariable:: newEnvVariable,

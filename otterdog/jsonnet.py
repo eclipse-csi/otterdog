@@ -64,6 +64,7 @@ class JsonnetConfig:
     create_org_variable = "newOrgVariable"
     create_org_ruleset = "newOrgRuleset"
     create_org_code_security_configuration = "newOrgCodeSecurityConfiguration"
+    create_org_actions_policy = "newOrgActionsPolicy"
     create_repo = "newRepo"
     extend_repo = "extendRepo"
     create_repo_webhook = "newRepoWebhook"
@@ -73,6 +74,7 @@ class JsonnetConfig:
     create_repo_variable = "newRepoVariable"
     create_branch_protection_rule = "newBranchProtectionRule"
     create_repo_ruleset = "newRepoRuleset"
+    create_repo_actions_policy = "newRepoActionsPolicy"
     create_environment = "newEnvironment"
     create_environment_secret = "newEnvSecret"
     create_environment_variable = "newEnvVariable"
@@ -131,6 +133,7 @@ class JsonnetConfig:
         self._default_org_variable_config: dict[str, Any] | None = None
         self._default_org_ruleset_config: dict[str, Any] | None = None
         self._default_org_code_security_configuration_config: dict[str, Any] | None = None
+        self._default_org_actions_policy_config: dict[str, Any] | None = None
         self._default_repo_config: dict[str, Any] | None = None
         self._default_repo_webhook_config: dict[str, Any] | None = None
         self._default_repo_secret_config: dict[str, Any] | None = None
@@ -139,6 +142,7 @@ class JsonnetConfig:
         self._default_repo_variable_config: dict[str, Any] | None = None
         self._default_branch_protection_rule_config: dict[str, Any] | None = None
         self._default_repo_ruleset_config: dict[str, Any] | None = None
+        self._default_repo_actions_policy_config: dict[str, Any] | None = None
         self._default_environment_config: dict[str, Any] | None = None
         self._default_environment_secret_config: dict[str, Any] | None = None
         self._default_environment_variable_config: dict[str, Any] | None = None
@@ -298,6 +302,15 @@ class JsonnetConfig:
             return None
 
     @cached_property
+    def default_org_actions_policy_config(self):
+        try:
+            snippet = f"(import '{self.template_file}').{self.create_org_actions_policy}('default')"
+            return jsonnet_evaluate_snippet(snippet)
+        except RuntimeError:
+            _logger.debug("no default org actions policy config found, actions policies will be skipped")
+            return None
+
+    @cached_property
     def default_repo_config(self):
         try:
             # load the default repo config
@@ -375,6 +388,15 @@ class JsonnetConfig:
             return jsonnet_evaluate_snippet(repo_ruleset_snippet)
         except RuntimeError:
             _logger.debug("no default repo ruleset config found, rulesets will be skipped")
+            return None
+
+    @cached_property
+    def default_repo_actions_policy_config(self):
+        try:
+            snippet = f"(import '{self.template_file}').{self.create_repo_actions_policy}('default')"
+            return jsonnet_evaluate_snippet(snippet)
+        except RuntimeError:
+            _logger.debug("no default repo actions policy config found, actions policies will be skipped")
             return None
 
     @cached_property

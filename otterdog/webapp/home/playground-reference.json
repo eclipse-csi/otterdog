@@ -1,5 +1,54 @@
 {
   "objects": {
+    "actions-policy.md": {
+      "title": "Organization Actions Policy",
+      "url": "reference/organization/actions-policy/",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "The name of this actions policy",
+          "notes": "Must be unique within the organization"
+        },
+        "enforcement": {
+          "type": "string",
+          "description": "The enforcement status of this actions policy",
+          "notes": "`active`, `disabled` or `evaluate`, `evaluate` is only available with GitHub Enterprise"
+        },
+        "include_repo_names": {
+          "type": "list[RepoNameMatcher]",
+          "description": "List of names or patterns to include matching repositories",
+          "notes": "`~ALL` targets all repositories, an empty list targets none"
+        },
+        "exclude_repo_names": {
+          "type": "list[RepoNameMatcher]",
+          "description": "List of names or patterns to exclude matching repositories"
+        },
+        "protect_repo_names": {
+          "type": "boolean",
+          "description": "If enabled, the targeted repositories can not be renamed"
+        },
+        "include_workflows": {
+          "type": "list[string]",
+          "description": "List of workflow files or patterns targeted by the policy",
+          "notes": "`~ALL` targets all workflows, e.g. `.github/workflows/release.yml` or `.github/workflows/*`"
+        },
+        "exclude_workflows": {
+          "type": "list[string]",
+          "description": "List of workflow files or patterns excluded from the policy",
+          "notes": "`~ALL` is not allowed"
+        },
+        "allowed_actors": {
+          "type": "list[AllowedActor] or null",
+          "description": "Rule: the actors allowed to run the targeted workflows",
+          "notes": "`null` does not require the rule"
+        },
+        "allowed_events": {
+          "type": "list[string] or null",
+          "description": "Rule: the events allowed to trigger the targeted workflows",
+          "notes": "e.g. `push`, `pull_request` or `workflow_dispatch`, `null` does not require the rule"
+        }
+      }
+    },
     "code-security-configuration.md": {
       "title": "Organization Code Security Configuration",
       "url": "reference/organization/code-security-configuration/",
@@ -279,10 +328,51 @@
           "description": "Organization Code Security Configuration",
           "object": "code-security-configuration.md"
         },
+        "actions_policies": {
+          "type": "list",
+          "description": "Organization Actions Policy",
+          "object": "actions-policy.md"
+        },
         "_repositories": {
           "type": "list",
           "description": "Repository",
           "object": "repository/index.md"
+        }
+      }
+    },
+    "repository/actions-policy.md": {
+      "title": "Repository Actions Policy",
+      "url": "reference/organization/repository/actions-policy/",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "The name of this actions policy",
+          "notes": "Must be unique within the repository"
+        },
+        "enforcement": {
+          "type": "string",
+          "description": "The enforcement status of this actions policy",
+          "notes": "`active`, `disabled` or `evaluate`, `evaluate` is only available with GitHub Enterprise"
+        },
+        "include_workflows": {
+          "type": "list[string]",
+          "description": "List of workflow files or patterns targeted by the policy",
+          "notes": "`~ALL` targets all workflows, e.g. `.github/workflows/release.yml` or `.github/workflows/*`"
+        },
+        "exclude_workflows": {
+          "type": "list[string]",
+          "description": "List of workflow files or patterns excluded from the policy",
+          "notes": "`~ALL` is not allowed"
+        },
+        "allowed_actors": {
+          "type": "list[AllowedActor] or null",
+          "description": "Rule: the actors allowed to run the targeted workflows",
+          "notes": "`null` does not require the rule"
+        },
+        "allowed_events": {
+          "type": "list[string] or null",
+          "description": "Rule: the events allowed to trigger the targeted workflows",
+          "notes": "e.g. `push`, `pull_request` or `workflow_dispatch`, `null` does not require the rule"
         }
       }
     },
@@ -781,6 +871,11 @@
           "type": "list[RepositoryRuleset]",
           "description": "rulesets of the repo, see section below for details",
           "object": "repository/ruleset.md"
+        },
+        "actions_policies": {
+          "type": "list[RepositoryActionsPolicy]",
+          "description": "actions policies of the repo",
+          "object": "repository/actions-policy.md"
         }
       }
     },
@@ -1966,11 +2061,13 @@
     }
   },
   "functions": {
+    "newOrgActionsPolicy": "actions-policy.md",
     "newOrgCodeSecurityConfiguration": "code-security-configuration.md",
     "newOrgCodespacesSecret": "codespaces-secret.md",
     "newCustomProperty": "custom-property.md",
     "newOrgDependabotSecret": "dependabot-secret.md",
     "newOrg": "index.md",
+    "newRepoActionsPolicy": "repository/actions-policy.md",
     "newBranchProtectionRule": "repository/branch-protection-rule.md",
     "newRepoCodespacesSecret": "repository/codespaces-secret.md",
     "newRepoDependabotSecret": "repository/dependabot-secret.md",

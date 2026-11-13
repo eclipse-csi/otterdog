@@ -1016,3 +1016,69 @@ class OrgClient(RestClient):
             raise RuntimeError(f"failed to delete org ruleset with name '{name}'")
 
         _logger.debug("removed org ruleset with name '%s'", name)
+
+    async def get_actions_policies(self, org_id: str) -> list[dict[str, Any]]:
+        _logger.debug("retrieving actions policies for org '%s'", org_id)
+
+        try:
+            # the policies configured at enterprise level that apply to the organization are not managed by otterdog
+            params = {"has_parents": "false"}
+            response = await self.requester.request_paged_json(
+                "GET", f"/orgs/{org_id}/actions/policies", params=params, entries_key="policies"
+            )
+            return [
+                await self.get_actions_policy(org_id, str(policy["id"]))
+                for policy in response
+                if policy.get("source_type", "Organization") == "Organization"
+            ]
+        except GitHubException as ex:
+            if ex.status in (403, 404):
+                _logger.debug("actions policies not available for org '%s' (status=%s)", org_id, ex.status)
+                return []
+            raise RuntimeError(f"failed retrieving actions policies for org '{org_id}':\n{ex}") from ex
+
+    async def get_actions_policy(self, org_id: str, policy_id: str) -> dict[str, Any]:
+        _logger.debug("retrieving actions policy '%s' for org '%s'", policy_id, org_id)
+
+        try:
+            return await self.requester.request_json("GET", f"/orgs/{org_id}/actions/policies/{policy_id}")
+        except GitHubException as ex:
+            raise RuntimeError(f"failed retrieving actions policy for org '{org_id}':\n{ex}") from ex
+
+    async def get_actions_policy_id(self, org_id: str, name: str) -> int:
+        _logger.debug("retrieving id for actions policy with name '%s' for org '%s'", name, org_id)
+
+        for policy in await self.get_actions_policies(org_id):
+            if policy["name"] == name:
+                return policy["id"]
+
+        raise RuntimeError(f"failed to find actions policy with name '{name}' for org '{org_id}'")
+
+    async def update_actions_policy(self, org_id: str, policy_id: int, data: dict[str, Any]) -> None:
+        _logger.debug("updating actions policy '%d' for org '%s'", policy_id, org_id)
+
+        try:
+            await self.requester.request_json("PUT", f"/orgs/{org_id}/actions/policies/{policy_id}", data)
+            _logger.debug("updated actions policy '%d'", policy_id)
+        except GitHubException as ex:
+            raise RuntimeError(f"failed to update actions policy {policy_id} for org '{org_id}':\n{ex}") from ex
+
+    async def add_actions_policy(self, org_id: str, data: dict[str, Any]) -> None:
+        name = data["name"]
+        _logger.debug("adding actions policy with name '%s' for org '%s'", name, org_id)
+
+        try:
+            await self.requester.request_json("POST", f"/orgs/{org_id}/actions/policies", data)
+            _logger.debug("added actions policy with name '%s'", name)
+        except GitHubException as ex:
+            raise RuntimeError(f"failed to add actions policy with name '{name}' for org '{org_id}':\n{ex}") from ex
+
+    async def delete_actions_policy(self, org_id: str, policy_id: int, name: str) -> None:
+        _logger.debug("deleting actions policy with name '%s' for org '%s'", name, org_id)
+
+        status, _ = await self.requester.request_raw("DELETE", f"/orgs/{org_id}/actions/policies/{policy_id}")
+
+        if status != 204:
+            raise RuntimeError(f"failed to delete actions policy with name '{name}' for org '{org_id}'")
+
+        _logger.debug("removed actions policy with name '%s'", name)
