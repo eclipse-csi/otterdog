@@ -147,7 +147,15 @@ def test_policies_of_archived_repositories_are_not_changed():
     assert not any(isinstance(x.expected_object, RepositoryActionsPolicy) for x in patches)
 
 
-@pytest.mark.parametrize("policy", [ORG_POLICY, "orgs.newOrgActionsPolicy('all') { allowed_actors: ['@alice'] }"])
+@pytest.mark.parametrize(
+    "policy",
+    [
+        ORG_POLICY,
+        "orgs.newOrgActionsPolicy('all') { allowed_actors: ['@alice'] }",
+        # named like the default object of the template
+        "orgs.newOrgActionsPolicy('default') { allowed_events: ['push'] }",
+    ],
+)
 def test_import_evaluates_to_the_live_policy(policy: str):
     live = OrganizationActionsPolicy.from_model_data(evaluate(policy))
     default = OrganizationActionsPolicy.from_model_data(evaluate("orgs.newOrgActionsPolicy('default')"))

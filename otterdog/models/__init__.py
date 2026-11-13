@@ -965,8 +965,9 @@ class ModelObject(_DefaultValuesMixin, ABC):
         template_function = self.get_jsonnet_template_function(jsonnet_config, False)
 
         if self.is_keyed():
-            key = patch.pop(self.get_key())
-            printer.print(f"{unwrap(template_function)}('{key}')")
+            # the key is not part of the patch if it equals the key of the default object, e.g. 'default'
+            patch.pop(self.get_key(), None)
+            printer.print(f"{unwrap(template_function)}('{self.get_key_value()}')")
         else:
             printer.print(f"{unwrap(template_function)}")
 

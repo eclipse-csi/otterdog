@@ -1535,33 +1535,51 @@ async def _enrich_actions_policy_actors(
     and bots, 'team_slug' for teams and 'app_slug' for apps installed in the organization. An actor whose name is not
     known is referenced by its type and id.
     """
-
-    def actors() -> Iterator[dict[str, Any]]:
-        for policy in policies:
-            for rule in policy.get("rules") or []:
-                if rule.get("type") == "restrict_actions_actors":
-                    yield from (rule.get("parameters") or {}).get("allowed_actors") or []
-
-    all_actors = list(actors())
-    if len(all_actors) == 0:
+    actors = [
+        actor
+        for policy in policies
+        for rule in policy.get("rules") or []
+        if rule.get("type") == "restrict_actions_actors"
+        for actor in (rule.get("parameters") or {}).get("allowed_actors") or []
+    ]
+    if len(actors) == 0:
         return
 
-    user_ids = {actor["id"] for actor in all_actors if actor.get("type") in ("User", "Bot") and "id" in actor}
-    user_logins = await provider.get_user_logins(user_ids) if len(user_ids) > 0 else {}
+    names = await _actions_policy_actor_names(actors, github_id, provider, app_installations, teams)
+    for actor in actors:
+        if (name_key_and_names := names.get(actor.get("type"))) is not None:
+            name_key, names_by_id = name_key_and_names
+            if (name := names_by_id.get(str(actor.get("id")))) is not None:
+                actor[name_key] = name
 
-    if teams is None and any(actor.get("type") == "Team" for actor in all_actors):
+
+async def _actions_policy_actor_names(
+    actors: list[dict[str, Any]],
+    github_id: str,
+    provider: GitHubProvider,
+    app_installations: dict[str, str],
+    teams: dict[str, str] | None,
+) -> dict[str, tuple[str, dict[str, str]]]:
+    """
+    Returns, by actor type, the key of the name of an actor and the names by id of the actors of this type, only the
+    names of the given actors are retrieved.
+    """
+    user_ids = {actor["id"] for actor in actors if actor.get("type") in ("User", "Bot") and "id" in actor}
+    user_logins = (
+        {str(user_id): login for user_id, login in (await provider.get_user_logins(user_ids)).items()}
+        if len(user_ids) > 0
+        else {}
+    )
+
+    if teams is None and any(actor.get("type") == "Team" for actor in actors):
         teams = {str(team["id"]): f"{github_id}/{team['slug']}" for team in await provider.get_org_teams(github_id)}
 
-    for actor in all_actors:
-        actor_type = actor.get("type")
-        actor_id = actor.get("id")
-
-        if actor_type in ("User", "Bot") and actor_id in user_logins:
-            actor["user_login"] = user_logins[actor_id]
-        elif actor_type == "Team" and teams is not None and str(actor_id) in teams:
-            actor["team_slug"] = teams[str(actor_id)]
-        elif actor_type == "App" and str(actor_id) in app_installations:
-            actor["app_slug"] = app_installations[str(actor_id)]
+    return {
+        "User": ("user_login", user_logins),
+        "Bot": ("user_login", user_logins),
+        "Team": ("team_slug", teams or {}),
+        "App": ("app_slug", app_installations),
+    }
 
 
 def _add_code_security_configurations(

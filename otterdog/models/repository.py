@@ -1512,7 +1512,7 @@ class Repository(ModelObject):
             printer.level_down()
             printer.println("],")
 
-        # FIXME: support overriding actions policies for repos coming from the default configuration.
+        # as for rulesets, the actions policies of repos coming from the default configuration are not overridden
         if has_actions_policies and not extend:
             default_policy = RepositoryActionsPolicy.from_model_data(jsonnet_config.default_repo_actions_policy_config)
 

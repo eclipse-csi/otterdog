@@ -6,9 +6,11 @@
 #  SPDX-License-Identifier: EPL-2.0
 #  *******************************************************************************
 
+import dataclasses
 import re
 from collections.abc import Mapping
 from importlib.resources import files
+from io import StringIO
 from typing import Any
 from unittest.mock import AsyncMock
 
@@ -19,7 +21,7 @@ from otterdog.jsonnet import JsonnetConfig
 from otterdog.models import FailureType, ModelObject, ValidationContext
 from otterdog.models.organization_actions_policy import OrganizationActionsPolicy
 from otterdog.models.repo_actions_policy import RepositoryActionsPolicy
-from otterdog.utils import UNSET, jsonnet_evaluate_snippet
+from otterdog.utils import UNSET, IndentingPrinter, jsonnet_evaluate_snippet
 
 from . import ModelTest, evaluate_generated_jsonnet
 
@@ -358,6 +360,44 @@ def test_read_org_policy_repository_condition():
     assert policy.protect_repo_names is True
 
 
+@pytest.mark.parametrize(
+    "condition",
+    [
+        {"repository_id": {"repository_ids": [1, 2]}},
+        {
+            "repository_property": {
+                "include": [{"name": "tier", "property_values": ["core"], "source": "custom"}],
+                "exclude": [],
+            }
+        },
+    ],
+    ids=["repository_id", "repository_property"],
+)
+def test_unsupported_repository_targeting_is_kept_but_not_compared(condition: dict[str, Any]):
+    workflow_path = {"include": ["~ALL"], "exclude": []}
+    current = OrganizationActionsPolicy.from_provider_data(
+        ORG_ID,
+        provider_policy(source_type="Organization", conditions={**condition, "workflow_path": workflow_path}),
+    )
+
+    assert current.unsupported_conditions == condition
+    assert current.include_repo_names is UNSET
+    # a configuration imported from such a policy has the default repository names
+    assert org_policy("include_repo_names: []").get_difference_from(current) == {}
+    # GitHub only supports one kind of repository targeting, the unsupported one replaces the names
+    data = {
+        "name": "policy",
+        "conditions": {
+            "workflow_path": workflow_path,
+            "repository_name": {"include": [], "exclude": [], "protected": False},
+        },
+    }
+    assert current.with_unsupported_settings(data) == {
+        "name": "policy",
+        "conditions": {"workflow_path": workflow_path, **condition},
+    }
+
+
 def test_unsupported_rules_are_kept_but_not_compared():
     lockfile_rule = {"type": "require_lockfile", "parameters": {}}
     current = RepositoryActionsPolicy.from_provider_data(
@@ -369,11 +409,11 @@ def test_unsupported_rules_are_kept_but_not_compared():
 
     assert current.unsupported_rules == [lockfile_rule]
     assert repo_policy("allowed_events: ['push']").get_difference_from(current) == {}
-    assert current.with_unsupported_rules({"rules": [{"type": "restrict_action_events"}]}) == {
+    assert current.with_unsupported_settings({"rules": [{"type": "restrict_action_events"}]}) == {
         "rules": [{"type": "restrict_action_events"}, lockfile_rule]
     }
     # an update that does not provide the rules keeps them anyway
-    assert current.with_unsupported_rules({"name": "policy"}) == {"name": "policy"}
+    assert current.with_unsupported_settings({"name": "policy"}) == {"name": "policy"}
 
 
 # ---------------------------------------------------------------------------
@@ -458,10 +498,57 @@ def test_rules_missing_from_the_configuration_keep_their_current_values():
         ),
     )
 
-    policy = RepositoryActionsPolicy.from_model_data(data).with_unset_rules_from(current)
+    policy = RepositoryActionsPolicy.from_model_data(data).with_unset_values_from(current)
 
     assert policy.allowed_actors == ["#Write"]
     assert policy.allowed_events == ["push"]
+
+
+@pytest.mark.parametrize(
+    "missing_key,current_values",
+    [
+        ("exclude_workflows", {"exclude_workflows": [".github/workflows/ci.yml"]}),
+        ("include_workflows", {"include_workflows": [".github/workflows/release.yml"]}),
+        ("exclude_repo_names", {"exclude_repo_names": ["archive-*"]}),
+        ("protect_repo_names", {"protect_repo_names": True}),
+    ],
+)
+async def test_conditions_partially_missing_from_the_configuration_keep_their_current_values(
+    missing_key: str, current_values: dict[str, Any]
+):
+    # e.g. a template only defining the included workflows, GitHub would reset the excluded ones
+    data = evaluate("orgs.newOrgActionsPolicy('policy') { include_repo_names: ['~ALL'], allowed_events: ['push'] }")
+    data.pop(missing_key)
+    current = dataclasses.replace(OrganizationActionsPolicy.from_model_data(data), **current_values)
+
+    policy = OrganizationActionsPolicy.from_model_data(data).with_unset_values_from(current)
+    provider_data = await policy.to_provider_data(ORG_ID, github_provider())
+
+    assert policy.__getattribute__(missing_key) == current_values[missing_key]
+    assert provider_data["conditions"] == {
+        "workflow_path": {
+            "include": policy.include_workflows,
+            "exclude": policy.exclude_workflows,
+        },
+        "repository_name": {
+            "include": policy.include_repo_names,
+            "exclude": policy.exclude_repo_names,
+            "protected": policy.protect_repo_names,
+        },
+    }
+
+
+def test_conditions_missing_from_the_configuration_are_not_sent():
+    data = evaluate("orgs.newRepoActionsPolicy('policy') { allowed_events: ['push'] }")
+    for key in ["include_workflows", "exclude_workflows"]:
+        data.pop(key)
+    current = RepositoryActionsPolicy.from_provider_data(ORG_ID, provider_policy())
+
+    policy = RepositoryActionsPolicy.from_model_data(data).with_unset_values_from(current)
+
+    # GitHub keeps the current workflow condition if it is omitted
+    assert policy.include_workflows is UNSET
+    assert policy.exclude_workflows is UNSET
 
 
 def test_roles_are_compared_by_name():
@@ -508,6 +595,27 @@ def test_generated_jsonnet_evaluates_to_the_policy(overrides: dict[str, Any]):
 
     for key, value in overrides.items():
         assert data[key] == value
+
+
+def test_import_narrows_the_default_repository_targeting():
+    # a template targeting all repositories but the archived ones by default
+    extension = "include_repo_names: ['~ALL'], exclude_repo_names: ['archive-*']"
+    default = org_policy(extension)
+    live = org_policy("include_repo_names: ['release'], exclude_repo_names: [], allowed_events: ['push']")
+    jsonnet_config = stub(create_org_actions_policy=JsonnetConfig.create_org_actions_policy)
+
+    output = StringIO()
+    live.to_jsonnet(IndentingPrinter(output), jsonnet_config, stub(), False, default)
+    jsonnet = output.getvalue().strip().rstrip(",")
+
+    assert "include_repo_names: [" in jsonnet
+    assert "exclude_repo_names: [" in jsonnet
+    template = (
+        f"local defaults = import '{DEFAULTS}'; "
+        f"local orgs = defaults {{ newOrgActionsPolicy(name):: defaults.newOrgActionsPolicy(name) {{ {extension} }} }}; "
+    )
+    imported = OrganizationActionsPolicy.from_model_data(jsonnet_evaluate_snippet(template + jsonnet))
+    assert imported.get_difference_from(live) == {}
 
 
 def test_unset_fields_are_unset():

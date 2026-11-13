@@ -261,6 +261,58 @@ async def test_update_org_policy_keeps_unsupported_rules(github: GitHubProviderT
     await generate_patch_and_run_it(github, old=current, new=org_policy())
 
 
+async def test_update_org_policy_keeps_repository_targeting_by_property(github: GitHubProviderTestKit):
+    """A policy targeting repositories by custom property, which otterdog does not support, keeps its targeting."""
+    repository_property = {
+        "include": [{"name": "tier", "property_values": ["core"], "source": "custom"}],
+        "exclude": [],
+    }
+    current = OrganizationActionsPolicy.from_provider_data(
+        ORG_ID,
+        {
+            "id": 7,
+            "name": "pinned",
+            "enforcement": "active",
+            "conditions": {
+                "repository_property": repository_property,
+                "workflow_path": {"include": ["~ALL"], "exclude": []},
+            },
+            "rules": [{"type": "restrict_action_events", "parameters": {"allowed_events": ["pull_request"]}}],
+        },
+    )
+
+    github.http.expect(
+        "PUT",
+        f"{ORG_POLICIES_URL}/7",
+        request_json=org_policy_request(
+            conditions={
+                "workflow_path": {"include": ["~ALL"], "exclude": []},
+                "repository_property": repository_property,
+            }
+        ),
+        response_json={"id": 7, "name": "pinned"},
+    )
+
+    await generate_patch_and_run_it(github, old=current, new=org_policy(include_repo_names=[]))
+
+
+async def test_update_repo_policy_keeps_workflows_missing_from_the_configuration(github: GitHubProviderTestKit):
+    """A template that only defines the included workflows does not reset the excluded ones."""
+    current = repo_policy(3, exclude_workflows=[".github/workflows/ci.yml"], allowed_events=["pull_request"])
+    expected = dataclasses.replace(repo_policy(), exclude_workflows=UNSET)
+
+    github.http.expect(
+        "PUT",
+        f"{REPO_POLICIES_URL}/3",
+        request_json=repo_policy_request(
+            conditions={"workflow_path": {"include": ["~ALL"], "exclude": [".github/workflows/ci.yml"]}}
+        ),
+        response_json={"id": 3, "name": "pinned"},
+    )
+
+    await generate_patch_and_run_it(github, old=current, new=expected)
+
+
 async def test_update_org_policy_resolves_its_id_by_name(github: GitHubProviderTestKit):
     github.http.expect(
         "GET",

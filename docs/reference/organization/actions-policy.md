@@ -20,7 +20,12 @@ The policies of the enterprise are not managed by otterdog, the ones of a reposi
 
 The rules of a policy that otterdog does not support, e.g. **Require lockfile** whose rule GitHub does not
 publish in its API yet, are kept when otterdog updates the policy. A rule missing from the configuration, e.g. with
-a default configuration predating it, is not managed either and keeps its current value.
+a default configuration predating it, is not managed either and keeps its current value, as does a key of the
+workflow or repository targeting missing from the configuration while another one is configured.
+
+A policy that targets repositories by custom property or by id, which otterdog does not support, keeps this
+targeting when otterdog updates the policy, its `include_repo_names`, `exclude_repo_names` and
+`protect_repo_names` are not compared.
 
 ## Jsonnet Function
 

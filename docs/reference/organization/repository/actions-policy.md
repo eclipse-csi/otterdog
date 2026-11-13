@@ -22,7 +22,8 @@ the workflows that `exclude_workflows` does not exclude.
 
 The rules of a policy that otterdog does not support, e.g. **Require lockfile** whose rule GitHub does not
 publish in its API yet, are kept when otterdog updates the policy. A rule missing from the configuration, e.g. with
-a default configuration predating it, is not managed either and keeps its current value.
+a default configuration predating it, is not managed either and keeps its current value, as does one of
+`include_workflows` and `exclude_workflows` missing from the configuration while the other one is configured.
 
 ## Jsonnet Function
 

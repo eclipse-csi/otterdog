@@ -63,11 +63,11 @@ class RepositoryActionsPolicy(ActionsPolicy):
 
             case LivePatchType.CHANGE:
                 current_object = unwrap(patch.current_object)
-                expected_object = unwrap(patch.expected_object).with_unset_rules_from(current_object)
+                expected_object = unwrap(patch.expected_object).with_unset_values_from(current_object)
                 await provider.update_repo_actions_policy(
                     org_id,
                     repository.name,
                     current_object.id,
                     current_object.name,
-                    current_object.with_unsupported_rules(await expected_object.to_provider_data(org_id, provider)),
+                    current_object.with_unsupported_settings(await expected_object.to_provider_data(org_id, provider)),
                 )

@@ -185,6 +185,27 @@ async def _actor_to_provider(actor: str, provider: GitHubProvider) -> dict[str, 
     return {"id": int(app_id), "type": "App"}
 
 
+def _workflows_from_provider(conditions: Any, key: str, default: list[str]) -> list[str]:
+    """
+    Returns the workflow patterns of a condition read from GitHub, which omits the workflow condition of a policy
+    targeting all workflows if workflow targeting is not available, otherwise it reports it as '~ALL'.
+    """
+    workflow_path = (conditions or {}).get("workflow_path")
+    if workflow_path is None:
+        return list(default)
+
+    return list(workflow_path.get(key) or [])
+
+
+def _rule_parameters(rules: list[dict[str, Any]], rule_type: str) -> dict[str, Any] | None:
+    """Returns the parameters of the rule of the given type, None if the policy does not require it."""
+    for rule in rules:
+        if rule.get("type") == rule_type:
+            return rule.get("parameters") or {}
+
+    return None
+
+
 @dataclasses.dataclass
 class ActionsPolicy(ModelObject, abc.ABC):
     """
@@ -217,28 +238,42 @@ class ActionsPolicy(ModelObject, abc.ABC):
         "allowed_events": "restrict_action_events",
     }
 
+    # the keys of the conditions that GitHub updates together, e.g. the excluded workflows are reset if only the
+    # included workflows are sent
+    _condition_keys: ClassVar[list[tuple[str, ...]]] = [("include_workflows", "exclude_workflows")]
+
     def is_rule_configured(self, key: str) -> bool:
         """Returns whether the rule modelled by the given key is required by this policy."""
         return is_set_and_present(self.__getattribute__(key))
 
-    def with_unset_rules_from(self, current_object: ActionsPolicy) -> Self:
+    def with_unset_values_from(self, current_object: ActionsPolicy) -> Self:
         """
-        Returns a copy of this policy whose rules missing from the configuration, e.g. with a template predating
-        them, keep the values of the current policy. GitHub replaces all the rules of a policy on update, these
-        rules would otherwise be removed although they are not managed.
+        Returns a copy of this policy whose values missing from the configuration, e.g. with a template predating
+        them, keep the values of the current policy, as GitHub replaces them on update although they are not managed:
+
+        - the rules, GitHub replaces all the rules of a policy
+        - the keys of a condition, if another key of the condition is configured, e.g. the excluded workflows if only
+          the included workflows are configured
         """
+        keys = [key for key in self._rule_types if is_unset(self.__getattribute__(key))]
+
+        for condition_keys in self._condition_keys:
+            unset_keys = [key for key in condition_keys if is_unset(self.__getattribute__(key))]
+            if len(unset_keys) < len(condition_keys):
+                keys.extend(unset_keys)
+
         current_values = {
             key: current_object.__getattribute__(key)
-            for key in self._rule_types
-            if is_unset(self.__getattribute__(key))
+            for key in keys
+            if not is_unset(current_object.__getattribute__(key))
         }
 
         return dataclasses.replace(self, **current_values) if len(current_values) > 0 else self
 
-    def with_unsupported_rules(self, data: dict[str, Any]) -> dict[str, Any]:
+    def with_unsupported_settings(self, data: dict[str, Any]) -> dict[str, Any]:
         """
-        Returns the data of an update of this current policy that keeps its rules not supported by otterdog, which
-        would otherwise be removed as GitHub replaces all the rules of a policy.
+        Returns the data of an update of this current policy that keeps its settings not supported by otterdog, which
+        GitHub would otherwise replace: the rules of an unsupported type, as GitHub replaces all the rules of a policy.
         """
         if "rules" not in data or not is_set_and_present(self.unsupported_rules) or len(self.unsupported_rules) == 0:
             return data
@@ -302,35 +337,43 @@ class ActionsPolicy(ModelObject, abc.ABC):
 
     def _validate_rules(self, context: ValidationContext, header: str) -> None:
         if is_set_and_present(self.allowed_actors):
-            for actor in self.allowed_actors:
-                if (error := _validate_actor(actor)) is not None:
-                    context.add_failure(FailureType.ERROR, f"{header} has {error}")
-
-            if len(self.allowed_actors) == 0:
-                context.add_failure(
-                    FailureType.WARNING,
-                    f"{header} has an empty 'allowed_actors', no actor is allowed to run the targeted workflows.",
-                )
+            self._validate_actors(context, header, self.allowed_actors)
 
         if is_set_and_present(self.allowed_events):
-            for event in self.allowed_events:
-                if event not in EVENTS:
-                    context.add_failure(
-                        FailureType.WARNING,
-                        f"{header} has 'allowed_events' containing unknown event '{event}', GitHub might reject it.",
-                    )
-
-            if len(self.allowed_events) == 0:
-                context.add_failure(
-                    FailureType.WARNING,
-                    f"{header} has an empty 'allowed_events', no event is allowed to trigger the targeted workflows.",
-                )
+            self._validate_events(context, header, self.allowed_events)
 
         rule_values = [self.__getattribute__(key) for key in self._rule_types]
         if all(not is_unset(x) for x in rule_values) and not any(self.is_rule_configured(x) for x in self._rule_types):
             context.add_failure(
                 FailureType.WARNING,
                 f"{header} does not require any rule, set one of ({' | '.join(repr(x) for x in self._rule_types)}).",
+            )
+
+    @staticmethod
+    def _validate_actors(context: ValidationContext, header: str, actors: list[str]) -> None:
+        for actor in actors:
+            if (error := _validate_actor(actor)) is not None:
+                context.add_failure(FailureType.ERROR, f"{header} has {error}")
+
+        if len(actors) == 0:
+            context.add_failure(
+                FailureType.WARNING,
+                f"{header} has an empty 'allowed_actors', no actor is allowed to run the targeted workflows.",
+            )
+
+    @staticmethod
+    def _validate_events(context: ValidationContext, header: str, events: list[str]) -> None:
+        for event in events:
+            if event not in EVENTS:
+                context.add_failure(
+                    FailureType.WARNING,
+                    f"{header} has 'allowed_events' containing unknown event '{event}', GitHub might reject it.",
+                )
+
+        if len(events) == 0:
+            context.add_failure(
+                FailureType.WARNING,
+                f"{header} has an empty 'allowed_events', no event is allowed to trigger the targeted workflows.",
             )
 
     def include_field_for_patch_computation(self, field: dataclasses.Field) -> bool:
@@ -349,45 +392,25 @@ class ActionsPolicy(ModelObject, abc.ABC):
     def get_mapping_from_provider(cls, org_id: str, data: dict[str, Any]) -> dict[str, Any]:
         mapping = super().get_mapping_from_provider(org_id, data)
 
-        # GitHub omits the workflow condition of a policy targeting all workflows if workflow targeting is not
-        # available, otherwise it reports it as '~ALL'
-        def workflows(key: str, default: list[str]) -> Any:
-            def transform(conditions: Any) -> list[str]:
-                workflow_path = (conditions or {}).get("workflow_path")
-                if workflow_path is None:
-                    return list(default)
-
-                return list(workflow_path.get(key) or [])
-
-            return OptionalS("conditions", default={}) >> F(transform)
-
+        conditions = data.get("conditions")
         mapping.update(
             {
-                "include_workflows": workflows("include", [_ALL_WORKFLOWS]),
-                "exclude_workflows": workflows("exclude", []),
+                "include_workflows": K(_workflows_from_provider(conditions, "include", [_ALL_WORKFLOWS])),
+                "exclude_workflows": K(_workflows_from_provider(conditions, "exclude", [])),
             }
         )
 
+        mapping.update({key: K(value) for key, value in cls._rules_from_provider(data).items()})
+
+        return mapping
+
+    @classmethod
+    def _rules_from_provider(cls, data: dict[str, Any]) -> dict[str, Any]:
+        """Returns the values of the keys modelling the rules of a policy read from GitHub, and its unsupported rules."""
         rules = data.get("rules") or []
 
-        def get_rule_parameters(rule_type: str) -> dict[str, Any] | None:
-            for rule in rules:
-                if rule.get("type") == rule_type:
-                    return rule.get("parameters") or {}
-
-            return None
-
-        actors_parameters = get_rule_parameters(cls._rule_types["allowed_actors"])
-        mapping["allowed_actors"] = K(
-            None
-            if actors_parameters is None
-            else [_actor_from_provider(actor) for actor in actors_parameters.get("allowed_actors") or []]
-        )
-
-        events_parameters = get_rule_parameters(cls._rule_types["allowed_events"])
-        mapping["allowed_events"] = K(
-            None if events_parameters is None else list(events_parameters.get("allowed_events") or [])
-        )
+        actors_parameters = _rule_parameters(rules, cls._rule_types["allowed_actors"])
+        events_parameters = _rule_parameters(rules, cls._rule_types["allowed_events"])
 
         supported_rule_types = set(cls._rule_types.values())
         unsupported_rules = [rule for rule in rules if rule.get("type") not in supported_rule_types]
@@ -398,9 +421,15 @@ class ActionsPolicy(ModelObject, abc.ABC):
                 rule.get("type"),
             )
 
-        mapping["unsupported_rules"] = K(unsupported_rules)
-
-        return mapping
+        return {
+            "allowed_actors": None
+            if actors_parameters is None
+            else [_actor_from_provider(actor) for actor in actors_parameters.get("allowed_actors") or []],
+            "allowed_events": None
+            if events_parameters is None
+            else list(events_parameters.get("allowed_events") or []),
+            "unsupported_rules": unsupported_rules,
+        }
 
     @classmethod
     async def get_mapping_to_provider(
@@ -412,7 +441,8 @@ class ActionsPolicy(ModelObject, abc.ABC):
             if not is_unset(data.get(field.name, UNSET))
         }
 
-        # the workflow condition, GitHub keeps the current one if it is omitted on update
+        # the workflow condition, GitHub keeps the current one if it is omitted on update, a key missing from the
+        # configuration is set to its current value before an update, see with_unset_values_from
         workflow_path = {}
         for key, condition_key in [("include_workflows", "include"), ("exclude_workflows", "exclude")]:
             if key in mapping:
