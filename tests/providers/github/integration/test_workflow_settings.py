@@ -209,3 +209,99 @@ async def test_update_repo_workflow_settings(github: GitHubProviderTestKit):
         ORG_ID, {"max_cache_size_gb": 50}, github.provider
     )
     await github.provider.update_repo_workflow_settings(ORG_ID, REPO_NAME, provider_data, is_private=True)
+
+
+async def test_read_org_workflow_settings_with_sha_pinning_required(github: GitHubProviderTestKit):
+    github.http.expect(
+        "GET",
+        f"/orgs/{ORG_ID}/actions/permissions",
+        response_json={"enabled_repositories": "none", "allowed_actions": "none", "sha_pinning_required": True},
+    )
+    github.http.expect(
+        "GET",
+        f"/orgs/{ORG_ID}/actions/permissions/fork-pr-contributor-approval",
+        response_json={"approval_policy": "first_time_contributors"},
+    )
+    github.http.expect(
+        "GET",
+        f"/orgs/{ORG_ID}/actions/cache/storage-limit",
+        response_json={"max_cache_size_gb": 10},
+    )
+
+    provider_data = await github.provider.get_org_workflow_settings(ORG_ID)
+    settings = OrganizationWorkflowSettings.from_provider_data(ORG_ID, provider_data)
+
+    assert settings.sha_pinning_required is True
+
+
+async def test_update_org_workflow_settings_sends_sha_pinning_required_with_enabled_repositories(
+    github: GitHubProviderTestKit,
+):
+    # the endpoint requires 'enabled_repositories', which is sent along as the whole settings are applied
+    github.http.expect(
+        "PUT",
+        f"/orgs/{ORG_ID}/actions/permissions",
+        request_json={"enabled_repositories": "all", "allowed_actions": "all", "sha_pinning_required": True},
+        response_status=204,
+    )
+
+    settings = OrganizationWorkflowSettings.from_model_data(
+        {"enabled_repositories": "all", "allowed_actions": "all", "sha_pinning_required": True}
+    )
+    provider_data = await OrganizationWorkflowSettings.dict_to_provider_data(
+        ORG_ID, settings.to_model_dict(for_diff=True), github.provider
+    )
+    await github.provider.update_org_workflow_settings(ORG_ID, provider_data)
+
+
+async def test_read_repo_workflow_settings_with_sha_pinning_required(github: GitHubProviderTestKit):
+    github.http.expect(
+        "GET",
+        f"/repos/{ORG_ID}/{REPO_NAME}/actions/permissions",
+        response_json={"enabled": False, "allowed_actions": "none", "sha_pinning_required": True},
+    )
+    github.http.expect(
+        "GET",
+        f"/repos/{ORG_ID}/{REPO_NAME}/actions/cache/storage-limit",
+        response_json={"max_cache_size_gb": 10},
+    )
+
+    provider_data = await github.provider.get_repo_workflow_settings(ORG_ID, REPO_NAME, is_private=True)
+    settings = RepositoryWorkflowSettings.from_provider_data(ORG_ID, provider_data)
+
+    assert settings.sha_pinning_required is True
+
+
+async def test_update_repo_workflow_settings_sends_sha_pinning_required_with_enabled(github: GitHubProviderTestKit):
+    # the endpoint requires 'enabled', which is sent along as the whole settings are applied
+    github.http.expect(
+        "PUT",
+        f"/repos/{ORG_ID}/{REPO_NAME}/actions/permissions",
+        request_json={"enabled": True, "allowed_actions": "all", "sha_pinning_required": True},
+        response_status=204,
+    )
+
+    settings = RepositoryWorkflowSettings.from_model_data(
+        {"enabled": True, "allowed_actions": "all", "sha_pinning_required": True}
+    )
+    provider_data = await RepositoryWorkflowSettings.dict_to_provider_data(
+        ORG_ID, settings.to_model_dict(for_diff=True), github.provider
+    )
+    await github.provider.update_repo_workflow_settings(ORG_ID, REPO_NAME, provider_data, is_private=True)
+
+
+async def test_update_repo_workflow_settings_does_not_send_sha_pinning_required_when_disabled(
+    github: GitHubProviderTestKit,
+):
+    github.http.expect(
+        "PUT",
+        f"/repos/{ORG_ID}/{REPO_NAME}/actions/permissions",
+        request_json={"enabled": False},
+        response_status=204,
+    )
+
+    settings = RepositoryWorkflowSettings.from_model_data({"enabled": False, "sha_pinning_required": True})
+    provider_data = await RepositoryWorkflowSettings.dict_to_provider_data(
+        ORG_ID, settings.to_model_dict(for_diff=True), github.provider
+    )
+    await github.provider.update_repo_workflow_settings(ORG_ID, REPO_NAME, provider_data, is_private=True)

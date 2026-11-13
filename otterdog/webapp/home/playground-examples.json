@@ -263,6 +263,18 @@
           "code": "orgs.newOrg('my-project', 'my-org') {\n  settings+: {\n    workflows+: {\n      allowed_actions: \"selected\",\n      allow_github_owned_actions: true,\n      allow_verified_creator_actions: false,\n      allow_action_patterns+: [\n        \"my-org/*\",\n        \"example-owner/example-action@*\",\n      ],\n    },\n  },\n}\n"
         },
         {
+          "title": "Require actions to be pinned to a commit SHA",
+          "variant": "Organization",
+          "anchor": "require-actions-to-be-pinned-to-a-commit-sha",
+          "code": "orgs.newOrg('my-project', 'my-org') {\n  settings+: {\n    workflows+: {\n      sha_pinning_required: true,\n    },\n  },\n}\n"
+        },
+        {
+          "title": "Require actions to be pinned to a commit SHA",
+          "variant": "Repository",
+          "anchor": "require-actions-to-be-pinned-to-a-commit-sha",
+          "code": "orgs.newOrg('my-project', 'my-org') {\n  _repositories+:: [\n    orgs.newRepo('my-repo') {\n      workflows+: {\n        sha_pinning_required: true,\n      },\n    },\n  ],\n}\n"
+        },
+        {
           "title": "Approve workflows from forks",
           "variant": null,
           "anchor": "approve-workflows-from-forks",

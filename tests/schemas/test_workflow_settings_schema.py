@@ -84,6 +84,7 @@ class TestWorkflowSettingsSchemaComposition:
             "actions_can_approve_pull_request_reviews": True,
             "fork_pr_approval_policy": "first_time_contributors",
             "max_cache_size_gb": 50,
+            "sha_pinning_required": True,
         }
 
         validator.validate(data)
@@ -139,6 +140,7 @@ class TestWorkflowSettingsSchemaComposition:
             "actions_can_approve_pull_request_reviews": False,
             "fork_pr_approval_policy": "first_time_contributors_new_to_github",
             "max_cache_size_gb": 50,
+            "sha_pinning_required": False,
         }
 
         validator.validate(data)
@@ -169,6 +171,7 @@ class TestWorkflowSettingsSchemaComposition:
             ("actions_can_approve_pull_request_reviews", True),
             ("fork_pr_approval_policy", "first_time_contributors"),
             ("max_cache_size_gb", 50),
+            ("sha_pinning_required", True),
         ],
     )
     def test_org_workflow_inherits_individual_base_fields(
@@ -195,6 +198,7 @@ class TestWorkflowSettingsSchemaComposition:
             ("actions_can_approve_pull_request_reviews", False),
             ("fork_pr_approval_policy", "all_external_contributors"),
             ("max_cache_size_gb", 50),
+            ("sha_pinning_required", False),
         ],
     )
     def test_repo_workflow_inherits_individual_base_fields(
@@ -209,3 +213,20 @@ class TestWorkflowSettingsSchemaComposition:
         }
 
         validator.validate(data)
+
+    @pytest.mark.parametrize("value", ["true", 1, None])
+    def test_sha_pinning_required_must_be_a_boolean(
+        self, org_workflow_schema, repo_workflow_schema, schemas_registry, value
+    ):
+        """Test that sha_pinning_required only accepts a boolean, on organization and repository level."""
+        for schema, data in (
+            (org_workflow_schema, {"enabled_repositories": "all"}),
+            (repo_workflow_schema, {"enabled": True}),
+        ):
+            validator = Draft202012Validator(schema, registry=schemas_registry)
+
+            with pytest.raises(ValidationError) as exc_info:
+                validator.validate(data | {"sha_pinning_required": value})
+
+            assert list(exc_info.value.absolute_path) == ["sha_pinning_required"]
+            assert exc_info.value.validator == "type"

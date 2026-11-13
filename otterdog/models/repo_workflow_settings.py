@@ -64,6 +64,9 @@ class RepositoryWorkflowSettings(WorkflowSettings):
         if org_workflow_settings.actions_can_approve_pull_request_reviews is False:
             copy.actions_can_approve_pull_request_reviews = UNSET  # type: ignore
 
+        if org_workflow_settings.sha_pinning_required is True:
+            copy.sha_pinning_required = UNSET  # type: ignore
+
         return copy
 
     def validate(self, context: ValidationContext, parent_object: Any) -> None:
@@ -124,6 +127,13 @@ class RepositoryWorkflowSettings(WorkflowSettings):
                     FailureType.INFO,
                     f"{parent_object.get_model_header()} has 'actions_can_approve_pull_request_reviews' enabled, "
                     f"while on organization level it is disabled, setting will be ignored.",
+                )
+
+            if org_workflow_settings.sha_pinning_required is True and self.sha_pinning_required is False:
+                context.add_failure(
+                    FailureType.INFO,
+                    f"{parent_object.get_model_header()} has 'sha_pinning_required' disabled, "
+                    f"while on organization level it is required, setting will be ignored.",
                 )
         elif self.enabled is False:
             actions_enabled = False

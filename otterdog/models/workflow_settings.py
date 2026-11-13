@@ -66,6 +66,14 @@ class WorkflowSettings(EmbeddedModelObject, abc.ABC):
     require designated review and prevent automatic merging.
     """
 
+    sha_pinning_required: bool
+    """
+    Whether actions must be pinned to a full-length commit SHA to run.
+
+    See "sha_pinning_required" parameter in the "Set GitHub Actions permissions" endpoints
+    in https://docs.github.com/en/rest/actions/permissions
+    """
+
     _selected_action_properties: ClassVar[list[str]] = [
         "allow_github_owned_actions",
         "allow_verified_creator_actions",
