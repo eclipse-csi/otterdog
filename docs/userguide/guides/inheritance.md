@@ -167,6 +167,7 @@ is more restrictive, otterdog ignores the repository setting and reports it duri
 | `web_commit_signoff_required: true`                                          | `web_commit_signoff_required`                    |
 | `workflows.default_workflow_permissions: "read"`                             | `workflows.default_workflow_permissions`         |
 | `workflows.actions_can_approve_pull_request_reviews: false`                  | `workflows.actions_can_approve_pull_request_reviews` |
+| `workflows.sha_pinning_required: true`                                       | `workflows.sha_pinning_required`                 |
 | `workflows.allowed_actions` more restrictive than the repository setting     | `workflows.allowed_actions` and related settings |
 | `workflows.enabled_repositories: "none"`, or `"selected"` without the repository | `workflows.enabled`                          |
 | `has_organization_projects: false`                                           | `has_projects`                                   |

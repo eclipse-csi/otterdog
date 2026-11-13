@@ -748,7 +748,9 @@ class OrgClient(RestClient):
     async def update_workflow_settings(self, org_id: str, data: dict[str, Any]) -> None:
         _logger.debug("updating workflow settings for org '%s'", org_id)
 
-        permission_data = {k: data[k] for k in ["enabled_repositories", "allowed_actions"] if k in data}
+        permission_data = {
+            k: data[k] for k in ["enabled_repositories", "allowed_actions", "sha_pinning_required"] if k in data
+        }
         if len(permission_data) > 0:
             status, body = await self.requester.request_raw(
                 "PUT", f"/orgs/{org_id}/actions/permissions", json.dumps(permission_data)

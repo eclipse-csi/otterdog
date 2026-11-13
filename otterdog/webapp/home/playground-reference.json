@@ -816,6 +816,11 @@
           "description": "A list of action patterns permitted to run",
           "notes": "Only taken into account when `allowed_actions` is set to `selected`"
         },
+        "sha_pinning_required": {
+          "type": "boolean",
+          "description": "If actions must be pinned to a full-length commit SHA to run",
+          "notes": "Ignored if the organization sets `sha_pinning_required` to `true`"
+        },
         "default_workflow_permissions": {
           "type": "string",
           "description": "The default workflow permissions granted to the GITHUB_TOKEN",
@@ -1805,6 +1810,11 @@
           "type": "list[string]",
           "description": "A list of action patterns permitted to run",
           "notes": "Only taken into account when `allowed_actions` is set to `selected`"
+        },
+        "sha_pinning_required": {
+          "type": "boolean",
+          "description": "If actions must be pinned to a full-length commit SHA to run",
+          "notes": "Applies to the repositories of the organization, whatever their setting"
         },
         "default_workflow_permissions": {
           "type": "string",

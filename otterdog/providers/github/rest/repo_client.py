@@ -1242,7 +1242,7 @@ class RepoClient(RestClient):
     ) -> None:
         _logger.debug("updating workflow settings for repo '%s/%s'", org_id, repo_name)
 
-        permission_data = {k: data[k] for k in ["enabled", "allowed_actions"] if k in data}
+        permission_data = {k: data[k] for k in ["enabled", "allowed_actions", "sha_pinning_required"] if k in data}
         if len(permission_data) > 0:
             status, body = await self.requester.request_raw(
                 "PUT", f"/repos/{org_id}/{repo_name}/actions/permissions", json.dumps(permission_data)

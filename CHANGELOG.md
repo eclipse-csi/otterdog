@@ -1,5 +1,17 @@
 # Change Log
 
+## [Unreleased]
+
+### Added
+
+ - feat: manage the GitHub Actions setting `sha_pinning_required` of organizations and repositories, which requires actions to be pinned to a full-length commit SHA ([#945](https://github.com/eclipse-csi/otterdog/issues/945)).
+   When an organization requires SHA pinning, the setting of its repositories is ignored.
+
+### Changed
+
+ - **Breaking**: the standard Jsonnet defaults set `sha_pinning_required` to `false` in the workflow settings of organizations and repositories ([#945](https://github.com/eclipse-csi/otterdog/issues/945)).
+   An organization or a repository that requires SHA pinning in the GitHub web UI needs `sha_pinning_required: true` in its configuration, otherwise `apply` disables it.
+
 ## [1.8.0] - 10/11/2026
 
 ### Security

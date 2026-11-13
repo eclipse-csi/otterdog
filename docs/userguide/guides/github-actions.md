@@ -112,7 +112,55 @@ orgs.newOrg('my-project', 'my-org') {
 
 Patterns are described in
 [Allowing select actions and reusable workflows to run](https://docs.github.com/en/organizations/managing-organization-settings/disabling-or-limiting-github-actions-for-your-organization#allowing-select-actions-and-reusable-workflows-to-run).
-The GitHub policy that requires actions to be pinned to a full-length commit SHA cannot be configured with otterdog.
+
+## Require actions to be pinned to a commit SHA
+
+A tag or a branch of an action, e.g. `actions/checkout@v4`, can be moved to other code, for example after the
+repository of the action has been compromised. A full-length commit SHA cannot. When the setting
+`sha_pinning_required` is enabled, a workflow that uses an action that is not pinned to a full-length commit SHA
+fails, including the actions of the organization and the actions authored by GitHub. Reusable workflows can still be
+referenced by a tag. The setting applies whatever the value of `allowed_actions`.
+
+When the organization requires SHA pinning, the setting of its repositories is ignored. Otherwise, a repository can
+require it on its own, e.g. to adopt it one repository at a time:
+
+=== "Organization"
+
+    ``` jsonnet
+    orgs.newOrg('my-project', 'my-org') {
+      settings+: {
+        workflows+: {
+          sha_pinning_required: true,
+        },
+      },
+    }
+    ```
+
+=== "Repository"
+
+    ``` jsonnet
+    orgs.newOrg('my-project', 'my-org') {
+      _repositories+:: [
+        orgs.newRepo('my-repo') {
+          workflows+: {
+            sha_pinning_required: true,
+          },
+        },
+      ],
+    }
+    ```
+
+The actions locked in a lockfile, written by `gh actions-lock`, satisfy this setting without changes to the
+workflow files, see [Enforce workflow lockfiles](https://docs.github.com/en/actions/how-tos/administer/enforce-workflow-lockfiles).
+The policy that requires such a lockfile is not supported by otterdog yet, see
+[#945](https://github.com/eclipse-csi/otterdog/issues/945).
+
+!!! info "Organization policy"
+
+    Pin the actions of the existing workflows before requiring it, otherwise their runs fail. The
+    [Pin Workflow](../../reference/blueprints/pin-workflow.md) blueprint opens pull requests that pin the actions
+    of the workflows of the repositories, and Dependabot keeps the pinned commits up to date. See
+    [Using third-party actions](https://docs.github.com/en/actions/reference/security/secure-use#using-third-party-actions).
 
 ## Approve workflows from forks
 
@@ -178,3 +226,4 @@ Policies can enforce further restrictions on GitHub Actions, e.g. the
 | `actions_can_approve_pull_request_reviews` | `false`                                              | approvals should come from people                       |
 | `fork_pr_approval_policy`                  | `first_time_contributors` or stricter                | review unknown code before it runs                      |
 | `allowed_actions`                          | depends on your organization policy                  | trade-off between control and maintenance               |
+| `sha_pinning_required`                     | `true`, once the actions of the workflows are pinned | a tag can be moved to other code, a commit SHA cannot   |
