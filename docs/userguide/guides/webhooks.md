@@ -47,7 +47,7 @@ orgs.newOrg('my-project', 'my-org') {
 ## Change the URL of a webhook
 
 The URL identifies a webhook: changing it in the configuration deletes the webhook and creates a new one. To update
-the existing webhook instead, list the previous URL in `aliases`, see [Renaming of Resources](../renaming.md):
+the existing webhook instead, list the previous URL in `aliases`, see [Renaming a resource](../resources.md#renaming-a-resource):
 
 ``` jsonnet
 orgs.newOrg('my-project', 'my-org') {

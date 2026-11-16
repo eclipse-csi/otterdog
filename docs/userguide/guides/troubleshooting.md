@@ -1,225 +1,599 @@
 # Troubleshooting
 
-This page lists frequent messages of [`validate`](../../reference/operations/validate.md) and frequent surprises of
-`plan` and `apply`, with their cause and how to address them. `validate` reports three levels of messages:
+This page explains the messages of the validation, e.g. in the validation comment of a pull request or the output of
+[`otterdog validate`](../../reference/operations/validate.md), the replies of
+[`/otterdog merge`](#merging-with-otterdog-merge) when a pull request cannot be auto-merged, and the frequent
+surprises of `plan` and `apply`. Click on a message to see its cause and how to fix it.
 
-- **Error**: the configuration cannot be applied, it must be fixed.
-- **Warning**: the configuration can be applied, but a setting will not be applied as specified.
-- **Info**: a remark, only shown with `-v`, e.g. a resource that will be skipped.
+## Reading a message
 
-In the messages below, `<repository>` stands for the resource reported by `validate`, e.g.
-`repository[name="my-repo"]`.
+The validation reports three levels of messages, the color of each of its messages below is its level:
+
+<!-- the levels of the messages, drawn by docs/assets/theme.css -->
+<div class="otterdog-outcomes" markdown>
+
+<div class="otterdog-outcome otterdog-outcome--ko" markdown>
+
+:material-close-circle-outline: Error
+
+The configuration cannot be applied: the validation of the pull request fails until it is fixed.
+
+</div>
+
+<div class="otterdog-outcome otterdog-outcome--warn" markdown>
+
+:material-alert-outline: Warning
+
+The configuration can be applied, but a setting is not applied as written.
+
+</div>
+
+<div class="otterdog-outcome otterdog-outcome--info" markdown>
+
+:material-information-outline: Info
+
+A remark, e.g. a resource that is skipped, only shown with `/otterdog validate info` on a pull request, or with
+`-v`.
+
+</div>
+
+</div>
+
+In the messages, `<repository>` stands for the resource reported by the validation, e.g. `repository[name="my-repo"]`.
+The surprises of `plan` and `apply`, which are not messages, are at the [end of the page](#plan-and-apply).
 
 ## Values of the configuration
 
-**`invalid value at '<path>': <value> is not of type '<type>'`**
+??? failure "A value has the wrong type"
 
-: A value does not have the type that otterdog expects, e.g. `"0"` instead of `0` for
-  `required_approving_review_count`. Otterdog checks the configuration against its JSON schemas before any other
-  validation, and stops at such an error. Other messages of the same form report a missing property, or a property
-  that is not allowed at this place.
+    `invalid value at '<path>': <value> is not of type '<type>'`
 
-**`invalid value at '<path>': '<value>' is not one of [...]`**
+    **Cause**: the value does not have the type that otterdog expects, e.g. `"0"` instead of `0` for
+    `required_approving_review_count`. otterdog checks the configuration against its JSON schemas before any other
+    validation, and stops at such an error. Other messages of the same form report a missing property, or a property
+    that is not allowed at this place.
 
-: The property only accepts the listed values, e.g. `'TITLE'` instead of `'PR_TITLE'` for `merge_commit_title`. The
-  reference of the property lists the same values.
+    **Fix**: use the type of the property given in the [Reference](../../reference/index.md).
 
-**`ignoring unknown properties found while validating organization config: Additional properties are not allowed ('<property>' was unexpected)`** (Warning)
+??? failure "A value is not one of the allowed ones"
 
-: The property is unknown to otterdog, usually because of a typo, e.g. `has_wikki` instead of `has_wiki`, and has no
-  effect. Fix its name or remove it.
+    `invalid value at '<path>': '<value>' is not one of [...]`
 
-The Playground of the otterdog dashboard checks the same schemas while a configuration is edited: it underlines the
-invalid values and the unknown properties in the editor, and lists them when their number is clicked in its status.
-Its **Validate** button also has the configuration of an organization validated by otterdog, with limitations, see
-[Validation in the Playground](#validation-in-the-playground).
+    `<resource> has '<key>' of value '<value>', while only values (...) are allowed.`
+
+    **Cause**: the property only accepts the listed values, e.g. `'TITLE'` instead of `'PR_TITLE'` for
+    `merge_commit_title`. The first message comes from the JSON schemas, the second one from the validation of the
+    resource.
+
+    **Fix**: use one of the listed values, the Reference of the property lists the same ones.
+
+??? warning "A property is unknown"
+
+    `ignoring unknown properties found while validating organization config: Additional properties are not allowed
+    ('<property>' was unexpected)`
+
+    **Cause**: the property is unknown to otterdog, usually because of a typo, e.g. `has_wikki` instead of `has_wiki`.
+    It has no effect. This warning is shown by the otterdog CLI, not in the validation comment of a pull request.
+
+    **Fix**: fix its name, or remove it.
+
+??? warning "A setting is ignored"
+
+    `<resource> has '<key>' disabled, but '<other key>' is set to '<value>', setting will be ignored.`
+
+    `<repository> has '<key>' enabled, while on organization level it is disabled, setting will be ignored.`
+
+    **Cause**: the setting only applies when another one enables it, e.g. `review_dismissal_allowances` requires
+    `restricts_review_dismissals`, and `selected_repositories` requires `visibility: 'selected'`. Or the organization
+    restricts it for all repositories, e.g. the settings of GitHub Actions. The setting has no effect, the message is a
+    warning or an info depending on the setting.
+
+    **Fix**: remove the setting, or enable the one it depends on.
+
+!!! tip "Catch these messages while editing"
+
+    The Playground of the otterdog dashboard checks the same schemas while a configuration is edited: it underlines
+    the invalid values and the unknown properties in the editor, and lists them when their number is clicked in its
+    status. Its **Validate** button also has the configuration validated by otterdog, with limitations, see
+    [Validation in the Playground](#validation-in-the-playground).
+
+## Organization and teams
+
+??? failure "A feature requires the enterprise plan"
+
+    `use of organization rulesets requires an 'enterprise' plan, while this organization is currently on a '<plan>'
+    plan.`
+
+    `use of organization roles requires an 'enterprise' plan, while this organization is currently on a '<plan>'
+    plan.`
+
+    `<ruleset> has 'enforcement' of value 'evaluate' which is only available for an 'enterprise' plan.`
+
+    `enabling 'members_can_create_private_pages' requires an 'enterprise' plan.`
+
+    **Cause**: these features are only available for organizations on the `enterprise` plan. otterdog only accepts
+    organization rulesets with this plan, although GitHub also provides them with GitHub Team.
+
+    **Fix**:
+
+    - organization rulesets: use repository rulesets instead, see [Organization-wide rulesets](organization-rulesets.md)
+    - `evaluate`: use `disabled` to prepare a ruleset without enforcing it, see
+      [Prepare a ruleset before enforcing it](organization-rulesets.md#prepare-a-ruleset-before-enforcing-it)
+    - organization roles: grant the permissions with teams instead, see [Teams and access](teams-and-access.md)
+    - `members_can_create_private_pages`: keep it disabled
+
+??? failure "A setting is required by the policies of the organization"
+
+    `<resource> has '<key>' set to '<value>' but '<required value>' is required.`
+
+    **Cause**: the administrators of otterdog require this value for all organizations, with a validation script of
+    the default configuration, see
+    [Enforce settings with validation scripts](../../operating_otterdog/organization-policies.md#enforce-settings-with-validation-scripts).
+
+    **Fix**: use the required value.
+
+??? failure "A team is managed by another tool"
+
+    `<team> has 'name' of value '<name>', which is not allowed due to exclusion pattern '<pattern>'.`
+
+    **Cause**: the teams whose name matches the pattern are managed by another tool, e.g. the teams of the committers
+    of a project, and otterdog does not manage them, see
+    [Teams managed by another tool](../../operating_otterdog/organization-policies.md#teams-managed-by-another-tool).
+
+    **Fix**: give the team another name. To grant an excluded team access to a repository, list it in
+    `team_permissions` of the repository, see
+    [Grant teams access to repositories](teams-and-access.md#grant-teams-access-to-repositories).
 
 ## Code scanning
 
-**`invalid value at '<path>.code_scanning_default_languages[<index>]': '<language>' is not one of [...]`**
+??? failure "A language is not a CodeQL identifier"
 
-: The value is not a CodeQL identifier, e.g. `java` or `kotlin` instead of `java-kotlin`. Use one of the values listed in
-  [Supported languages](repository-security.md#supported-languages).
+    `invalid value at '<path>.code_scanning_default_languages[<index>]': '<language>' is not one of [...]`
 
-**`<repository> has 'code_scanning_default_languages' configured while the repository does not yet exist.`**
+    **Cause**: the value is not a CodeQL identifier, e.g. `java` or `kotlin` instead of `java-kotlin`.
 
-: Languages are checked against the languages detected in the repository, which requires the repository to exist.
-  Create the repository with default setup enabled but without languages: GitHub analyzes the languages it detects
-  once code is pushed. Only configure a language in a second change if GitHub does not analyze it on its own, e.g. a
-  compiled language, see [Languages analyzed by GitHub](repository-security.md#languages-analyzed-by-github).
+    **Fix**: use one of the values listed in [Supported languages](repository-security.md#supported-languages).
 
-**`<repository> has 'code_scanning_default_languages' configured with '<language>' but this language is not detected in the repository. Detected languages: ...`**
+??? failure "Languages are configured for a repository that does not exist yet"
 
-: GitHub does not detect any code of this language in the repository, e.g. `python` for a repository without Python
-  code. Remove the language, or configure it once the code has been pushed. The detected languages are listed in
-  the message.
+    `<repository> has 'code_scanning_default_languages' configured while the repository does not yet exist.`
+
+    **Cause**: the languages are checked against the languages detected in the repository, which requires the
+    repository to exist.
+
+    **Fix**: create the repository with default setup enabled but without languages: GitHub analyzes the languages it
+    detects once code is pushed. Only configure a language in a second change if GitHub does not analyze it on its
+    own, e.g. a compiled language, see [Languages analyzed by GitHub](repository-security.md#languages-analyzed-by-github).
+
+??? failure "A language is not detected in the repository"
+
+    `<repository> has 'code_scanning_default_languages' configured with '<language>' but this language is not
+    detected in the repository. Detected languages: ...`
+
+    **Cause**: GitHub does not detect any code of this language in the repository, e.g. `python` for a repository
+    without Python code. The detected languages are listed in the message.
+
+    **Fix**: remove the language, or configure it once the code has been pushed.
 
 ## Secrets and webhooks
 
-**`<organization_codespaces|repository_codespaces> secrets of '<org>' are not available (GitHub answers 404 for '<path>'), they are skipped`** (Warning)
+??? warning "The Codespaces secrets are not available"
 
-: GitHub answers the Codespaces secrets endpoint with `404`, e.g. because Codespaces is not available for the
-  organization. Otterdog skips these secrets, other secrets are not affected. If the configuration declares
-  Codespaces secrets, the operation fails instead with `declares ... secrets which cannot be managed`, as they cannot
-  be compared with the live state: remove them, or make the endpoint available. To not read Codespaces secrets at
-  all, use a default configuration without `newOrgCodespacesSecret` and `newRepoCodespacesSecret`.
+    `<organization_codespaces|repository_codespaces> secrets of '<org>' are not available (GitHub answers 404 for
+    '<path>'), they are skipped`
 
-**`<secret> only has a dummy value, resource will be skipped.`** (Info)
-**`<webhook> has a secret set, but only a dummy secret '********' is provided in the configuration, will be skipped.`** (Info)
+    **Cause**: GitHub answers the Codespaces secrets endpoint with `404`, e.g. because Codespaces is not available for
+    the organization. otterdog skips these secrets, the other secrets are not affected. This warning is shown by the
+    otterdog CLI when it reads the live settings, e.g. with `plan`, `apply` or `import`. If the configuration declares
+    Codespaces secrets, the operation fails instead with `declares ... secrets which cannot be managed`, as they cannot
+    be compared with the live state.
 
-: The value is redacted, usually after an `import`, as GitHub never discloses secret values. The resource is not
-  changed by otterdog. Replace the value with a reference to a credential provider to manage it, see
-  [Secrets managed outside otterdog](secrets-and-variables.md#secrets-managed-outside-otterdog).
+    **Fix**: remove the Codespaces secrets from the configuration, or make the endpoint available. To not read
+    Codespaces secrets at all, use a default configuration without `newOrgCodespacesSecret` and
+    `newRepoCodespacesSecret`.
 
-**`<secret> has a value '<value>' that does not use a credential provider.`** (Warning)
+??? info "A secret or a webhook only has a dummy value"
 
-: The value is written in the configuration, which is stored in a repository. Store it in a credential provider and
-  reference it, see [Reference secret values, never write them](secrets-and-variables.md#reference-secret-values-never-write-them).
+    `<secret> only has a dummy value, resource will be skipped.`
 
-**`<secret> has 'visibility' of value 'private', which is not available for an organization with free plan.`**
+    `<webhook> has a secret set, but only a dummy secret '********' is provided in the configuration, will be
+    skipped.`
 
-: Organizations on the free plan cannot restrict organization secrets and variables to private repositories. Use
-  `selected` with the list of repositories instead.
+    **Cause**: the value is redacted, usually after an `import`, as GitHub never discloses secret values. otterdog
+    does not change the resource.
+
+    **Fix**: to manage the value, replace it with a reference to a credential provider, see
+    [Secrets managed outside otterdog](secrets-and-variables.md#secrets-managed-outside-otterdog).
+
+??? warning "A secret value is written in the configuration"
+
+    `<secret> has a value '<value>' that does not use a credential provider.`
+
+    `<webhook> has a secret '<value>' that does not use a credential provider.`
+
+    **Cause**: the value is written in the configuration, which is stored in a repository.
+
+    **Fix**: store it in a credential provider and reference it, see
+    [Reference secret values, never write them](secrets-and-variables.md#reference-secret-values-never-write-them).
+
+??? failure "The name of a secret or a variable is invalid"
+
+    `<secret> starts with prefix 'GITHUB_' which is not allowed for secrets.`
+
+    `<secret> has 'name' of value '<name>' which is not uppercase, while only uppercase names are allowed for secrets.`
+
+    **Cause**: GitHub reserves the prefix `GITHUB_`, and normalizes the names of secrets and variables to uppercase.
+    The same messages report the names of variables.
+
+    **Fix**: rename it, e.g. `MY_TOKEN` rather than `GITHUB_TOKEN` or `my_token`.
+
+??? failure "The organization is not allowed to use a secret"
+
+    `<secret> references secret '<reference>' that the organization is not allowed to use: <reason>.`
+
+    **Cause**: the administrators of otterdog restrict the secrets that each organization can reference in a credential
+    provider, the reason gives the allowed references. It is a warning while the restriction is not enforced, see
+    [Secret access policy](../../operating_otterdog/setup.md#secret-access-policy).
+
+    **Fix**: reference a secret of the organization, or ask the administrators of otterdog to allow the reference.
+
+??? failure "Private visibility on the free plan"
+
+    `<secret> has 'visibility' of value 'private', which is not available for an organization with free plan.`
+
+    **Cause**: organizations on the free plan cannot restrict organization secrets and variables to private
+    repositories.
+
+    **Fix**: use `selected` with the list of repositories instead.
 
 ## Repositories
 
-**`public <repository> has 'allow_forking' disabled which is not permitted.`** (Warning)
+??? warning "A public repository cannot disable forking"
 
-: Public repositories can always be forked. Remove `allow_forking: false` from public repositories.
+    `public <repository> has 'allow_forking' disabled which is not permitted.`
 
-**`private <repository> has 'allow_forking' enabled, while the organization disables 'members_can_fork_private_repositories'.`**
+    **Cause**: public repositories can always be forked.
 
-: The organization does not allow forking private repositories. Disable `allow_forking` for the repository, or
-  allow forks in the settings of the organization.
+    **Fix**: remove `allow_forking: false` from public repositories.
 
-**`private <repository> has 'has_wiki' enabled, which requires at least GitHub Team billing, currently using 'free' plan.`** (Warning)
+??? failure "The organization does not allow forking private repositories"
 
-: Wikis of private repositories require a paid GitHub plan. Disable `has_wiki` for private repositories, see
-  [Enable only the features that are used](repository-features.md#enable-only-the-features-that-are-used).
+    `private <repository> has 'allow_forking' enabled, while the organization disables
+    'members_can_fork_private_repositories'.`
 
-**`<repository> has 'has_projects' enabled, while the organization disables 'has_organization_projects', setting will be ignored.`** (Warning)
+    **Cause**: the organization does not allow forking private repositories.
 
-: Projects are disabled for the whole organization. Disable `has_projects` for the repository, or enable
-  `has_organization_projects` for the organization.
+    **Fix**: disable `allow_forking` for the repository, or allow forks in the settings of the organization.
 
-**`<repository> has 'web_commit_signoff_required' disabled, while the organization requires it, setting will be ignored.`** (Warning)
+??? warning "The wiki of a private repository requires a paid plan"
 
-: The setting of the organization applies to all repositories, see
-  [Require a sign-off for commits made in the web interface](organization-settings.md#require-a-sign-off-for-commits-made-in-the-web-interface).
-  Remove the setting from the repository.
+    `private <repository> has 'has_wiki' enabled, which requires at least GitHub Team billing, currently using 'free'
+    plan.`
 
-**`<repository> has defined an invalid topic '<topic>'. Only lower-case, numbers and '-' are allowed characters.`**
+    **Cause**: wikis of private repositories require a paid GitHub plan.
 
-: Topics follow the format of GitHub, e.g. `github-actions` instead of `GitHub Actions`, see
-  [Describe repositories](repository-features.md#describe-repositories).
+    **Fix**: disable `has_wiki` for private repositories, see
+    [Enable only the features that are used](repository-features.md#enable-only-the-features-that-are-used).
 
-**`<repository> has ('squash_merge_commit_title', 'squash_merge_commit_message') of value (...), while only combinations (...) are allowed.`**
+??? warning "The organization disables projects"
 
-: GitHub only accepts some combinations of the title and the message of squash and merge commits, see
-  [Control the messages of merge and squash commits](pull-requests.md#control-the-messages-of-merge-and-squash-commits).
+    `<repository> has 'has_projects' enabled, while the organization disables 'has_organization_projects', setting
+    will be ignored.`
+
+    **Cause**: projects are disabled for the whole organization.
+
+    **Fix**: disable `has_projects` for the repository, or enable `has_organization_projects` for the organization.
+
+??? warning "The organization requires a sign-off for web commits"
+
+    `<repository> has 'web_commit_signoff_required' disabled, while the organization requires it, setting will be
+    ignored.`
+
+    **Cause**: the setting of the organization applies to all repositories, see
+    [Require a sign-off for commits made in the web interface](organization-settings.md#require-a-sign-off-for-commits-made-in-the-web-interface).
+
+    **Fix**: remove the setting from the repository.
+
+??? failure "A topic is invalid"
+
+    `<repository> has defined an invalid topic '<topic>'. Only lower-case, numbers and '-' are allowed characters.`
+
+    **Cause**: topics follow the format of GitHub, e.g. `github-actions` instead of `GitHub Actions`.
+
+    **Fix**: rename the topic, see [Describe repositories](repository-features.md#describe-repositories).
+
+??? failure "The title and message of squash commits do not go together"
+
+    `<repository> has ('squash_merge_commit_title', 'squash_merge_commit_message') of value (...), while only
+    combinations (...) are allowed.`
+
+    **Cause**: GitHub only accepts some combinations of the title and the message of squash and merge commits.
+
+    **Fix**: use one of the combinations, see
+    [Control the messages of merge and squash commits](pull-requests.md#control-the-messages-of-merge-and-squash-commits).
+
+??? failure "A custom property is not defined by the organization"
+
+    `<repository> defines an unknown custom property with key '<key>'.`
+
+    **Cause**: a repository can only set the custom properties defined by the organization in
+    `settings.custom_properties`.
+
+    **Fix**: define the property with [newCustomProperty](../../reference/organization/custom-property.md), or fix its
+    name.
+
+??? failure "Push protection requires secret scanning"
+
+    `<repository> has 'secret_scanning' disabled, while 'secret_scanning_push_protection' is enabled.`
+
+    **Cause**: push protection blocks the secrets found by secret scanning, it cannot work without it.
+
+    **Fix**: enable `secret_scanning`, or disable `secret_scanning_push_protection`, see
+    [Secret scanning and push protection](repository-security.md#secret-scanning-and-push-protection).
+
+??? failure "GitHub Pages are disabled for the site of the organization"
+
+    `<repository> has 'gh_pages_build_type' disabled but the repo hosts the organization site and GitHub pages will be
+    enabled automatically.`
+
+    **Cause**: GitHub enables GitHub Pages for the repository `<organization>.github.io` on its own.
+
+    **Fix**: configure GitHub Pages as given in the message, see
+    [Websites with GitHub Pages](repository-patterns.md#websites-with-github-pages).
+
+??? info "GitHub Pages without their environment"
+
+    `<repository> hosts the organization site but no corresponding 'github-pages' environment, please add such an
+    environment.`
+
+    `<repository> has 'gh_pages_build_type' with value '<value>', but no corresponding 'github-pages' environment,
+    please add such an environment.`
+
+    **Cause**: GitHub deploys GitHub Pages through an environment named `github-pages`, which it creates on its own.
+    As long as it is not in the configuration, `plan` reports it as a resource to delete.
+
+    **Fix**: add the environment given in the message, see [GitHub Pages](environments.md#github-pages).
 
 ## Rulesets and branch protection rules
 
-**`<ruleset> has an invalid 'include_refs' pattern '<pattern>', while only values ('refs/heads/*', '~DEFAULT_BRANCH', '~ALL') are allowed`**
+??? failure "A ruleset targets a branch without its full ref"
 
-: The branches of a ruleset are matched by their full ref, e.g. `refs/heads/1.2.x` rather than `1.2.x`, or
-  `refs/heads/release/*` for a pattern, see [RefMatcher](../../reference/organization/repository/ref-matcher.md). The
-  same applies to `exclude_refs`, and the tags of a ruleset with `target: 'tag'` start with `refs/tags/`.
+    `<ruleset> has an invalid 'include_refs' pattern '<pattern>', while only values ('refs/heads/*',
+    '~DEFAULT_BRANCH', '~ALL') are allowed`
 
-**`use of organization rulesets requires an 'enterprise' plan, while this organization is currently on a '<plan>' plan.`**
+    **Cause**: the branches of a ruleset are matched by their full ref. The same applies to `exclude_refs`.
 
-: Otterdog only accepts organization rulesets for organizations on the `enterprise` plan, although GitHub also
-  provides them with GitHub Team. Use repository rulesets instead, see
-  [Organization-wide rulesets](organization-rulesets.md).
+    **Fix**: write the full ref, e.g. `refs/heads/1.2.x` rather than `1.2.x`, or `refs/heads/release/*` for a pattern,
+    and `refs/tags/` for the tags of a ruleset with `target: 'tag'`, see
+    [RefMatcher](../../reference/organization/repository/ref-matcher.md).
 
-**`<ruleset> has 'enforcement' of value 'evaluate' which is only available for an 'enterprise' plan.`**
+??? failure "A rule does not apply to the ruleset"
 
-: Use `disabled` to prepare a ruleset without enforcing it, see
-  [Prepare a ruleset before enforcing it](organization-rulesets.md#prepare-a-ruleset-before-enforcing-it).
+    `<ruleset> has '<key>' set, while it is only supported by rulesets with target '<target>'.`
 
-**`<ruleset> has 'restricted_file_paths' set, while push rules are only supported by private and internal repositories.`**
+    `<ruleset> has '<key>' set, while it is not supported by rulesets with target 'push'.`
 
-: GitHub rejects the push rules, e.g. `restricted_file_paths` or `max_file_size`, of a ruleset of a public
-  repository when the ruleset is applied, whatever the plan of the organization. Push rulesets also require at least
-  GitHub Team. Remove the push ruleset or make the repository private, see
-  [Restrict the files that can be pushed](branch-protection.md#restrict-the-files-that-can-be-pushed).
+    `<ruleset> has '<key>' set, while it is only supported by repository rulesets.`
 
-**`<ruleset> requires deployment environment '<environment>' which is not defined in the repository itself.`**
+    `<ruleset> has 'required_workflows' set, while it is only supported by organization rulesets.`
 
-: A ruleset or branch protection rule that requires a successful deployment can only reference an environment of
-  the same repository. Define the environment in the repository, see
-  [Require a successful deployment before merging](environments.md#require-a-successful-deployment-before-merging).
+    **Cause**: GitHub supports each rule for some rulesets only, e.g. `tag_name_pattern` for `target: 'tag'`, the push
+    rules for `target: 'push'`, or `required_workflows` for organization rulesets.
+
+    **Fix**: move the rule to a ruleset that supports it, or remove it. The Reference gives the rulesets supporting each
+    rule, see [Repository Ruleset](../../reference/organization/repository/ruleset.md).
+
+??? warning "A pattern of repositories matches no repository"
+
+    `<ruleset> has an 'include_repo_names' pattern '<pattern>' that does not match any existing repository`
+
+    **Cause**: no repository of the organization matches the pattern of an organization ruleset, usually because of a
+    typo, or because the repository does not exist yet. The same applies to `exclude_repo_names`.
+
+    **Fix**: fix the pattern, see [Target repositories by name](organization-rulesets.md#target-repositories-by-name).
+
+??? failure "Push rules on a public repository"
+
+    `<ruleset> has 'restricted_file_paths' set, while push rules are only supported by private and internal
+    repositories.`
+
+    **Cause**: GitHub rejects the push rules, e.g. `restricted_file_paths` or `max_file_size`, of a ruleset of a public
+    repository when the ruleset is applied, whatever the plan of the organization. Push rulesets also require at least
+    GitHub Team.
+
+    **Fix**: remove the push ruleset, or make the repository private, see
+    [Restrict the files that can be pushed](branch-protection.md#restrict-the-files-that-can-be-pushed).
+
+??? failure "The required deployment environment is not in the repository"
+
+    `<ruleset> requires deployment environment '<environment>' which is not defined in the repository itself.`
+
+    **Cause**: a ruleset or branch protection rule that requires a successful deployment can only reference an
+    environment of the same repository.
+
+    **Fix**: define the environment in the repository, see
+    [Require a successful deployment before merging](environments.md#require-a-successful-deployment-before-merging).
+
+## Merging with `/otterdog merge`
+
+When a pull request cannot be auto-merged, `/otterdog merge` replies with a warning listing the
+[conditions of the auto-merge](../workflow.md#can-my-pull-request-be-auto-merged) that are not met, in this order.
+
+??? warning "The pull request is closed"
+
+    `pull request is <closed|merged>, only open pull requests can be managed`
+
+    **Cause**: only an open pull request can be merged.
+
+    **Fix**: reopen a closed pull request. A merged pull request is applied, see [Apply](../workflow.md#5-apply).
+
+??? warning "The pull request is not validated yet"
+
+    `pull request has not been validated yet, run /otterdog validate first`
+
+    **Cause**: a draft is not validated automatically, or the validation did not run.
+
+    **Fix**: mark the draft as ready for review, or comment `/otterdog validate`. Then comment `/otterdog merge` again.
+
+??? warning "The pull request is not valid"
+
+    `pull request is not valid, check the /otterdog validate comment for details and push a fix`
+
+    **Cause**: the last validation found errors.
+
+    **Fix**: fix the errors listed in the validation comment, see their messages on this page, and push: the pull
+    request is validated again.
+
+??? warning "It is unknown whether the pull request can be auto-merged"
+
+    `it has not been checked whether the pull request supports auto merge`
+
+    **Cause**: the last validation did not record whether the changes can be auto-merged.
+
+    **Fix**: comment `/otterdog validate`, then `/otterdog merge` again.
+
+??? warning "The changes need an admin"
+
+    `pull request cannot be automatically merged (contains secrets, requires web UI changes, may incur costs,
+    includes deletions or touches non-configuration files)`
+
+    **Cause**: the pull request contains changes that otterdog does not apply on its own, the validation comment lists
+    them.
+
+    **Fix**: a member of the admin teams reviews and merges the pull request. To have the rest auto-merged, move these
+    changes to a pull request of their own, see
+    [Changes that prevent the auto-merge](../workflow.md#changes-that-prevent-the-auto-merge).
+
+??? warning "Neither the author nor an approval allows the auto-merge"
+
+    `The author is not a member of <approval teams> or of <admin teams>`
+
+    `No approval from a member of <approval teams> or of <admin teams> <has been submitted yet|was found>`
+
+    **Cause**: the auto-merge requires an author or an approval from a member of these teams, the pull request has
+    neither.
+
+    **Fix**: ask a member of an approval team for a review, then comment `/otterdog merge` again: otterdog checks the
+    approvals again.
+
+??? warning "The teams of the author are unknown"
+
+    `The author's team membership is unknown (comment /otterdog team-info on the pull request to refresh it)`
+
+    **Cause**: otterdog has not retrieved the teams of the author, e.g. because the retrieval failed. It never does for
+    a bot, whose pull requests need an approval.
+
+    **Fix**: comment `/otterdog team-info`, then `/otterdog merge` again.
+
+??? warning "The comment comes from someone who cannot merge"
+
+    `Only the author of the pull request, a member of <approval teams>, or a member of <admin teams> is allowed to
+    auto-merge.`
+
+    **Cause**: `/otterdog merge` was commented by someone else than the author, who is not a member of an approval or
+    admin team.
+
+    **Fix**: let the author, or a member of these teams, comment `/otterdog merge`.
+
+??? question "Nothing happens after `/otterdog merge`"
+
+    **Cause**: the comment does not start with the command, or GitHub refused the merge, e.g. because of a conflict
+    with `main`.
+
+    **Fix**: start the comment with `/otterdog merge`. Otherwise, update the branch with `main` and comment
+    `/otterdog merge` again.
 
 ## Plan and apply
 
-**`plan` shows changes that nobody made in the configuration**
+??? question "`plan` shows changes that nobody made in the configuration"
 
-: The configuration of the organization only contains the differences to its default configuration. A change of
-  the default configuration, or a setting changed in the GitHub web interface, shows up in `plan`, see
-  [Inherited and explicit values](inheritance.md).
+    **Cause**: the configuration of the organization only contains the differences to its default configuration. A
+    change of the default configuration, or a setting changed in the GitHub web interface, shows up in `plan`.
 
-**A ruleset or branch protection rule created in the GitHub web interface is deleted**
+    **Fix**: see [Inherited and explicit values](inheritance.md).
 
-: Otterdog manages all protections of the configured repositories, a protection that is not part of the
-  configuration is removed when deletions are applied. Add it to the configuration instead, see the warning in
-  [Otterdog specifics](rulesets-vs-branch-protection.md#otterdog-specifics).
+??? question "A ruleset or branch protection rule created in the GitHub web interface is deleted"
 
-**A language removed from `code_scanning_default_languages` is still analyzed**
+    **Cause**: otterdog manages all the protections of the configured repositories, a protection that is not part of
+    the configuration is removed when deletions are applied.
 
-: The configured languages are the minimum set of languages to analyze: languages that GitHub analyzes in addition
-  are kept, and `plan` does not report them. To stop analyzing a language, change the default setup in the GitHub
-  web interface, see [Languages analyzed by GitHub](repository-security.md#languages-analyzed-by-github).
+    **Fix**: add it to the configuration instead, see the warning in
+    [Otterdog specifics](rulesets-vs-branch-protection.md#otterdog-specifics).
 
-**A rotated secret is not updated on GitHub**
+??? question "A language removed from `code_scanning_default_languages` is still analyzed"
 
-: Otterdog cannot detect that the value of a credential changed in the credential provider. Update the secret
-  explicitly, see [Updating secret values](secrets-and-variables.md#updating-secret-values).
+    **Cause**: the configured languages are the minimum set of languages to analyze: the languages that GitHub
+    analyzes in addition are kept, and `plan` does not report them.
 
-**Changes to some organization settings are not applied automatically**
+    **Fix**: to stop analyzing a language, change the default setup in the GitHub web interface, see
+    [Languages analyzed by GitHub](repository-security.md#languages-analyzed-by-github).
 
-: Some settings, e.g. `members_can_create_teams` or the discussions of the organization, can only be changed
-  through the GitHub web interface, which requires the credentials of a user that can log in to GitHub. `plan` and
-  `apply` skip them with `--no-web-ui`, and such changes merged in a pull request of the configuration repository
-  have to be applied manually, see
-  [Restrict what members can do](organization-settings.md#restrict-what-members-can-do).
+??? question "A rotated secret is not updated on GitHub"
 
-**Loading a page of the GitHub web interface times out**
+    **Cause**: otterdog cannot detect that the value of a credential changed in the credential provider.
 
-: Settings that are only available through the GitHub web interface are retrieved with a headless browser, which
-  waits up to 10 seconds for a page to load. On a slow connection this fails with an error like
-  `Page.goto: Timeout 10000ms exceeded`. Increase the timeout, in milliseconds, with the environment variable
-  `OTTERDOG_WEB_TIMEOUT`, e.g. `export OTTERDOG_WEB_TIMEOUT=60000`, or skip these settings with `--no-web-ui`, see
-  [Environment variables](../../operating_otterdog/setup.md#environment-variables).
+    **Fix**: update the secret explicitly, see [Updating secret values](secrets-and-variables.md#updating-secret-values).
+
+??? question "Changes to some organization settings are not applied automatically"
+
+    **Cause**: some settings, e.g. `members_can_create_teams` or the discussions of the organization, can only be
+    changed through the GitHub web interface, which requires the credentials of a user that can log in to GitHub.
+    `plan` and `apply` skip them with `--no-web-ui`.
+
+    **Fix**: such changes merged in a pull request of the configuration repository are applied manually by an admin,
+    see [Restrict what members can do](organization-settings.md#restrict-what-members-can-do).
+
+??? question "Loading a page of the GitHub web interface times out"
+
+    `Page.goto: Timeout 10000ms exceeded`
+
+    **Cause**: the settings only available through the GitHub web interface are retrieved with a headless browser,
+    which waits up to 10 seconds for a page to load, too short on a slow connection.
+
+    **Fix**: increase the timeout, in milliseconds, with the environment variable `OTTERDOG_WEB_TIMEOUT`, e.g.
+    `export OTTERDOG_WEB_TIMEOUT=60000`, or skip these settings with `--no-web-ui`, see
+    [Environment variables](../../operating_otterdog/setup.md#environment-variables).
 
 ## Validation in the Playground
 
 The **Validate** button of the Playground of the otterdog dashboard has the configuration of an organization, created
-by `orgs.newOrg(...)`, validated by otterdog on the server, with the default configuration of the Playground. It reports
-the messages of `validate` listed on this page, the infos included, at the property they are about, e.g. at the invalid
-value of `include_refs`, if it is set in the configuration, otherwise at the repository or the organization they are
-about. The evaluated configuration is only sent to the server when the button is clicked, it is neither stored nor
-applied.
+by `orgs.newOrg(...)`, validated by otterdog on the server, with the default configuration of the Playground. The
+button is not shown for a snippet, e.g. creating a repository, and is disabled for a configuration failing to evaluate
+or having schema errors. The evaluated configuration is only sent to the server when the button is clicked, it is
+neither stored nor applied.
 
-The **Propose on GitHub** button of the Playground of a project validates the configuration the same way first. If
-otterdog finds errors, which would fail the validation of the pull request, or if the configuration cannot be
-validated, e.g. because of schema errors, it asks to confirm before proposing it.
+A configuration without problem in the Playground can still be rejected by the validation of its pull request:
 
-A configuration without problem in the Playground can still be rejected by the validation of its pull request, or fail
-to be applied:
+<!-- what the Playground and the pull request check, drawn by docs/assets/theme.css -->
+<div class="otterdog-outcomes" markdown>
 
-- **The validations depending on the organization on GitHub are skipped**: the members of a team with
-  `skip_non_organization_members` being members of the organization, and the languages of
-  `code_scanning_default_languages` being detected in the repository, which must exist.
-- **The checks only done when applying are not done**, by `validate` neither: the teams, users and apps of
-  `bypass_actors` must exist, and GitHub can reject a value that otterdog accepts.
-- **The plan is not computed**: whether the changes require secrets, settings only accessible via the GitHub web
-  interface, or remove resources, which prevents their automatic merge, is only reported on the pull request. The
-  Playground of a project shows the changes to the current configuration of the organization, though.
-- **The configuration is not compared with the settings on GitHub**, like `/otterdog check-sync` does on the pull
-  request.
-- **The default configuration is the one of the Playground**: the global Playground validates with the default
-  configuration it evaluates with, the one of the instance or the example of otterdog, which may not be the one of
-  your organization. Use the Playground of your project to validate with its default configuration.
-- **Only the configuration of an organization is validated**: the button is not shown for a snippet, e.g. creating a
-  repository, and is disabled for a configuration failing to evaluate or having schema errors, which otterdog does not
-  validate further.
+<div class="otterdog-outcome otterdog-outcome--ok" markdown>
+
+:material-code-braces: The Playground checks
+
+- the **schemas** while you edit: the types, the allowed values and the unknown properties
+- with **Validate**, the messages of `validate` listed on this page, the infos included, at the property they are
+  about, otherwise at the repository or the organization
+- with **Propose on GitHub**, the same validation first: it asks to confirm before proposing a configuration with
+  errors, or that cannot be validated
+
+</div>
+
+<div class="otterdog-outcome otterdog-outcome--warn" markdown>
+
+:material-source-pull: Only the pull request checks
+
+- the **validations depending on GitHub**: the members of a team with `skip_non_organization_members` being members
+  of the organization, and the languages of `code_scanning_default_languages` being detected in the repository
+- the **plan**: whether the changes require secrets, settings of the Web UI, or remove resources, which prevents the
+  auto-merge. The Playground of a project shows the changes to the current configuration, though
+- the **comparison with GitHub**, like `/otterdog check-sync`
+- the **default configuration of your organization**: the global Playground validates with its own, use the
+  Playground of your project instead
+
+</div>
+
+</div>
+
+Some checks are only done when the changes are applied, by `validate` neither: the teams, users and apps of
+`bypass_actors` must exist, and GitHub can reject a value that otterdog accepts.

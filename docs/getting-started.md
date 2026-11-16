@@ -20,7 +20,7 @@ For the members and contributors of a project whose GitHub organization is manag
    make on GitHub, the configured teams review it, and the changes are applied once it is merged.
 
 Next: [Workflow for changes](userguide/workflow.md), then
-[adding](userguide/adding.md), [renaming](userguide/renaming.md) or [removing](userguide/removal.md) resources.
+[Adding, renaming and removing resources](userguide/resources.md).
 
 ## Manage organizations with the command line tool
 

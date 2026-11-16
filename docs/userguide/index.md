@@ -10,10 +10,8 @@ otterdog itself, see [Operating Otterdog](../operating_otterdog/index.md) for th
 Every change to the configuration of an organization is a pull request on its configuration repository:
 
 - [Workflow for changes](workflow.md): from the configuration repository to the changes applied on GitHub.
-- [Adding resources](adding.md): declare a new resource, e.g. a repository, with the function of the default
-  configuration.
-- [Renaming resources](renaming.md): rename a resource without deleting and recreating it.
-- [Removing resources](removal.md): delete a resource from the configuration.
+- [Adding, renaming and removing resources](resources.md): declare a new resource with the function of the default
+  configuration, rename a repository or a webhook without deleting it, delete a resource.
 
 ## Configuration Guides
 
