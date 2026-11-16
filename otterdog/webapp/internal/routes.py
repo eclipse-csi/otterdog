@@ -11,6 +11,7 @@ from collections.abc import Awaitable, Callable
 from time import monotonic
 from urllib.parse import urlparse
 
+import pymongo
 from quart import current_app
 from quart_redis import get_redis  # type: ignore
 
@@ -76,7 +77,11 @@ async def health():
 
 
 async def _check_mongodb() -> None:
-    await mongo.ping(timeout=READINESS_CHECK_TIMEOUT_IN_SECONDS)
+    # motor runs the command in a thread of a pool shared by the whole webapp, along with the timeout
+    # of pymongo: it bounds the command itself, whereas cancelling the coroutine awaiting it would leave
+    # the thread blocked until the server selection timeout, 30s by default
+    with pymongo.timeout(READINESS_CHECK_TIMEOUT_IN_SECONDS):
+        await mongo.ping()
 
 
 async def _check_redis() -> None:

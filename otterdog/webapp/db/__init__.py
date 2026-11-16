@@ -44,14 +44,8 @@ class Mongo:
     def odm(self) -> AIOEngine:
         return unwrap(self._engine)
 
-    async def ping(self, timeout: float | None = None) -> None:
-        import pymongo
-
-        # motor runs the command in a thread of a pool shared by the whole webapp: the timeout has to
-        # bound the command itself, cancelling the coroutine awaiting it would leave the thread blocked
-        # until the server selection timeout, 30s by default
-        with pymongo.timeout(timeout):
-            await unwrap(self._client).admin.command("ping")
+    async def ping(self) -> None:
+        await unwrap(self._client).admin.command("ping")
 
 
 async def init_mongo_database(mongo: Mongo) -> None:

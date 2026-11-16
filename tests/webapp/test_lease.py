@@ -58,8 +58,11 @@ async def test_a_held_lease_is_released_when_the_block_fails(fake_redis):
     lease = RedisLease("key", 300)
     await lease.acquire()
 
-    with pytest.raises(RuntimeError):
+    async def fail_while_held() -> None:
         async with lease.held():
             raise RuntimeError("boom")
+
+    with pytest.raises(RuntimeError, match="boom"):
+        await fail_while_held()
 
     assert "key" not in fake_redis.values

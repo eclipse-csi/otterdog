@@ -8,6 +8,7 @@
 
 import asyncio
 import socket
+from time import monotonic
 from unittest import mock
 
 import pytest
@@ -71,8 +72,8 @@ def init_scheduling_a_task(monkeypatch):
     task.completed.set()
 
 
-async def _until(condition, timeout: float = 1.0) -> None:
-    async with asyncio.timeout(timeout):
+async def _until(condition) -> None:
+    async with asyncio.timeout(1):
         while not condition():
             await asyncio.sleep(0.005)
 
@@ -107,8 +108,8 @@ async def test_the_init_lease_is_held_until_the_tasks_it_scheduled_completed(app
         assert status == 200
 
 
-async def test_the_init_lease_is_released_when_the_init_fails(app, fake_redis, init_scheduling_a_task):
-    routes.refresh_otterdog_config.side_effect = RuntimeError("boom")
+async def test_the_init_lease_is_released_when_the_init_fails(app, fake_redis, init_scheduling_a_task, monkeypatch):
+    monkeypatch.setattr(routes, "refresh_otterdog_config", mock.AsyncMock(side_effect=RuntimeError("boom")))
 
     async with app.test_request_context("/internal/init"):
         with pytest.raises(RuntimeError):
@@ -309,7 +310,29 @@ async def test_a_failure_is_reused_as_well(app, healthy_dependencies, ghproxy_ur
     assert healthy_dependencies.ping.await_count == 1
 
 
-async def test_mongodb_is_pinged_with_a_bounded_timeout(app, healthy_dependencies, ghproxy_uri):
-    await _ready(app, ghproxy_uri)
+async def test_the_mongodb_check_gives_up_after_its_timeout(monkeypatch):
+    """
+    Motor runs the command in a thread of a pool shared by the whole webapp.
 
-    routes.mongo.ping.assert_awaited_once_with(timeout=routes.READINESS_CHECK_TIMEOUT_IN_SECONDS)
+    The check is awaited directly rather than through the readiness checks, which give up
+    on it anyway: without a timeout bounding the command itself, it would only return
+    after the server selection timeout, 30s by default, leaving the thread blocked meanwhile.
+    """
+    from pymongo.errors import PyMongoError
+    from quart import Quart
+
+    from otterdog.webapp.db import Mongo
+
+    unreachable = Quart(__name__)
+    unreachable.config["MONGO_URI"] = f"mongodb://127.0.0.1:{_closed_port()}/otterdog"
+    mongo = Mongo()
+    mongo.init_app(unreachable)
+
+    monkeypatch.setattr(routes, "mongo", mongo)
+    monkeypatch.setattr(routes, "READINESS_CHECK_TIMEOUT_IN_SECONDS", 0.2)
+
+    started_at = monotonic()
+    with pytest.raises(PyMongoError):
+        await routes._check_mongodb()
+
+    assert monotonic() - started_at < 5
