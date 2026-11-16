@@ -39,6 +39,7 @@ from otterdog.models.custom_property import CustomProperty
 from otterdog.models.environment import Environment
 from otterdog.models.environment_secret import EnvironmentSecret
 from otterdog.models.environment_variable import EnvironmentVariable
+from otterdog.models.organization_actions_policy import OrganizationActionsPolicy
 from otterdog.models.organization_code_security_configuration import (
     CodeSecurityConfigurationPlan,
     OrganizationCodeSecurityConfiguration,
@@ -51,6 +52,7 @@ from otterdog.models.organization_secret import OrganizationSecret
 from otterdog.models.organization_settings import OrganizationSettings
 from otterdog.models.organization_variable import OrganizationVariable
 from otterdog.models.organization_webhook import OrganizationWebhook
+from otterdog.models.repo_actions_policy import RepositoryActionsPolicy
 from otterdog.models.repo_codespaces_secret import RepositoryCodespacesSecret
 from otterdog.models.repo_dependabot_secret import RepositoryDependabotSecret
 from otterdog.models.repo_ruleset import RepositoryRuleset
@@ -136,6 +138,7 @@ class GitHubOrganization:
     variables: list[OrganizationVariable] = dataclasses.field(default_factory=list)
     rulesets: list[OrganizationRuleset] = dataclasses.field(default_factory=list)
     code_security_configurations: list[OrganizationCodeSecurityConfiguration] = dataclasses.field(default_factory=list)
+    actions_policies: list[OrganizationActionsPolicy] = dataclasses.field(default_factory=list)
     repositories: list[Repository] = dataclasses.field(default_factory=list)
 
     _secrets_resolved: bool = False
@@ -267,6 +270,15 @@ class GitHubOrganization:
 
     def set_rulesets(self, rulesets: list[OrganizationRuleset]) -> None:
         self.rulesets = rulesets
+
+    def add_actions_policy(self, policy: OrganizationActionsPolicy) -> None:
+        self.actions_policies.append(policy)
+
+    def get_actions_policy(self, name: str) -> OrganizationActionsPolicy | None:
+        return next(filter(lambda x: x.name == name, self.actions_policies), None)  # type: ignore
+
+    def set_actions_policies(self, policies: list[OrganizationActionsPolicy]) -> None:
+        self.actions_policies = policies
 
     def add_code_security_configuration(self, configuration: OrganizationCodeSecurityConfiguration) -> None:
         self.code_security_configurations.append(configuration)
@@ -572,6 +584,9 @@ class GitHubOrganization:
 
         self._validate_default_code_security_configurations(context)
 
+        for policy in self.actions_policies:
+            policy.validate(context, self)
+
         # Run synchronous validations and collect repos needing API code scanning validation
         repos_needing_codescaning_language_validation = []
         for repo in self.repositories:
@@ -720,6 +735,10 @@ class GitHubOrganization:
             yield configuration, None
             yield from configuration.get_model_objects()
 
+        for policy in self.actions_policies:
+            yield policy, None
+            yield from policy.get_model_objects()
+
         for repo in self.repositories:
             yield repo, None
             yield from repo.get_model_objects()
@@ -757,6 +776,8 @@ class GitHubOrganization:
             "rulesets": OptionalS("rulesets", default=[]) >> Forall(lambda x: OrganizationRuleset.from_model_data(x)),
             "code_security_configurations": OptionalS("code_security_configurations", default=[])
             >> Forall(lambda x: OrganizationCodeSecurityConfiguration.from_model_data(x)),
+            "actions_policies": OptionalS("actions_policies", default=[])
+            >> Forall(lambda x: OrganizationActionsPolicy.from_model_data(x)),
             "repositories": OptionalS("repositories", default=[]) >> Forall(lambda x: Repository.from_model_data(x)),
         }
 
@@ -963,6 +984,19 @@ class GitHubOrganization:
             printer.level_down()
             printer.println("],")
 
+        # print organization actions policies
+        if len(self.actions_policies) > 0:
+            default_actions_policy = OrganizationActionsPolicy.from_model_data(config.default_org_actions_policy_config)
+
+            printer.println("actions_policies+: [")
+            printer.level_up()
+
+            for policy in self.actions_policies:
+                policy.to_jsonnet(printer, config, context, False, default_actions_policy)
+
+            printer.level_down()
+            printer.println("],")
+
         # print repositories
         if len(self.repositories) > 0:
             repos_by_name = associate_by_key(self.repositories, lambda x: x.name)
@@ -1065,6 +1099,9 @@ class GitHubOrganization:
             None,
             context,
             handler,
+        )
+        OrganizationActionsPolicy.generate_live_patch_of_list(
+            self.actions_policies, current_organization.actions_policies, None, context, handler
         )
         Repository.generate_live_patch_of_list(
             self.repositories, current_organization.repositories, None, context, handler
@@ -1374,6 +1411,16 @@ class GitHubOrganization:
             else:
                 _logger.debug("not reading org secrets, no default config available")
 
+        @debug_times("actions_policies")
+        async def _load_actions_policies() -> None:
+            if jsonnet_config.default_org_actions_policy_config is not None:
+                github_policies = await provider.get_org_actions_policies(github_id)
+                await _enrich_actions_policy_actors(github_policies, github_id, provider, app_installations)
+                for policy in github_policies:
+                    org.add_actions_policy(OrganizationActionsPolicy.from_provider_data(github_id, policy))
+            else:
+                _logger.debug("not reading org actions policies, no default config available")
+
         @debug_times("code_security_configurations")
         async def _load_code_security_configurations() -> None:
             if jsonnet_config.default_org_code_security_configuration_config is not None:
@@ -1410,6 +1457,7 @@ class GitHubOrganization:
             task_group.soonify(_load_variables)()
             task_group.soonify(_load_rulesets)()
             task_group.soonify(_load_code_security_configurations)()
+            task_group.soonify(_load_actions_policies)()
             task_group.soonify(_load_repos)()
 
         # the configurations attached to repositories are only known once both have been loaded,
@@ -1473,6 +1521,65 @@ async def _enrich_team_bypass_reviewers(
     for reviewer in team_reviewers():
         if reviewer.get("reviewer_id") in teams:
             reviewer["team_slug"] = teams[reviewer["reviewer_id"]]
+
+
+async def _enrich_actions_policy_actors(
+    policies: list[dict[str, Any]],
+    github_id: str,
+    provider: GitHubProvider,
+    app_installations: dict[str, str],
+    teams: dict[str, str] | None = None,
+) -> None:
+    """
+    Adds the names of the allowed actors of actions policies, GitHub only provides their ids: 'user_login' for users
+    and bots, 'team_slug' for teams and 'app_slug' for apps installed in the organization. An actor whose name is not
+    known is referenced by its type and id.
+    """
+    actors = [
+        actor
+        for policy in policies
+        for rule in policy.get("rules") or []
+        if rule.get("type") == "restrict_actions_actors"
+        for actor in (rule.get("parameters") or {}).get("allowed_actors") or []
+    ]
+    if len(actors) == 0:
+        return
+
+    names = await _actions_policy_actor_names(actors, github_id, provider, app_installations, teams)
+    for actor in actors:
+        if (name_key_and_names := names.get(actor.get("type"))) is not None:
+            name_key, names_by_id = name_key_and_names
+            if (name := names_by_id.get(str(actor.get("id")))) is not None:
+                actor[name_key] = name
+
+
+async def _actions_policy_actor_names(
+    actors: list[dict[str, Any]],
+    github_id: str,
+    provider: GitHubProvider,
+    app_installations: dict[str, str],
+    teams: dict[str, str] | None,
+) -> dict[str, tuple[str, dict[str, str]]]:
+    """
+    Returns, by actor type, the key of the name of an actor and the names by id of the actors of this type, only the
+    names of the given actors are retrieved.
+    """
+    user_ids = {actor["id"] for actor in actors if actor.get("type") in ("User", "Bot") and "id" in actor}
+    user_logins = (
+        {str(user_id): login for user_id, login in (await provider.get_user_logins(user_ids)).items()}
+        if len(user_ids) > 0
+        else {}
+    )
+
+    if teams is None and any(actor.get("type") == "Team" for actor in actors):
+        teams = {str(team["id"]): f"{github_id}/{team['slug']}" for team in await provider.get_org_teams(github_id)}
+
+    return {
+        "User": ("user_login", user_logins),
+        "Bot": ("user_login", user_logins),
+        "Team": ("team_slug", teams or {}),
+        "App": ("app_slug", app_installations),
+    }
 
 
 def _add_code_security_configurations(
@@ -1704,6 +1811,14 @@ async def _process_single_repo(
                 partial(RepositoryRuleset.from_provider_data, github_id),
             )
         )
+        actions_policies = group.create_task(
+            _load_resources(
+                jsonnet_config.default_repo_actions_policy_config,
+                "repo actions policies",
+                lambda: _get_repo_actions_policies(gh_client, github_id, repo_name, teams, app_installations),
+                partial(RepositoryActionsPolicy.from_provider_data, github_id),
+            )
+        )
         webhooks = group.create_task(
             _load_resources(
                 jsonnet_config.default_org_webhook_config,
@@ -1757,6 +1872,8 @@ async def _process_single_repo(
         repo.add_branch_protection_rule(rule)
     for ruleset in rulesets.result():
         repo.add_ruleset(ruleset)
+    for policy in actions_policies.result():
+        repo.add_actions_policy(policy)
     for webhook in webhooks.result():
         repo.add_webhook(webhook)
     for secret in secrets.result():
@@ -1835,6 +1952,18 @@ async def _get_repo_rulesets(
     await _enrich_user_bypass_actors(rulesets, gh_client)
     await _enrich_workflow_repositories(rulesets, gh_client)
     return rulesets
+
+
+async def _get_repo_actions_policies(
+    gh_client: GitHubProvider,
+    github_id: str,
+    repo_name: str,
+    teams: dict[str, Any],
+    app_installations: dict[str, str],
+) -> list[dict[str, Any]]:
+    policies = await gh_client.get_repo_actions_policies(github_id, repo_name)
+    await _enrich_actions_policy_actors(policies, github_id, gh_client, app_installations, teams)
+    return policies
 
 
 def _enrich_bypass_actor_slugs(ruleset: dict[str, Any], teams: dict[str, Any], app_installations: dict[str, str]):

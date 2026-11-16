@@ -27,6 +27,16 @@ class UserClient(RestClient):
         except GitHubException as ex:
             raise RuntimeError(f"failed retrieving user node id:\n{ex}") from ex
 
+    async def get_user_id_and_type(self, login: str) -> tuple[int, str]:
+        """Returns the id and the type of an account, e.g. 'User' or 'Bot' for 'dependabot[bot]'."""
+        _logger.debug("retrieving user id and type for user '%s'", login)
+
+        try:
+            response = await self.requester.request_json("GET", f"/users/{login}")
+            return response["id"], response.get("type", "User")
+        except GitHubException as ex:
+            raise RuntimeError(f"failed retrieving user '{login}':\n{ex}") from ex
+
     async def get_user_login(self, account_id: int) -> str:
         _logger.debug("retrieving user login for user id '%s'", account_id)
 

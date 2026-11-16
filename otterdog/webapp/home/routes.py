@@ -409,6 +409,11 @@ async def defaults(project_name: str):
                 "Organization Code Security Configuration",
                 f"{jsonnet_config.create_org_code_security_configuration}('<name>')",
             ),
+            (
+                "org-actions-policy",
+                "Organization Actions Policy",
+                f"{jsonnet_config.create_org_actions_policy}('<name>')",
+            ),
             ("org-team", "Organization Team", f"{jsonnet_config.create_org_team}('<name>')"),
             ("org-secret", "Organization Secret", f"{jsonnet_config.create_org_secret}('<name>')"),
             (
@@ -447,6 +452,11 @@ async def defaults(project_name: str):
             ("environment-variable", "Environment Variable", f"{jsonnet_config.create_environment_variable}('<name>')"),
             ("bpr", "Branch Protection Rule", f"{jsonnet_config.create_branch_protection_rule}('<pattern>')"),
             ("repo-ruleset", "Repository Ruleset", f"{jsonnet_config.create_repo_ruleset}('<name>')"),
+            (
+                "repo-actions-policy",
+                "Repository Actions Policy",
+                f"{jsonnet_config.create_repo_actions_policy}('<name>')",
+            ),
             ("ruleset-pull-request", "Pull Request Settings", f"{jsonnet_config.create_pull_request}()"),
             ("ruleset-status-check", "Status Check Settings", f"{jsonnet_config.create_status_checks}()"),
             ("ruleset-merge-queue", "Merge Queue Settings", f"{jsonnet_config.create_merge_queue}()"),

@@ -11,12 +11,14 @@ from otterdog.models.custom_property import CustomProperty
 from otterdog.models.environment import Environment
 from otterdog.models.environment_secret import EnvironmentSecret
 from otterdog.models.environment_variable import EnvironmentVariable
+from otterdog.models.organization_actions_policy import OrganizationActionsPolicy
 from otterdog.models.organization_code_security_configuration import OrganizationCodeSecurityConfiguration
 from otterdog.models.organization_codespaces_secret import OrganizationCodespacesSecret
 from otterdog.models.organization_dependabot_secret import OrganizationDependabotSecret
 from otterdog.models.organization_secret import OrganizationSecret
 from otterdog.models.organization_settings import OrganizationSettings
 from otterdog.models.organization_variable import OrganizationVariable
+from otterdog.models.repo_actions_policy import RepositoryActionsPolicy
 from otterdog.models.repo_codespaces_secret import RepositoryCodespacesSecret
 from otterdog.models.repo_dependabot_secret import RepositoryDependabotSecret
 from otterdog.models.repo_secret import RepositorySecret
@@ -112,6 +114,7 @@ class ModelForContext:
             RepositoryDependabotSecret,
             RepositoryCodespacesSecret,
             RepositoryVariable,
+            RepositoryActionsPolicy,
             Environment,
         }:
             return self.repository
@@ -123,6 +126,7 @@ class ModelForContext:
             OrganizationCodespacesSecret,
             OrganizationVariable,
             OrganizationCodeSecurityConfiguration,
+            OrganizationActionsPolicy,
             CustomProperty,
         }:
             return None  # Organization-level, no parent object

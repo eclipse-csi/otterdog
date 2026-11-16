@@ -275,6 +275,24 @@
           "code": "orgs.newOrg('my-project', 'my-org') {\n  _repositories+:: [\n    orgs.newRepo('my-repo') {\n      workflows+: {\n        sha_pinning_required: true,\n      },\n    },\n  ],\n}\n"
         },
         {
+          "title": "Control who and what can run workflows",
+          "variant": "Organization",
+          "anchor": "control-who-and-what-can-run-workflows",
+          "code": "orgs.newOrg('my-project', 'my-org') {\n  actions_policies+: [\n    orgs.newOrgActionsPolicy('release') {\n      include_repo_names: [\"~ALL\"],\n      include_workflows: [\".github/workflows/release.yml\"],\n      allowed_actors: [\"#Maintain\", \"@my-org/releng\"],\n      allowed_events: [\"workflow_dispatch\"],\n    },\n  ],\n}\n"
+        },
+        {
+          "title": "Control who and what can run workflows",
+          "variant": "Repository",
+          "anchor": "control-who-and-what-can-run-workflows",
+          "code": "orgs.newOrg('my-project', 'my-org') {\n  _repositories+:: [\n    orgs.newRepo('my-repo') {\n      actions_policies: [\n        orgs.newRepoActionsPolicy('release') {\n          include_workflows: [\".github/workflows/release.yml\"],\n          allowed_actors: [\"#Maintain\"],\n        },\n      ],\n    },\n  ],\n}\n"
+        },
+        {
+          "title": "Control who and what can run workflows",
+          "variant": null,
+          "anchor": "control-who-and-what-can-run-workflows",
+          "code": "orgs.newOrg('my-project', 'my-org') {\n  _repositories+:: [\n    orgs.newRepo('my-repo') {\n      actions_policies: [\n        orgs.newRepoActionsPolicy('labeler') {\n          include_workflows: [\".github/workflows/labeler.yml\"],\n          allowed_events: [\"pull_request_target\"],\n        },\n      ],\n    },\n  ],\n}\n"
+        },
+        {
           "title": "Approve workflows from forks",
           "variant": null,
           "anchor": "approve-workflows-from-forks",

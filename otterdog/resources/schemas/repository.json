@@ -76,6 +76,10 @@
       "type": "array",
       "items": { "$ref": "repo-ruleset.json"}
     },
+    "actions_policies": {
+      "type": "array",
+      "items": { "$ref": "repo-actions-policy.json" }
+    },
     "webhooks": {
       "type": "array",
       "items": { "$ref": "webhook.json" }

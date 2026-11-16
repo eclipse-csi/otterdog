@@ -12,7 +12,8 @@ by the means of `otterdog`. The following non-exhaustive list outlines settings 
 - ruleset rules and parameters other than those listed in [Rulesets or branch protection rules](guides/rulesets-vs-branch-protection.md#otterdog-specifics), e.g. the required reviewers of the rule requiring a pull request
 - targeting the repositories of an organization ruleset by custom properties
 - deploy keys as bypass actors of a ruleset
-- GitHub Actions policies, e.g. requiring a lockfile for the workflows [#945](https://github.com/eclipse-csi/otterdog/issues/945)
+- the **Require lockfile** rule of [actions policies](../reference/organization/actions-policy.md), as GitHub does not provide it in its API yet, otterdog keeps it when it updates a policy [#945](https://github.com/eclipse-csi/otterdog/issues/945)
+- targeting the repositories of an organization actions policy by custom properties or ids, otterdog keeps this targeting when it updates a policy, and the actions policies of an enterprise
 - transfer a repo from one organization to another organization
 - (deprecated) ~~tag protections~~ [#143](https://github.com/eclipse-csi/otterdog/issues/143), use rulesets instead, see [Protecting tags and releases](guides/tag-protection.md)
 

@@ -30,6 +30,7 @@ def config():
         default_repo_config={},
         default_branch_protection_rule_config=None,
         default_repo_ruleset_config={},
+        default_repo_actions_policy_config=None,
         default_org_webhook_config={},
         default_repo_secret_config=None,
         default_repo_dependabot_secret_config=None,

@@ -6,6 +6,10 @@
 
  - feat: manage the GitHub Actions setting `sha_pinning_required` of organizations and repositories, which requires actions to be pinned to a full-length commit SHA ([#945](https://github.com/eclipse-csi/otterdog/issues/945)).
    When an organization requires SHA pinning, the setting of its repositories is ignored.
+ - feat: manage the actions policies of organizations and repositories, which restrict the actors and the events that can run their workflows ([#945](https://github.com/eclipse-csi/otterdog/issues/945)).
+   The rules that otterdog does not support yet, e.g. **Require lockfile** whose rule GitHub does not publish in its API, are kept when a policy is updated.
+   A policy added while a policy of the same name already exists on GitHub, e.g. created in the web UI, updates it instead of failing with `Name must be unique`.
+   The policies are only managed with a default configuration that defines `newOrgActionsPolicy` and `newRepoActionsPolicy`, and the policies that are not configured are only deleted with `--delete-resources`.
 
 ### Changed
 

@@ -55,6 +55,12 @@ from otterdog.providers.github.stats.report import ApiUsageReport
         ("GET", "/orgs/acme/actions/permissions/workflow", "GET /orgs/{org}/actions/permissions/workflow"),
         ("PATCH", "/orgs/acme/hooks/1234", "PATCH /orgs/{org}/hooks/{id}"),
         ("GET", "/orgs/acme/rulesets/42", "GET /orgs/{org}/rulesets/{id}"),
+        ("PUT", "/orgs/acme/actions/policies/42", "PUT /orgs/{org}/actions/policies/{id}"),
+        (
+            "DELETE",
+            "/repos/acme/website/actions/policies/42",
+            "DELETE /repos/{owner}/{repo}/actions/policies/{id}",
+        ),
         ("GET", "/orgs/acme/teams/developers/members", "GET /orgs/{org}/teams/{name}/members"),
         (
             "PUT",

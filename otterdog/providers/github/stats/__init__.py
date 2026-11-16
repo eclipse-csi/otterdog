@@ -558,6 +558,7 @@ _ITEM_COLLECTIONS = frozenset(
         "memberships",
         "organization-roles",
         "outside_collaborators",
+        "policies",
         "public_members",
         "pulls",
         "repositories",

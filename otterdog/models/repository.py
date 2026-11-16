@@ -38,6 +38,7 @@ from otterdog.utils import (
 
 from .branch_protection_rule import BranchProtectionRule
 from .environment import Environment
+from .repo_actions_policy import RepositoryActionsPolicy
 from .repo_codespaces_secret import RepositoryCodespacesSecret
 from .repo_dependabot_secret import RepositoryDependabotSecret
 from .repo_ruleset import RepositoryRuleset
@@ -141,6 +142,9 @@ class Repository(ModelObject):
         metadata={"nested_model": True}, default_factory=list
     )
     rulesets: list[RepositoryRuleset] = dataclasses.field(metadata={"nested_model": True}, default_factory=list)
+    actions_policies: list[RepositoryActionsPolicy] = dataclasses.field(
+        metadata={"nested_model": True}, default_factory=list
+    )
     environments: list[Environment] = dataclasses.field(metadata={"nested_model": True}, default_factory=list)
 
     _security_properties: ClassVar[list[str]] = [
@@ -294,6 +298,12 @@ class Repository(ModelObject):
 
     def set_rulesets(self, rules: list[RepositoryRuleset]) -> None:
         self.rulesets = rules
+
+    def add_actions_policy(self, policy: RepositoryActionsPolicy) -> None:
+        self.actions_policies.append(policy)
+
+    def set_actions_policies(self, policies: list[RepositoryActionsPolicy]) -> None:
+        self.actions_policies = policies
 
     def add_webhook(self, webhook: RepositoryWebhook) -> None:
         self.webhooks.append(webhook)
@@ -858,6 +868,9 @@ class Repository(ModelObject):
         for rule in self.rulesets:
             rule.validate(context, self)
 
+        for policy in self.actions_policies:
+            policy.validate(context, self)
+
         for env in self.environments:
             env.validate(context, self)
 
@@ -1047,6 +1060,10 @@ class Repository(ModelObject):
             yield ruleset, self
             yield from ruleset.get_model_objects()
 
+        for policy in self.actions_policies:
+            yield policy, self
+            yield from policy.get_model_objects()
+
         for env in self.environments:
             yield env, self
             yield from env.get_model_objects()
@@ -1070,6 +1087,8 @@ class Repository(ModelObject):
                 "branch_protection_rules": OptionalS("branch_protection_rules", default=[])
                 >> Forall(lambda x: BranchProtectionRule.from_model_data(x)),
                 "rulesets": OptionalS("rulesets", default=[]) >> Forall(lambda x: RepositoryRuleset.from_model_data(x)),
+                "actions_policies": OptionalS("actions_policies", default=[])
+                >> Forall(lambda x: RepositoryActionsPolicy.from_model_data(x)),
                 "environments": OptionalS("environments", default=[])
                 >> Forall(lambda x: Environment.from_model_data(x)),
                 "workflows": If(
@@ -1149,6 +1168,7 @@ class Repository(ModelObject):
                 "variables": K([]),
                 "branch_protection_rules": K([]),
                 "rulesets": K([]),
+                "actions_policies": K([]),
                 "environments": K([]),
                 "immutable_releases_enabled": OptionalS("immutable_releases_enabled", default=UNSET),
                 "secret_scanning": OptionalS("security_and_analysis", "secret_scanning", "status", default=UNSET),
@@ -1360,6 +1380,7 @@ class Repository(ModelObject):
         has_variables = len(self.variables) > 0
         has_branch_protection_rules = len(self.branch_protection_rules) > 0
         has_rulesets = len(self.rulesets) > 0
+        has_actions_policies = len(self.actions_policies) > 0
         has_environments = len(self.environments) > 0
 
         if "name" in patch:
@@ -1487,6 +1508,19 @@ class Repository(ModelObject):
 
             for ruleset in self.rulesets:
                 ruleset.to_jsonnet(printer, jsonnet_config, context, False, default_ruleset)
+
+            printer.level_down()
+            printer.println("],")
+
+        # as for rulesets, the actions policies of repos coming from the default configuration are not overridden
+        if has_actions_policies and not extend:
+            default_policy = RepositoryActionsPolicy.from_model_data(jsonnet_config.default_repo_actions_policy_config)
+
+            printer.println("actions_policies: [")
+            printer.level_up()
+
+            for policy in self.actions_policies:
+                policy.to_jsonnet(printer, jsonnet_config, context, False, default_policy)
 
             printer.level_down()
             printer.println("],")
@@ -1674,6 +1708,15 @@ class Repository(ModelObject):
             RepositoryRuleset.generate_live_patch_of_list(
                 coerced_object.rulesets,
                 current_object.rulesets if current_object is not None else [],
+                children_parent,
+                context,
+                handler,
+            )
+
+            # archived repositories are read-only, their policies are kept as they are
+            RepositoryActionsPolicy.generate_live_patch_of_list(
+                coerced_object.actions_policies,
+                current_object.actions_policies if current_object is not None else [],
                 children_parent,
                 context,
                 handler,

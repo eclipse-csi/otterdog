@@ -97,3 +97,35 @@ async def test_code_security_configuration_default_missing_from_the_template_is_
 
     assert '=== "Organization Code Security Configuration"' not in output
     assert '=== "Repository"' in output
+
+
+@pytest.mark.parametrize(
+    "section,function",
+    [
+        ("Organization Actions Policy", "newOrgActionsPolicy"),
+        ("Repository Actions Policy", "newRepoActionsPolicy"),
+    ],
+)
+async def test_actions_policy_default_is_shown(tmp_path, section, function):
+    write_template(tmp_path, [])
+
+    output = await show_default(tmp_path)
+
+    assert f'=== "{section}"' in output
+    assert f"orgs.{function}('<name>') =" in output
+
+
+@pytest.mark.parametrize(
+    "section,function",
+    [
+        ("Organization Actions Policy", "newOrgActionsPolicy"),
+        ("Repository Actions Policy", "newRepoActionsPolicy"),
+    ],
+)
+async def test_actions_policy_default_missing_from_the_template_is_skipped(tmp_path, section, function):
+    write_template(tmp_path, [function])
+
+    output = await show_default(tmp_path)
+
+    assert f'=== "{section}"' not in output
+    assert '=== "Repository"' in output

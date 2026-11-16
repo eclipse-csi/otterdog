@@ -152,8 +152,8 @@ require it on its own, e.g. to adopt it one repository at a time:
 
 The actions locked in a lockfile, written by `gh actions-lock`, satisfy this setting without changes to the
 workflow files, see [Enforce workflow lockfiles](https://docs.github.com/en/actions/how-tos/administer/enforce-workflow-lockfiles).
-The policy that requires such a lockfile is not supported by otterdog yet, see
-[#945](https://github.com/eclipse-csi/otterdog/issues/945).
+The **Require lockfile** rule of an actions policy, which blocks the workflows that are not in the lockfile, is not
+supported by otterdog yet, see [Control who and what can run workflows](#control-who-and-what-can-run-workflows).
 
 !!! info "Organization policy"
 
@@ -161,6 +161,86 @@ The policy that requires such a lockfile is not supported by otterdog yet, see
     [Pin Workflow](../../reference/blueprints/pin-workflow.md) blueprint opens pull requests that pin the actions
     of the workflows of the repositories, and Dependabot keeps the pinned commits up to date. See
     [Using third-party actions](https://docs.github.com/en/actions/reference/security/secure-use#using-third-party-actions).
+
+## Control who and what can run workflows
+
+Actions policies, called workflow execution protections by GitHub, block the runs of the workflows they target
+unless they are allowed, see
+[Controlling workflow execution](https://docs.github.com/en/actions/how-tos/administer/control-workflow-execution).
+A policy targets workflow files, and on organization level repositories, and requires rules:
+
+| Rule             | Allows                                                                                         |
+|------------------|------------------------------------------------------------------------------------------------|
+| `allowed_actors` | only these [actors](../../reference/organization/repository/allowed-actor.md) to run the workflows, e.g. `#Maintain` or `@my-org/releng` |
+| `allowed_events` | only these events to trigger the workflows, e.g. `push`, `pull_request` or `workflow_dispatch` |
+
+A rule set to `null` is not required. Like rulesets, the policies of the organization and of a repository layer: a
+run must be allowed by all the policies that target its workflow.
+
+=== "Organization"
+
+    ``` jsonnet
+    orgs.newOrg('my-project', 'my-org') {
+      actions_policies+: [
+        orgs.newOrgActionsPolicy('release') {
+          include_repo_names: ["~ALL"],
+          include_workflows: [".github/workflows/release.yml"],
+          allowed_actors: ["#Maintain", "@my-org/releng"],
+          allowed_events: ["workflow_dispatch"],
+        },
+      ],
+    }
+    ```
+
+=== "Repository"
+
+    ``` jsonnet
+    orgs.newOrg('my-project', 'my-org') {
+      _repositories+:: [
+        orgs.newRepo('my-repo') {
+          actions_policies: [
+            orgs.newRepoActionsPolicy('release') {
+              include_workflows: [".github/workflows/release.yml"],
+              allowed_actors: ["#Maintain"],
+            },
+          ],
+        },
+      ],
+    }
+    ```
+
+The `pull_request_target` event runs a workflow of the base repository with its secrets for pull requests from
+forks, which makes it a frequent target of attacks. GitHub blocks it in public repositories that have no applicable
+event policy, see
+[Securely using pull_request_target](https://docs.github.com/en/actions/reference/security/securely-using-pull_request_target).
+A workflow that needs it, e.g. to label pull requests, is allowed by an event policy that targets this workflow
+only:
+
+``` jsonnet
+orgs.newOrg('my-project', 'my-org') {
+  _repositories+:: [
+    orgs.newRepo('my-repo') {
+      actions_policies: [
+        orgs.newRepoActionsPolicy('labeler') {
+          include_workflows: [".github/workflows/labeler.yml"],
+          allowed_events: ["pull_request_target"],
+        },
+      ],
+    },
+  ],
+}
+```
+
+GitHub also offers the **Require lockfile** rule, which blocks the workflows that are not in the lockfile of their
+repository, see [Enforce workflow lockfiles](https://docs.github.com/en/actions/how-tos/administer/enforce-workflow-lockfiles).
+GitHub does not provide this rule in its API yet, so otterdog cannot configure it. A policy that requires it in the
+web UI keeps it when otterdog updates the policy.
+
+!!! info "Organization policy"
+
+    Start a policy with `enforcement: "evaluate"` to see the runs it would block on the Policy insights page before
+    enforcing it. This mode is only available with GitHub Enterprise Cloud, otherwise start with the repositories
+    whose workflows are known.
 
 ## Approve workflows from forks
 
@@ -220,10 +300,11 @@ Policies can enforce further restrictions on GitHub Actions, e.g. the
 
 ## Summary
 
-| Setting                                    | Suggested value                                      | Reason                                                  |
-|--------------------------------------------|------------------------------------------------------|---------------------------------------------------------|
-| `default_workflow_permissions`             | `read`                                               | least privilege, grant more per workflow                |
-| `actions_can_approve_pull_request_reviews` | `false`                                              | approvals should come from people                       |
-| `fork_pr_approval_policy`                  | `first_time_contributors` or stricter                | review unknown code before it runs                      |
-| `allowed_actions`                          | depends on your organization policy                  | trade-off between control and maintenance               |
-| `sha_pinning_required`                     | `true`, once the actions of the workflows are pinned | a tag can be moved to other code, a commit SHA cannot   |
+| Setting                                    | Suggested value                                                 | Reason                                                |
+|--------------------------------------------|-----------------------------------------------------------------|-------------------------------------------------------|
+| `default_workflow_permissions`             | `read`                                                          | least privilege, grant more per workflow              |
+| `actions_can_approve_pull_request_reviews` | `false`                                                         | approvals should come from people                     |
+| `fork_pr_approval_policy`                  | `first_time_contributors` or stricter                           | review unknown code before it runs                    |
+| `allowed_actions`                          | depends on your organization policy                             | trade-off between control and maintenance             |
+| `sha_pinning_required`                     | `true`, once the actions of the workflows are pinned            | a tag can be moved to other code, a commit SHA cannot |
+| `actions_policies`                         | restrict sensitive workflows to the actors and events they need | e.g. a release workflow run by maintainers only       |

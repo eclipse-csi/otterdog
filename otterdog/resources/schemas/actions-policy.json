@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+
+  "type": "object",
+  "properties": {
+    "name": { "type": "string" },
+    "enforcement": { "type": "string", "enum": ["active", "disabled", "evaluate"] },
+
+    "include_workflows": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "exclude_workflows": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+
+    "allowed_actors": { "$ref": "#/$defs/string-list-or-null" },
+    "allowed_events": { "$ref": "#/$defs/string-list-or-null" }
+  },
+
+  "$defs": {
+    "string-list-or-null": {
+      "anyOf": [
+        { "type": "array", "items": { "type": "string" } },
+        { "type": "null" }
+      ]
+    }
+  }
+}

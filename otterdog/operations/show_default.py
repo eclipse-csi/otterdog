@@ -165,6 +165,23 @@ class ShowDefaultOperation(Operation):
                 )
                 self._print_footer()
 
+            # the default configuration might not define actions policies
+            if jsonnet_config.default_org_actions_policy_config is not None:
+                default_org_actions_policy = self.evaluate(
+                    jsonnet_config, f"{jsonnet_config.create_org_actions_policy}('<name>')"
+                )
+                self.printer.println()
+                self._print_header("Organization Actions Policy")
+                self.print_dict(
+                    default_org_actions_policy,
+                    f"orgs.{jsonnet_config.create_org_actions_policy}('<name>') =",
+                    "",
+                    "black",
+                    ":",
+                    ",",
+                )
+                self._print_footer()
+
             default_repo = self.evaluate(jsonnet_config, f"{jsonnet_config.create_repo}('<repo-name>')")
             self.printer.println()
             self._print_header("Repository")
@@ -196,6 +213,23 @@ class ShowDefaultOperation(Operation):
                 ",",
             )
             self._print_footer()
+
+            # the default configuration might not define actions policies
+            if jsonnet_config.default_repo_actions_policy_config is not None:
+                default_repo_actions_policy = self.evaluate(
+                    jsonnet_config, f"{jsonnet_config.create_repo_actions_policy}('<name>')"
+                )
+                self.printer.println()
+                self._print_header("Repository Actions Policy")
+                self.print_dict(
+                    default_repo_actions_policy,
+                    f"orgs.{jsonnet_config.create_repo_actions_policy}('<name>') =",
+                    "",
+                    "black",
+                    ":",
+                    ",",
+                )
+                self._print_footer()
 
             default_repo_webhook = self.evaluate(jsonnet_config, f"{jsonnet_config.create_repo_webhook}('<url>')")
             self.printer.println()
