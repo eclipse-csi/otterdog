@@ -154,18 +154,29 @@ async def test_check_sync_limits_the_concurrent_requests_by_its_setting(monkeypa
     assert [operation.concurrency for operation in operations] == [7]
 
 
-async def test_validate_pull_request_task_exposes_patch_safety_flags(monkeypatch, tmp_path):
-    """
-    PR validation exposes safety flags derived from the patches in the plan result.
-    """
-    patch = pretend.stub(
-        requires_secrets=lambda: True,
-        requires_web_ui=lambda: False,
-        is_cost_related=lambda cost_policy: True,
-        patch_type=LivePatchType.REMOVE,
+_NO_MISSING_CHANGES = {"behind_by": 0, "files": [], "html_url": "https://github.com/test-org/repo/compare/x...main"}
+
+
+# GitHub found conflicts, the pull request has no merge commit
+_CONFLICTING_PULL_REQUEST = {"head": {"sha": "head-sha"}, "mergeable": False, "merge_commit_sha": None}
+
+
+async def _execute_validate_task(
+    monkeypatch,
+    tmp_path,
+    result,
+    compare_commits,
+    pull_request=_CONFLICTING_PULL_REQUEST,
+    merge_commit_parents=None,
+):
+    rest_api = pretend.stub(
+        issue=pretend.stub(create_comment=AsyncMock()),
+        pull_request=pretend.stub(get_pull_request=AsyncMock(return_value=pull_request)),
+        commit=pretend.stub(
+            compare_commits=compare_commits,
+            get_commit=AsyncMock(return_value={"parents": [{"sha": sha} for sha in merge_commit_parents or []]}),
+        ),
     )
-    result = DiffResult("test-org", DiffStatus(), ValidationStatus(), [patch])
-    rest_api = pretend.stub(issue=pretend.stub(create_comment=AsyncMock()))
     org_config = _organization_config(tmp_path)
     task = ValidatePullRequestTask(1, "test-org", "repo", 42)
     task._pull_request = SimpleNamespace(
@@ -173,13 +184,19 @@ async def test_validate_pull_request_task_exposes_patch_safety_flags(monkeypatch
             repo=SimpleNamespace(owner=SimpleNamespace(login="contributor"), name="repo"),
             ref="feature",
             sha="head-sha",
-        )
+        ),
+        base=SimpleNamespace(ref="main", repo=SimpleNamespace(default_branch="main")),
     )
     _prepare_task(task, monkeypatch, org_config, rest_api)
+    monkeypatch.setattr("otterdog.webapp.tasks.validate_pull_request._MERGE_COMMIT_RETRY_DELAYS", ())
 
-    async def fetch_config(_rest_api, _org_id, _owner, _repo, filename, _ref=None):
+    fetched_configs = []
+
+    async def fetch_config(_rest_api, _org_id, owner, repo, filename, ref=None):
+        is_base = filename.endswith("-BASE")
+        fetched_configs.append(("BASE" if is_base else "HEAD", owner, repo, ref))
         Path(filename).parent.mkdir(parents=True, exist_ok=True)
-        Path(filename).write_text("base" if filename.endswith("-BASE") else "head", encoding="utf-8")
+        Path(filename).write_text("base" if is_base else "head", encoding="utf-8")
 
     task._get_pull_request_files = AsyncMock(return_value=["otterdog/test-org.jsonnet"])
     monkeypatch.setattr(
@@ -199,6 +216,26 @@ async def test_validate_pull_request_task_exposes_patch_safety_flags(monkeypatch
     )
 
     validation_result = await task.execute()
+    rest_api.fetched_configs = fetched_configs
+
+    return validation_result, rest_api, render_template
+
+
+async def test_validate_pull_request_task_exposes_patch_safety_flags(monkeypatch, tmp_path):
+    """
+    PR validation exposes safety flags derived from the patches in the plan result.
+    """
+    patch = pretend.stub(
+        requires_secrets=lambda: True,
+        requires_web_ui=lambda: False,
+        is_cost_related=lambda cost_policy: True,
+        patch_type=LivePatchType.REMOVE,
+    )
+    result = DiffResult("test-org", DiffStatus(), ValidationStatus(), [patch])
+
+    validation_result, rest_api, render_template = await _execute_validate_task(
+        monkeypatch, tmp_path, result, AsyncMock(return_value=_NO_MISSING_CHANGES)
+    )
 
     assert validation_result.validation_success is True
     assert validation_result.requires_secrets is True
@@ -211,4 +248,99 @@ async def test_validate_pull_request_task_exposes_patch_safety_flags(monkeypatch
         "some of the requested changes may incur costs",
         "some of the requested changes remove resources",
     ]
+    assert render_template.await_args.kwargs["missing_changes_url"] is None
     rest_api.issue.create_comment.assert_awaited_once()
+
+
+async def test_validate_pull_request_task_detects_configuration_changes_missing_from_the_branch(monkeypatch, tmp_path):
+    """
+    A branch created before the configuration changed on the default branch shows these changes as reverted.
+    """
+    result = DiffResult("test-org", DiffStatus(), ValidationStatus(), [])
+    compare_commits = AsyncMock(
+        return_value={
+            "behind_by": 1,
+            "files": [{"filename": "README.md"}, {"filename": "otterdog/test-org.jsonnet"}],
+            "html_url": "https://github.com/test-org/.config/compare/head-sha...main",
+        }
+    )
+
+    _, _, render_template = await _execute_validate_task(monkeypatch, tmp_path, result, compare_commits)
+
+    # what the default branch has that the pull request has not
+    compare_commits.assert_awaited_once_with("test-org", ".config", "head-sha", "main")
+    assert (
+        render_template.await_args.kwargs["missing_changes_url"]
+        == "https://github.com/test-org/.config/compare/head-sha...main"
+    )
+
+
+async def test_validate_pull_request_task_ignores_missing_changes_to_other_files(monkeypatch, tmp_path):
+    result = DiffResult("test-org", DiffStatus(), ValidationStatus(), [])
+    compare_commits = AsyncMock(
+        return_value={
+            "behind_by": 1,
+            "files": [{"filename": "README.md"}],
+            "html_url": "https://github.com/test-org/.config/compare/head-sha...main",
+        }
+    )
+
+    _, _, render_template = await _execute_validate_task(monkeypatch, tmp_path, result, compare_commits)
+
+    assert render_template.await_args.kwargs["missing_changes_url"] is None
+
+
+async def test_validate_pull_request_task_still_validates_when_the_comparison_fails(monkeypatch, tmp_path):
+    result = DiffResult("test-org", DiffStatus(), ValidationStatus(), [])
+    compare_commits = AsyncMock(side_effect=RuntimeError("failed comparing"))
+
+    validation_result, rest_api, render_template = await _execute_validate_task(
+        monkeypatch, tmp_path, result, compare_commits
+    )
+
+    assert validation_result.validation_success is True
+    assert render_template.await_args.kwargs["missing_changes_url"] is None
+    rest_api.issue.create_comment.assert_awaited_once()
+
+
+async def test_validate_pull_request_task_validates_the_merge_commit(monkeypatch, tmp_path):
+    """
+    The validated diff is the one applied when merging, whether the branch is up-to-date or not.
+    """
+    result = DiffResult("test-org", DiffStatus(), ValidationStatus(), [])
+    compare_commits = AsyncMock()
+
+    validation_result, rest_api, render_template = await _execute_validate_task(
+        monkeypatch,
+        tmp_path,
+        result,
+        compare_commits,
+        pull_request={"head": {"sha": "head-sha"}, "mergeable": True, "merge_commit_sha": "merge-sha"},
+        merge_commit_parents=["base-sha", "head-sha"],
+    )
+
+    assert validation_result.validation_success is True
+    assert rest_api.fetched_configs == [
+        ("BASE", "test-org", ".config", "base-sha"),
+        ("HEAD", "test-org", ".config", "merge-sha"),
+    ]
+    assert render_template.await_args.kwargs["merged_into"] == "base-sha"
+    # the merge keeps the changes of the default branch, the diff does not revert them
+    compare_commits.assert_not_awaited()
+    assert render_template.await_args.kwargs["missing_changes_url"] is None
+
+
+async def test_validate_pull_request_task_validates_the_head_without_merge_commit(monkeypatch, tmp_path):
+    result = DiffResult("test-org", DiffStatus(), ValidationStatus(), [])
+
+    _, rest_api, render_template = await _execute_validate_task(
+        monkeypatch, tmp_path, result, AsyncMock(return_value=_NO_MISSING_CHANGES)
+    )
+
+    assert rest_api.fetched_configs == [
+        # the head of the default branch
+        ("BASE", "test-org", ".config", None),
+        # the commit the status is set on, not the branch which may have moved since
+        ("HEAD", "contributor", "repo", "head-sha"),
+    ]
+    assert render_template.await_args.kwargs["merged_into"] is None

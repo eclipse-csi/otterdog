@@ -47,3 +47,24 @@ async def test_the_latest_commit_translates_github_errors():
 
     with pytest.raises(RuntimeError, match="failed retrieving the latest commit"):
         await client.get_latest_commit_for_path("org", "repo", "otterdog/org.jsonnet")
+
+
+async def test_comparing_commits_lists_the_files_on_the_first_page():
+    calls = []
+
+    async def request_json(method, url, params=None):
+        calls.append((method, url, params))
+        return {"behind_by": 1, "files": []}
+
+    comparison = await _client(request_json).compare_commits("org", ".eclipsefdn", "abc", "main")
+
+    assert comparison == {"behind_by": 1, "files": []}
+    assert calls == [("GET", "/repos/org/.eclipsefdn/compare/abc...main", {"per_page": "1"})]
+
+
+async def test_comparing_commits_translates_github_errors():
+    async def request_json(method, url, params=None):
+        raise GitHubException(url, 404, "not found")
+
+    with pytest.raises(RuntimeError, match="failed comparing 'abc' with 'main'"):
+        await _client(request_json).compare_commits("org", "repo", "abc", "main")

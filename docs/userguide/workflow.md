@@ -304,13 +304,13 @@ Push your branch, open the pull request against `main`.
 
 !!! tip "Start from the latest configuration"
 
-    otterdog compares your change with the **latest** commit of `main`. The changes merged since you started then
-    appear as reverted in the validation, e.g. a repository added in the meantime shows up as removed, which also
-    prevents the auto-merge.
-
-    - **Playground**: the content you paste replaces the whole file, reload the Playground before editing if the
-      configuration may have changed since you opened it.
-    - **git**: rebase your branch on `main`, or merge `main` into it, and push again.
+    - **Playground**: the content you paste replaces the whole file, so it reverts the changes merged since you
+      opened the Playground, e.g. a repository added in the meantime shows up as removed, which also prevents the
+      auto-merge. Reload the Playground before editing if the configuration may have changed since you opened it.
+    - **git**: your branch does not need to be up to date, otterdog validates the result of merging it into `main`.
+      If GitHub cannot merge it, e.g. because of a conflict, otterdog compares your branch with the **latest** commit
+      of `main` instead: the changes merged since you started then appear as reverted, and the validation comment asks
+      you to update the branch. Rebase your branch on `main`, or merge `main` into it, and push again.
 
 ## 2. Open a pull request
 
@@ -429,7 +429,7 @@ not get the help and team-info comments.
 
 `main` :material-arrow-left-right: your branch
 
-The diff of the validation comment: what the pull request changes.
+The diff of the validation comment: what merging the pull request changes, even if your branch is behind `main`.
 
 </div>
 
@@ -593,7 +593,8 @@ These changes always need a member of the admin teams, whoever the author is:
     ---
 
     [Removes a resource](resources.md#removing-a-resource): a repository, a team, a webhook, a ruleset, a secret, a variable, an
-    environment... Removals you did not make come from a branch behind `main`.
+    environment... Removals you did not make come from a configuration older than `main`, see
+    [Start from the latest configuration](#1-prepare-your-change).
 
 -   :material-file-document-multiple-outline:{ .lg .middle } **Other files**
 

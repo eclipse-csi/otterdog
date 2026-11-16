@@ -84,3 +84,44 @@ async def test_validation_comment_without_blockers_does_not_mention_auto_merge(a
 
     assert "/otterdog merge" not in comment
     assert "cc @" not in comment
+
+
+async def test_validation_comment_warns_about_configuration_changes_missing_from_the_branch(app):
+    comment = await _render(
+        app,
+        missing_changes_url="https://github.com/test-org/.config/compare/head-sha...main",
+        warnings=[],
+        auto_merge_blockers=[],
+    )
+
+    # the explanation must stay inside the quote block, an empty line would end it
+    assert (
+        "> [!WARNING]\n"
+        "> The branch of this pull request is not up-to-date: the configuration has been changed on the default "
+        "branch since it was created ([see the changes](https://github.com/test-org/.config/compare/head-sha...main)).\n"
+        "> The diff above is computed against the default branch, so it shows these changes as reverted by this pull "
+        "request, although merging it would keep them. They may also prevent auto-merging.\n"
+        ">\n"
+        "> Please update the branch, e.g. by merging the default branch into it, to validate only the changes of this "
+        "pull request.\n"
+    ) in comment
+    # the author can update the branch on their own
+    assert "cc @" not in comment
+
+
+async def test_validation_comment_for_an_up_to_date_branch_does_not_mention_it(app):
+    comment = await _render(app, missing_changes_url=None, warnings=[], auto_merge_blockers=[])
+
+    assert "not up-to-date" not in comment
+
+
+async def test_validation_comment_tells_which_commit_the_pull_request_is_merged_into(app):
+    comment = await _render(app, merged_into="base-sha", warnings=[], auto_merge_blockers=[])
+
+    assert "<summary>Diff for head-sha merged into base-sha</summary>" in comment
+
+
+async def test_validation_comment_without_merge_commit_only_tells_the_head(app):
+    comment = await _render(app, merged_into=None, warnings=[], auto_merge_blockers=[])
+
+    assert "<summary>Diff for head-sha</summary>" in comment

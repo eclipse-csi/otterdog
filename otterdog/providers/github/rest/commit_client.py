@@ -46,6 +46,21 @@ class CommitClient(RestClient):
 
         return commits[0] if commits else None
 
+    async def compare_commits(self, org_id: str, repo_name: str, base: str, head: str) -> dict[str, Any]:
+        """
+        Compares two commits: the result tells how many commits of head are missing from base, and lists
+        the files they changed since the merge base, up to 300 files.
+        """
+        _logger.debug("comparing '%s' with '%s' in repo '%s/%s'", base, head, org_id, repo_name)
+
+        try:
+            # only the number of commits and the changed files are used, the files are listed on the first page
+            return await self.requester.request_json(
+                "GET", f"/repos/{org_id}/{repo_name}/compare/{base}...{head}", params={"per_page": "1"}
+            )
+        except GitHubException as ex:
+            raise RuntimeError(f"failed comparing '{base}' with '{head}':\n{ex}") from ex
+
     async def get_commit_statuses(self, org_id: str, repo_name: str, ref: str) -> list[dict[str, Any]]:
         _logger.debug("getting commit statuses for ref '%s' from repo '%s/%s'", ref, org_id, repo_name)
 
