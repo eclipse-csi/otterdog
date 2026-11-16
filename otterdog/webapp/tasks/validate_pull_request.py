@@ -12,7 +12,7 @@ import asyncio
 import filecmp
 from dataclasses import dataclass
 from io import StringIO
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from quart import current_app, render_template
 
@@ -369,27 +369,21 @@ class ValidatePullRequestTask(InstallationBasedTask, Task[ValidationResult]):
                     str(self.pull_request_number),
                 )
 
-                if pull_request["head"]["sha"] != head_sha:
-                    # GitHub only tests the merge of the latest commit, which is validated on its own
+                # GitHub only tests the merge of the latest commit, which is validated on its own,
+                # and creates no merge commit in case of conflicts
+                if pull_request["head"]["sha"] != head_sha or pull_request.get("mergeable") is False:
                     break
 
-                mergeable = pull_request.get("mergeable")
-                if mergeable is False:
-                    break
-
-                merge_commit_sha = pull_request.get("merge_commit_sha")
-                if mergeable is True and merge_commit_sha is not None:
-                    commit = await rest_api.commit.get_commit(self.org_id, self.repo_name, merge_commit_sha)
-                    parents = [parent["sha"] for parent in commit["parents"]]
-                    if len(parents) == 2 and parents[1] == head_sha:
-                        self.logger.info(
-                            "validating merge commit '%s' of pull request #%d of repo '%s/%s'",
-                            merge_commit_sha,
-                            self.pull_request_number,
-                            self.org_id,
-                            self.repo_name,
-                        )
-                        return _MergeCommit(merge_commit_sha, parents[0])
+                merge_commit = await self._get_merge_commit_of_head(rest_api, pull_request)
+                if merge_commit is not None:
+                    self.logger.info(
+                        "validating merge commit '%s' of pull request #%d of repo '%s/%s'",
+                        merge_commit.sha,
+                        self.pull_request_number,
+                        self.org_id,
+                        self.repo_name,
+                    )
+                    return merge_commit
 
                 if delay is not None:
                     await asyncio.sleep(delay)
@@ -409,6 +403,23 @@ class ValidatePullRequestTask(InstallationBasedTask, Task[ValidationResult]):
             self.repo_name,
         )
         return None
+
+    async def _get_merge_commit_of_head(self, rest_api: RestApi, pull_request: dict[str, Any]) -> _MergeCommit | None:
+        """
+        Returns the merge commit of the given state of the pull request if it merges the head that is validated,
+        None if GitHub has not created it yet.
+        """
+        merge_commit_sha = pull_request.get("merge_commit_sha")
+        if pull_request.get("mergeable") is not True or merge_commit_sha is None:
+            return None
+
+        commit = await rest_api.commit.get_commit(self.org_id, self.repo_name, merge_commit_sha)
+        parents = [parent["sha"] for parent in commit["parents"]]
+        if len(parents) != 2 or parents[1] != self._pull_request.head.sha:
+            # still the merge commit of a previous head
+            return None
+
+        return _MergeCommit(merge_commit_sha, parents[0])
 
     async def _find_missing_configuration_changes(self, rest_api: RestApi, config_repo: str) -> str | None:
         """

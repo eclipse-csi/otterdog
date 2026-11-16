@@ -66,5 +66,7 @@ async def test_comparing_commits_translates_github_errors():
     async def request_json(method, url, params=None):
         raise GitHubException(url, 404, "not found")
 
+    client = _client(request_json)
+
     with pytest.raises(RuntimeError, match="failed comparing 'abc' with 'main'"):
-        await _client(request_json).compare_commits("org", "repo", "abc", "main")
+        await client.compare_commits("org", "repo", "abc", "main")
