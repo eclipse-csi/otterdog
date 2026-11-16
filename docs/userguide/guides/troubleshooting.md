@@ -126,7 +126,7 @@ The surprises of `plan` and `apply`, which are not messages, are at the [end of 
 
     `<resource> has '<key>' set to '<value>' but '<required value>' is required.`
 
-    **Cause**: the administrators of otterdog require this value for all organizations, with a validation script of
+    **Cause**: the operators of otterdog require this value for all organizations, with a validation script of
     the default configuration, see
     [Enforce settings with validation scripts](../../operating_otterdog/organization-policies.md#enforce-settings-with-validation-scripts).
 
@@ -231,11 +231,11 @@ The surprises of `plan` and `apply`, which are not messages, are at the [end of 
 
     `<secret> references secret '<reference>' that the organization is not allowed to use: <reason>.`
 
-    **Cause**: the administrators of otterdog restrict the secrets that each organization can reference in a credential
+    **Cause**: the operators of otterdog restrict the secrets that each organization can reference in a credential
     provider, the reason gives the allowed references. It is a warning while the restriction is not enforced, see
     [Secret access policy](../../operating_otterdog/setup.md#secret-access-policy).
 
-    **Fix**: reference a secret of the organization, or ask the administrators of otterdog to allow the reference.
+    **Fix**: reference a secret of the organization, or ask the operators of otterdog to allow the reference.
 
 ??? failure "Private visibility on the free plan"
 

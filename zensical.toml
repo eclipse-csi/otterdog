@@ -126,7 +126,7 @@ nav = [
         { "Common repository patterns" = "userguide/guides/repository-patterns.md" },
       ] },
     ] },
-    { "Troubleshooting & limits" = [
+    { "When something goes wrong" = [
       { "Troubleshooting" = "userguide/guides/troubleshooting.md" },
       { "Unsupported settings" = "userguide/unsupported.md" },
     ] },

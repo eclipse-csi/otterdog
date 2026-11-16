@@ -1,4 +1,4 @@
-# Workflow for Changes
+# Workflow for changes
 
 Every change to a GitHub organization managed by otterdog is a pull request on its configuration repository. The
 otterdog GitHub App checks the pull request, tells you whether you can merge it yourself, and applies the changes to
@@ -107,7 +107,7 @@ Otherwise, a member of the admin teams reviews and merges the pull request, then
 
     - the **approval teams**: their members can approve a pull request so that it can be auto-merged, and auto-merge
       their own pull requests. By default, these are the teams whose name ends with `project-leads`.
-    - the **admin teams**: the administrators of otterdog. They can do everything the approval teams can, merge the
+    - the **admin teams**, by default `otterdog-admins`. They can do everything the approval teams can, merge the
       pull requests that cannot be auto-merged and finish applying the changes otterdog cannot apply alone.
 
     The teams are configured by the operators of otterdog, the help comment that otterdog adds to every pull request

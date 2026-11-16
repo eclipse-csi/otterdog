@@ -14,10 +14,11 @@ For the members and contributors of a project whose GitHub organization is manag
    protecting a branch or providing a secret to a workflow, the [Reference](reference/index.md) documents every
    property. The configuration only declares what differs from the default configuration, see
    [Inherited and explicit values](userguide/guides/inheritance.md).
-3. **Try it out** (optional): the [Playground](https://otterdog.eclipse.org/playground) evaluates a configuration
-   and checks its values like otterdog does.
-4. **Open a pull request** on the configuration repository: otterdog validates it and shows the changes it would
-   make on GitHub, the configured teams review it, and the changes are applied once it is merged.
+3. **Prepare the change in the Playground**, nothing to install: open your organization in the
+   [dashboard](https://otterdog.eclipse.org), click on **Playground**, edit the configuration and check it with
+   **Validate**, then **Propose on GitHub**. You can also edit the configuration on a branch with git.
+4. **Open the pull request** on the configuration repository: otterdog validates it and shows the changes it would
+   make on GitHub, the approval teams review it, and the changes are applied once it is merged.
 
 Next: [Workflow for changes](userguide/workflow.md), then
 [Adding, renaming and removing resources](userguide/resources.md).
