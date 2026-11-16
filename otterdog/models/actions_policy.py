@@ -280,6 +280,16 @@ class ActionsPolicy(ModelObject, abc.ABC):
 
         return {**data, "rules": [*data["rules"], *self.unsupported_rules]}
 
+    async def to_provider_data_for_update(
+        self, current_object: Self, org_id: str, provider: GitHubProvider
+    ) -> dict[str, Any]:
+        """
+        Returns the data updating the given current policy to this one, which keeps the values missing from the
+        configuration and the settings not supported by otterdog.
+        """
+        expected_object = self.with_unset_values_from(current_object)
+        return current_object.with_unsupported_settings(await expected_object.to_provider_data(org_id, provider))
+
     def validate(self, context: ValidationContext, parent_object: Any) -> None:
         header = self.get_model_header(parent_object)
 

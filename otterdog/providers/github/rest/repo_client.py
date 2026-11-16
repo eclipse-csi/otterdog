@@ -542,14 +542,18 @@ class RepoClient(RestClient):
         except GitHubException as ex:
             raise RuntimeError(f"failed retrieving actions policy for repo '{org_id}/{repo_name}':\n{ex}") from ex
 
+    async def get_actions_policy_by_name(self, org_id: str, repo_name: str, name: str) -> dict[str, Any] | None:
+        """Returns the actions policy of the repository with the given name, None if there is none."""
+        _logger.debug("retrieving actions policy with name '%s' for repo '%s/%s'", name, org_id, repo_name)
+
+        return next((x for x in await self.get_actions_policies(org_id, repo_name) if x["name"] == name), None)
+
     async def get_actions_policy_id(self, org_id: str, repo_name: str, name: str) -> int:
-        _logger.debug("retrieving id for actions policy with name '%s' for repo '%s/%s'", name, org_id, repo_name)
+        policy = await self.get_actions_policy_by_name(org_id, repo_name, name)
+        if policy is None:
+            raise RuntimeError(f"failed to find actions policy with name '{name}' for repo '{org_id}/{repo_name}'")
 
-        for policy in await self.get_actions_policies(org_id, repo_name):
-            if policy["name"] == name:
-                return policy["id"]
-
-        raise RuntimeError(f"failed to find actions policy with name '{name}' for repo '{org_id}/{repo_name}'")
+        return policy["id"]
 
     async def update_actions_policy(self, org_id: str, repo_name: str, policy_id: int, data: dict[str, Any]) -> None:
         _logger.debug("updating actions policy '%d' for repo '%s/%s'", policy_id, org_id, repo_name)

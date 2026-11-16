@@ -25,6 +25,10 @@ publish in its API yet, are kept when otterdog updates the policy. A rule missin
 a default configuration predating it, is not managed either and keeps its current value, as does one of
 `include_workflows` and `exclude_workflows` missing from the configuration while the other one is configured.
 
+GitHub does not allow two policies with the same name in a repository. When otterdog adds a policy whose name is
+already used by a policy that the configuration does not know, e.g. created in the web UI, it updates that policy
+instead.
+
 ## Jsonnet Function
 
 ``` jsonnet

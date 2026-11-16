@@ -18,9 +18,10 @@ import pytest
 from pretend import stub
 
 from otterdog.jsonnet import JsonnetConfig
-from otterdog.models import FailureType, ModelObject, ValidationContext
+from otterdog.models import FailureType, LivePatch, ModelObject, ValidationContext
 from otterdog.models.organization_actions_policy import OrganizationActionsPolicy
 from otterdog.models.repo_actions_policy import RepositoryActionsPolicy
+from otterdog.models.repository import Repository
 from otterdog.utils import UNSET, IndentingPrinter, jsonnet_evaluate_snippet
 
 from . import ModelTest, evaluate_generated_jsonnet
@@ -575,6 +576,118 @@ def test_changed_rule_is_a_difference():
     assert list(diff) == ["allowed_events"]
     assert diff["allowed_events"].from_value is None
     assert diff["allowed_events"].to_value == ["push"]
+
+
+# ---------------------------------------------------------------------------
+# applying to GitHub
+# ---------------------------------------------------------------------------
+
+LOCKFILE_RULE = {"type": "require_lockfile", "parameters": {}}
+
+
+def applying_provider(existing_policy: dict[str, Any] | None) -> Any:
+    """A provider on which the policy to add exists with the given data, None if it does not exist."""
+    return stub(
+        rest_api=github_provider().rest_api,
+        get_org_actions_policy_by_name=AsyncMock(return_value=existing_policy),
+        get_repo_actions_policy_by_name=AsyncMock(return_value=existing_policy),
+        add_org_actions_policy=AsyncMock(),
+        add_repo_actions_policy=AsyncMock(),
+        update_org_actions_policy=AsyncMock(),
+        update_repo_actions_policy=AsyncMock(),
+    )
+
+
+def existing_policy(**overrides: Any) -> dict[str, Any]:
+    """A policy named like the added one, e.g. created in the web UI, with a rule that otterdog does not support."""
+    return provider_policy(
+        id=9,
+        enforcement="disabled",
+        rules=[
+            {
+                "type": "restrict_actions_actors",
+                "parameters": {"allowed_actors": [{"id": 5, "type": "RepositoryRole"}]},
+            },
+            LOCKFILE_RULE,
+        ],
+        **overrides,
+    )
+
+
+async def add_repo_policy(provider: Any) -> None:
+    repository = Repository.from_model_data(evaluate("orgs.newRepo('my-repo')"))
+    policy = repo_policy("allowed_events: ['push']")
+    await RepositoryActionsPolicy.apply_live_patch(
+        LivePatch.of_addition(policy, repository, RepositoryActionsPolicy.apply_live_patch), ORG_ID, provider
+    )
+
+
+async def add_org_policy(provider: Any) -> None:
+    policy = org_policy("allowed_events: ['push']")
+    await OrganizationActionsPolicy.apply_live_patch(
+        LivePatch.of_addition(policy, None, OrganizationActionsPolicy.apply_live_patch), ORG_ID, provider
+    )
+
+
+async def test_added_policy_is_created():
+    provider = applying_provider(None)
+
+    await add_repo_policy(provider)
+
+    provider.get_repo_actions_policy_by_name.assert_awaited_once_with(ORG_ID, "my-repo", "policy")
+    provider.add_repo_actions_policy.assert_awaited_once()
+    provider.update_repo_actions_policy.assert_not_awaited()
+
+
+async def test_added_policy_existing_on_github_is_updated():
+    # e.g. created in the web UI, the configuration that a merged pull request is applied from does not know it
+    provider = applying_provider(existing_policy())
+
+    await add_repo_policy(provider)
+
+    provider.add_repo_actions_policy.assert_not_awaited()
+    provider.update_repo_actions_policy.assert_awaited_once_with(
+        ORG_ID,
+        "my-repo",
+        9,
+        "policy",
+        {
+            "name": "policy",
+            "enforcement": "active",
+            "conditions": {"workflow_path": {"include": ["~ALL"], "exclude": []}},
+            "rules": [
+                {"type": "restrict_action_events", "parameters": {"allowed_events": ["push"]}},
+                LOCKFILE_RULE,
+            ],
+        },
+    )
+
+
+async def test_added_org_policy_is_created():
+    provider = applying_provider(None)
+
+    await add_org_policy(provider)
+
+    provider.get_org_actions_policy_by_name.assert_awaited_once_with(ORG_ID, "policy")
+    provider.add_org_actions_policy.assert_awaited_once()
+    provider.update_org_actions_policy.assert_not_awaited()
+
+
+async def test_added_org_policy_existing_on_github_is_updated():
+    provider = applying_provider(existing_policy(source_type="Organization"))
+
+    await add_org_policy(provider)
+
+    provider.add_org_actions_policy.assert_not_awaited()
+    provider.update_org_actions_policy.assert_awaited_once()
+    org_id, policy_id, name, data = provider.update_org_actions_policy.await_args.args
+    assert (org_id, policy_id, name) == (ORG_ID, 9, "policy")
+    assert data["enforcement"] == "active"
+    assert data["conditions"]["repository_name"] == {"include": ["~ALL"], "exclude": [], "protected": False}
+    assert data["rules"] == [
+        {"type": "restrict_action_events", "parameters": {"allowed_events": ["push"]}},
+        LOCKFILE_RULE,
+    ]
 
 
 # ---------------------------------------------------------------------------

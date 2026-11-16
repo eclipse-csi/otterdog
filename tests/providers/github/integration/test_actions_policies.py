@@ -66,6 +66,11 @@ def repo_policy_request(**overrides: Any) -> dict[str, Any]:
     }
 
 
+def expect_no_policies(github: GitHubProviderTestKit, url: str) -> None:
+    """Before creating a policy, otterdog checks that no policy of the same name exists."""
+    github.http.expect("GET", url, request_params=LIST_PARAMS, response_json={"total_count": 0, "policies": []})
+
+
 async def generate_patch_and_run_it(github: GitHubProviderTestKit, *, old: Any, new: Any) -> None:
     """Generate and apply a LivePatch in one call."""
     model = ModelForContext(ORG_ID, repo_name=REPO_NAME)
@@ -197,6 +202,7 @@ async def test_actors_are_resolved_by_name(github: GitHubProviderTestKit):
 
 
 async def test_create_org_policy(github: GitHubProviderTestKit):
+    expect_no_policies(github, ORG_POLICIES_URL)
     # API: https://docs.github.com/en/rest/actions/policies#create-an-organization-actions-policy
     github.http.expect(
         "POST",
@@ -210,6 +216,7 @@ async def test_create_org_policy(github: GitHubProviderTestKit):
 
 
 async def test_create_org_policy_with_actors(github: GitHubProviderTestKit):
+    expect_no_policies(github, ORG_POLICIES_URL)
     # API: https://docs.github.com/en/rest/users/users#get-a-user
     github.http.expect("GET", "/users/alice", response_json={"id": 11, "type": "User", "node_id": "U_11"})
     github.http.expect("GET", "/users/dependabot[bot]", response_json={"id": 12, "type": "Bot", "node_id": "B_12"})
@@ -344,6 +351,7 @@ async def test_delete_org_policy(github: GitHubProviderTestKit):
 
 
 async def test_create_repo_policy(github: GitHubProviderTestKit):
+    expect_no_policies(github, REPO_POLICIES_URL)
     # API: https://docs.github.com/en/rest/actions/policies#create-a-repository-actions-policy
     github.http.expect(
         "POST",
@@ -358,6 +366,45 @@ async def test_create_repo_policy(github: GitHubProviderTestKit):
     await generate_patch_and_run_it(
         github, old=None, new=repo_policy(include_workflows=[".github/workflows/release.yml"])
     )
+
+
+async def test_create_repo_policy_existing_on_github_updates_it(github: GitHubProviderTestKit):
+    """
+    A policy that the configuration does not know, e.g. created in the web UI, is updated when the policy is added,
+    as GitHub rejects a second policy with the same name: 'Name must be unique'.
+    """
+    github.http.expect(
+        "GET",
+        REPO_POLICIES_URL,
+        request_params=LIST_PARAMS,
+        response_json={"total_count": 1, "policies": [{"id": 3, "name": "pinned", "source_type": "Repository"}]},
+    )
+    github.http.expect(
+        "GET",
+        f"{REPO_POLICIES_URL}/3",
+        response_json={
+            "id": 3,
+            "name": "pinned",
+            "source_type": "Repository",
+            "enforcement": "disabled",
+            "conditions": {"workflow_path": {"include": ["~ALL"], "exclude": []}},
+            "rules": [
+                {
+                    "type": "restrict_actions_actors",
+                    "parameters": {"allowed_actors": [{"id": 5, "type": "RepositoryRole"}]},
+                },
+                LOCKFILE_RULE,
+            ],
+        },
+    )
+    github.http.expect(
+        "PUT",
+        f"{REPO_POLICIES_URL}/3",
+        request_json=repo_policy_request(rules=[EVENTS_RULE, LOCKFILE_RULE]),
+        response_json={"id": 3, "name": "pinned"},
+    )
+
+    await generate_patch_and_run_it(github, old=None, new=repo_policy())
 
 
 async def test_update_repo_policy_removes_a_rule(github: GitHubProviderTestKit):

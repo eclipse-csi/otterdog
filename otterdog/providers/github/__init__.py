@@ -395,6 +395,9 @@ class GitHubProvider:
     async def get_org_actions_policies(self, org_id: str) -> list[dict[str, Any]]:
         return await self.rest_api.org.get_actions_policies(org_id)
 
+    async def get_org_actions_policy_by_name(self, org_id: str, name: str) -> dict[str, Any] | None:
+        return await self.rest_api.org.get_actions_policy_by_name(org_id, name)
+
     async def update_org_actions_policy(self, org_id: str, policy_id: int, name: str, data: dict[str, Any]) -> None:
         if len(data) > 0:
             if not is_set_and_present(policy_id):
@@ -513,6 +516,9 @@ class GitHubProvider:
 
     async def get_repo_actions_policies(self, org_id: str, repo_name: str) -> list[dict[str, Any]]:
         return await self.rest_api.repo.get_actions_policies(org_id, repo_name)
+
+    async def get_repo_actions_policy_by_name(self, org_id: str, repo_name: str, name: str) -> dict[str, Any] | None:
+        return await self.rest_api.repo.get_actions_policy_by_name(org_id, repo_name, name)
 
     async def update_repo_actions_policy(
         self, org_id: str, repo_name: str, policy_id: int, name: str, data: dict[str, Any]

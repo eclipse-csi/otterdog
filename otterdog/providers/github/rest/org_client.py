@@ -1045,14 +1045,18 @@ class OrgClient(RestClient):
         except GitHubException as ex:
             raise RuntimeError(f"failed retrieving actions policy for org '{org_id}':\n{ex}") from ex
 
+    async def get_actions_policy_by_name(self, org_id: str, name: str) -> dict[str, Any] | None:
+        """Returns the actions policy of the organization with the given name, None if there is none."""
+        _logger.debug("retrieving actions policy with name '%s' for org '%s'", name, org_id)
+
+        return next((x for x in await self.get_actions_policies(org_id) if x["name"] == name), None)
+
     async def get_actions_policy_id(self, org_id: str, name: str) -> int:
-        _logger.debug("retrieving id for actions policy with name '%s' for org '%s'", name, org_id)
+        policy = await self.get_actions_policy_by_name(org_id, name)
+        if policy is None:
+            raise RuntimeError(f"failed to find actions policy with name '{name}' for org '{org_id}'")
 
-        for policy in await self.get_actions_policies(org_id):
-            if policy["name"] == name:
-                return policy["id"]
-
-        raise RuntimeError(f"failed to find actions policy with name '{name}' for org '{org_id}'")
+        return policy["id"]
 
     async def update_actions_policy(self, org_id: str, policy_id: int, data: dict[str, Any]) -> None:
         _logger.debug("updating actions policy '%d' for org '%s'", policy_id, org_id)

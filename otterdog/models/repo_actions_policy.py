@@ -11,6 +11,7 @@ from __future__ import annotations
 import dataclasses
 from typing import TYPE_CHECKING
 
+from otterdog.logging import get_logger
 from otterdog.models import LivePatch, LivePatchType
 from otterdog.models.actions_policy import ActionsPolicy
 from otterdog.utils import expect_type, unwrap
@@ -18,6 +19,8 @@ from otterdog.utils import expect_type, unwrap
 if TYPE_CHECKING:
     from otterdog.jsonnet import JsonnetConfig
     from otterdog.providers.github import GitHubProvider
+
+_logger = get_logger(__name__)
 
 
 @dataclasses.dataclass
@@ -46,11 +49,34 @@ class RepositoryActionsPolicy(ActionsPolicy):
 
         match patch.patch_type:
             case LivePatchType.ADD:
-                await provider.add_repo_actions_policy(
-                    org_id,
-                    repository.name,
-                    await unwrap(patch.expected_object).to_provider_data(org_id, provider),
+                expected_object = unwrap(patch.expected_object)
+                # the configuration a merged pull request is applied from may not know a policy of the same name,
+                # e.g. created in the web UI or by a previous attempt of a failed apply, which GitHub does not
+                # allow to create twice: it is updated instead
+                current_data = await provider.get_repo_actions_policy_by_name(
+                    org_id, repository.name, expected_object.name
                 )
+                if current_data is None:
+                    await provider.add_repo_actions_policy(
+                        org_id,
+                        repository.name,
+                        await expected_object.to_provider_data(org_id, provider),
+                    )
+                else:
+                    _logger.warning(
+                        "actions policy '%s' already exists for repo '%s/%s', updating it",
+                        expected_object.name,
+                        org_id,
+                        repository.name,
+                    )
+                    current_object = cls.from_provider_data(org_id, current_data)
+                    await provider.update_repo_actions_policy(
+                        org_id,
+                        repository.name,
+                        current_object.id,
+                        current_object.name,
+                        await expected_object.to_provider_data_for_update(current_object, org_id, provider),
+                    )
 
             case LivePatchType.REMOVE:
                 current_object = unwrap(patch.current_object)
@@ -63,11 +89,10 @@ class RepositoryActionsPolicy(ActionsPolicy):
 
             case LivePatchType.CHANGE:
                 current_object = unwrap(patch.current_object)
-                expected_object = unwrap(patch.expected_object).with_unset_values_from(current_object)
                 await provider.update_repo_actions_policy(
                     org_id,
                     repository.name,
                     current_object.id,
                     current_object.name,
-                    current_object.with_unsupported_settings(await expected_object.to_provider_data(org_id, provider)),
+                    await unwrap(patch.expected_object).to_provider_data_for_update(current_object, org_id, provider),
                 )

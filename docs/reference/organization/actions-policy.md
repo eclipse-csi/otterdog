@@ -23,6 +23,9 @@ publish in its API yet, are kept when otterdog updates the policy. A rule missin
 a default configuration predating it, is not managed either and keeps its current value, as does a key of the
 workflow or repository targeting missing from the configuration while another one is configured.
 
+GitHub does not allow two policies with the same name. When otterdog adds a policy whose name is already used by a
+policy that the configuration does not know, e.g. created in the web UI, it updates that policy instead.
+
 A policy that targets repositories by custom property or by id, which otterdog does not support, keeps this
 targeting when otterdog updates the policy, its `include_repo_names`, `exclude_repo_names` and
 `protect_repo_names` are not compared.
