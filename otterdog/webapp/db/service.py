@@ -9,7 +9,9 @@
 from __future__ import annotations
 
 import dataclasses
-from asyncio import Semaphore
+from asyncio import Event, Semaphore
+from contextlib import contextmanager
+from contextvars import ContextVar
 from logging import getLogger
 from typing import TYPE_CHECKING, Any, TypeVar
 
@@ -52,6 +54,7 @@ from .models import (
 )
 
 if TYPE_CHECKING:
+    from collections.abc import Iterator
     from datetime import datetime
 
     from odmantic.query import QueryExpression, SortExpression
@@ -362,13 +365,70 @@ async def add_app_installation(
     await update_policies_and_blueprints_for_installation(installation_model, global_policies, global_blueprints)
 
 
+class InstallationTaskTracker:
+    """
+    Follows the installation tasks scheduled within track_installation_tasks.
+
+    It is done once the block has been left and every task it scheduled has completed,
+    including the installation tasks scheduled in turn by these tasks.
+    """
+
+    def __init__(self) -> None:
+        self._pending = 0
+        self._closed = False
+        self._done = Event()
+
+    def task_scheduled(self) -> None:
+        self._pending += 1
+
+    def task_completed(self) -> None:
+        self._pending -= 1
+        self._update()
+
+    def close(self) -> None:
+        self._closed = True
+        self._update()
+
+    def _update(self) -> None:
+        if self._closed and self._pending == 0:
+            self._done.set()
+
+    async def wait(self) -> None:
+        await self._done.wait()
+
+
+_installation_task_tracker: ContextVar[InstallationTaskTracker | None] = ContextVar(
+    "installation_task_tracker", default=None
+)
+
+
+@contextmanager
+def track_installation_tasks(tracker: InstallationTaskTracker) -> Iterator[None]:
+    token = _installation_task_tracker.set(tracker)
+    try:
+        yield
+    finally:
+        _installation_task_tracker.reset(token)
+        tracker.close()
+
+
 def _schedule_installation_task(task: Task) -> None:
+    tracker = _installation_task_tracker.get()
+    if tracker is not None:
+        tracker.task_scheduled()
+
     current_app.add_background_task(_execute_installation_task, task)
 
 
 async def _execute_installation_task(task: Task) -> None:
-    async with _get_installation_task_semaphore():
-        await task.execute()
+    # a background task runs in a copy of the context scheduling it, and thus sees the same tracker
+    tracker = _installation_task_tracker.get()
+    try:
+        async with _get_installation_task_semaphore():
+            await task.execute()
+    finally:
+        if tracker is not None:
+            tracker.task_completed()
 
 
 def _get_installation_task_semaphore() -> Semaphore:

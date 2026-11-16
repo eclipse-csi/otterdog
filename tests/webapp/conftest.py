@@ -38,3 +38,46 @@ def app():
     yield app
 
     # clean up / reset resources here
+
+
+class FakeRedis:
+    """Supports what RedisLease relies on: a conditional set and its two scripts, ignoring the expiry."""
+
+    def __init__(self) -> None:
+        self.values: dict[str, str] = {}
+        self.ttls: dict[str, int] = {}
+        self.renewals = 0
+
+    async def set(self, key, value, nx=False, ex=None):
+        if nx and key in self.values:
+            return None
+
+        self.values[key] = value
+        self.ttls[key] = ex
+        return True
+
+    async def eval(self, script, numkeys, key, token, *args):
+        from otterdog.webapp import lease
+
+        if self.values.get(key) != token:
+            return None
+
+        if script == lease._RENEW_IF_OWNED:
+            self.renewals += 1
+            self.ttls[key] = args[0]
+        elif script == lease._RELEASE_IF_OWNED:
+            del self.values[key]
+            del self.ttls[key]
+        else:
+            raise AssertionError(f"unexpected script: {script}")
+
+        return 1
+
+
+@pytest.fixture
+def fake_redis(monkeypatch):
+    from otterdog.webapp import lease
+
+    redis = FakeRedis()
+    monkeypatch.setattr(lease, "get_redis", lambda: redis)
+    return redis
