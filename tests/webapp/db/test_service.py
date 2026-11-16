@@ -348,3 +348,40 @@ def _get_config_file(filename: str) -> str:
 
     dirname = os.path.dirname(__file__)
     return os.path.join(dirname, filename)
+
+
+async def test_installation_tasks_scheduled_while_tracked_are_followed(app):
+    """Background tasks run in a copy of the context scheduling them, and thus report to the same tracker."""
+    tracker = service.InstallationTaskTracker()
+    completed = asyncio.Event()
+
+    class _Task:
+        async def execute(self) -> None:
+            await completed.wait()
+
+    async with app.app_context():
+        with service.track_installation_tasks(tracker):
+            service._schedule_installation_task(_Task())
+            service._schedule_installation_task(_Task())
+
+        # outside of the block, a task is not followed anymore
+        service._schedule_installation_task(_Task())
+
+        await asyncio.sleep(0.01)
+        assert not tracker._done.is_set()
+
+        completed.set()
+        async with asyncio.timeout(1):
+            await tracker.wait()
+
+        assert tracker._pending == 0
+
+
+async def test_a_tracker_without_any_task_is_done_once_left(app):
+    tracker = service.InstallationTaskTracker()
+
+    with service.track_installation_tasks(tracker):
+        assert not tracker._done.is_set()
+
+    async with asyncio.timeout(1):
+        await tracker.wait()

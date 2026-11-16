@@ -261,6 +261,24 @@ kubectl get svc
 kubectl get ingress
 ```
 
+The WebApp exposes two status endpoints, suited for liveness and readiness probes:
+
+- `/internal/health` answers `200` as soon as the WebApp handles requests, without checking any other service.
+- `/internal/ready` checks that MongoDB, Redis and GHProxy are reachable. It answers `200` when all of them are,
+  `503` otherwise, along with the result of each check. The checks run at most once every 5 seconds in each
+  worker of the WebApp, requests received in the meantime get the same result:
+
+```bash
+$ curl https://<your-otterdog-address>/internal/ready
+{"checks":{"ghproxy":{"status":"ok"},"mongodb":{"status":"ok"},"redis":{"status":"error","error":"ConnectionError"}},"status":"error"}
+```
+
+!!! note
+
+    Only use `/internal/ready` as a readiness probe: used as a liveness probe, an outage of
+    MongoDB, Redis or GHProxy would get the WebApp restarted over and over. GHProxy is checked
+    by opening a connection to it, as every request sent to it is forwarded to GitHub.
+
 ### Init Otterdog
 
 After deployment, Otterdog initializes itself automatically with a helm hook, but this can also be done manually by calling the initialization endpoint::
@@ -274,6 +292,13 @@ This initialization will:
 - Sync the current state from GitHub
 - Set up the initial data structures in MongoDB
 - Refresh, in the background, the per organization pull request digests backing the statistics
+
+!!! note
+
+    A single initialization runs at a time across all workers, until the background tasks it
+    started have completed. A call received meanwhile starts nothing and is answered with
+    `429 Too Many Requests` and a `Retry-After` header, which `curl --retry` honors. The same
+    applies to `/internal/check` while the blueprints are being checked.
 
 !!! note
 

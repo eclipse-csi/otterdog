@@ -44,6 +44,9 @@ class Mongo:
     def odm(self) -> AIOEngine:
         return unwrap(self._engine)
 
+    async def ping(self) -> None:
+        await unwrap(self._client).admin.command("ping")
+
 
 async def init_mongo_database(mongo: Mongo) -> None:
     from .models import (

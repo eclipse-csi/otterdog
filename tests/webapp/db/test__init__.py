@@ -70,3 +70,22 @@ def test_init_app_passes_full_uri(monkeypatch):
 
     assert len(captured_uris) == 1
     assert captured_uris[0] == mongo_uri
+
+
+async def test_ping_fails_when_the_server_is_unreachable():
+    import socket
+
+    from pymongo.errors import ServerSelectionTimeoutError
+
+    with socket.socket() as sock:
+        sock.bind(("127.0.0.1", 0))
+        port = sock.getsockname()[1]
+
+    app = Quart(__name__)
+    app.config["MONGO_URI"] = f"mongodb://127.0.0.1:{port}/otterdog?serverSelectionTimeoutMS=100"
+
+    mongo = Mongo()
+    mongo.init_app(app)
+
+    with pytest.raises(ServerSelectionTimeoutError):
+        await mongo.ping()
