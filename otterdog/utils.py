@@ -753,11 +753,12 @@ def days_since(iso_date_str: str, now: datetime) -> str:
 
 
 def debug_times(category: str):
-    import asyncio
     import functools
+    import inspect
 
     def decorator_timed(func):
-        if asyncio.iscoroutinefunction(func):
+        # asyncio.iscoroutinefunction is deprecated since Python 3.14 and removed in Python 3.16
+        if inspect.iscoroutinefunction(func):
 
             @functools.wraps(func)
             async def wrapper_timed(*args, **kwargs):
