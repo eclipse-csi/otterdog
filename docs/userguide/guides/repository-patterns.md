@@ -159,7 +159,7 @@ orgs.newOrg('my-project', 'my-org') {
 ## Renaming, archiving and deleting
 
 - **Renaming**: list the previous name in `aliases`, otherwise the repository is deleted and a new one is created,
-  see [Renaming of Resources](../renaming.md).
+  see [Renaming a resource](../resources.md#renaming-a-resource).
 - **Archiving**: `archived: true` makes the repository read-only. Many settings cannot be changed on archived
   repositories, and otterdog ignores them until the repository is unarchived, as well as its branch protection
   rules.

@@ -93,9 +93,7 @@ nav = [
     "userguide/index.md",
     { "Making changes" = [
       { "Workflow for changes" = "userguide/workflow.md" },
-      { "Adding resources" = "userguide/adding.md" },
-      { "Renaming resources" = "userguide/renaming.md" },
-      { "Removing resources" = "userguide/removal.md" },
+      { "Adding, renaming and removing resources" = "userguide/resources.md" },
     ] },
     # the groups of the guides index (userguide/guides/index.md), whose order is the one of the Playground's catalog
     { "Configuration Guides" = [
@@ -128,7 +126,7 @@ nav = [
         { "Common repository patterns" = "userguide/guides/repository-patterns.md" },
       ] },
     ] },
-    { "Troubleshooting & limits" = [
+    { "When something goes wrong" = [
       { "Troubleshooting" = "userguide/guides/troubleshooting.md" },
       { "Unsupported settings" = "userguide/unsupported.md" },
     ] },
@@ -154,6 +152,12 @@ nav = [
 
 # the Eclipse colors, the hero of the home page and the banner of the previews of pull requests
 extra_css = ["assets/theme.css"]
+
+# the pages merged into another one, their former urls lead to it
+[project.plugins.redirects.redirect_maps]
+"userguide/adding.md" = "userguide/resources.md#adding-a-resource"
+"userguide/renaming.md" = "userguide/resources.md#renaming-a-resource"
+"userguide/removal.md" = "userguide/resources.md#removing-a-resource"
 
 [project.extra]
 # url of the otterdog dashboard whose playground is linked below the complete jsonnet examples (docs_playground.py)

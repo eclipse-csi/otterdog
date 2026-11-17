@@ -59,7 +59,7 @@ orgs.newOrg('my-project', 'my-org') {
       applying the configuration creates it again, without its content, whether deletions are enabled or not.
 
     Keeping repository creation and deletion reserved to owners makes the configuration the single place where
-    repositories are added and removed, see [Adding a repository](../adding.md).
+    repositories are added and removed, see [Adding a resource](../resources.md#adding-a-resource).
 
 !!! note
 

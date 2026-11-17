@@ -4,3 +4,6 @@
 {% for problem in problems %}
 {{ problem }}
 {% endfor %}
+
+> [!TIP]
+> What to do for each of these problems: [Merging with `/otterdog merge`]({{ documentation_url }}userguide/guides/troubleshooting/#merging-with-otterdog-merge)

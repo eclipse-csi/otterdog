@@ -7,6 +7,13 @@
   --otterdog-flow-circle-start: #4b3f80;
   --otterdog-flow-circle-end: var(--otterdog-eclipse-purple);
   --otterdog-flow-icon: #fff;
+  /* the outcomes in the diagrams of the user guide: success, attention, failure and the admins */
+  --otterdog-ok: #2e7d32;
+  --otterdog-warn: #d9770a;
+  --otterdog-ko: #c62828;
+  --otterdog-admin: #546e7a;
+  /* the background of the events of otterdog in the timeline */
+  --otterdog-bot-tint: rgba(75, 63, 128, 0.06);
 }
 
 [data-md-color-scheme="default"] {
@@ -29,6 +36,11 @@
   --otterdog-flow-circle-start: #ffb459;
   --otterdog-flow-circle-end: #d9770a;
   --otterdog-flow-icon: var(--otterdog-eclipse-purple);
+  --otterdog-ok: #66bb6a;
+  --otterdog-warn: #ffb459;
+  --otterdog-ko: #ef5350;
+  --otterdog-admin: #90a4ae;
+  --otterdog-bot-tint: rgba(255, 180, 89, 0.07);
 }
 
 /* the header and the tabs in the purple of the Eclipse Foundation (the modern variant draws them on the page color) */
@@ -253,4 +265,571 @@
     left: calc(50% - 0.2rem);
     transform: rotate(135deg);
   }
+}
+
+/* the events of a pull request on the workflow page (docs/userguide/workflow.md), like its conversation on GitHub:
+   a dashed line, a circle per event with the icon of the step, the gradient of the steps for otterdog, neutral for
+   the people, and a card with its description */
+.md-typeset .otterdog-timeline {
+  position: relative;
+  margin: 1.6em 0;
+}
+
+.md-typeset .otterdog-timeline::before {
+  position: absolute;
+  top: 0.5rem;
+  bottom: 0.5rem;
+  left: 1.15rem;
+  content: "";
+  border-left: 0.1rem dashed var(--md-default-fg-color--lighter);
+}
+
+.md-typeset .otterdog-timeline__phase {
+  position: relative;
+  margin: 1.4em 0 0.6em 3.2rem;
+  color: var(--md-accent-fg-color);
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.md-typeset .otterdog-timeline__phase:first-child {
+  margin-top: 0;
+}
+
+/* the dot of a phase on the line */
+.md-typeset .otterdog-timeline__phase::before {
+  position: absolute;
+  top: 50%;
+  left: -2.3rem;
+  width: 0.6rem;
+  height: 0.6rem;
+  content: "";
+  background: var(--md-accent-fg-color);
+  border-radius: 50%;
+  transform: translateY(-50%);
+}
+
+.md-typeset .otterdog-timeline__phase > p {
+  margin: 0;
+}
+
+.md-typeset .otterdog-timeline__event {
+  position: relative;
+  display: grid;
+  grid-template-columns: 2.3rem minmax(0, 1fr);
+  column-gap: 0.9rem;
+  align-items: center;
+  margin: 0.5em 0;
+}
+
+.md-typeset .otterdog-timeline__event > :first-child {
+  margin: 0;
+}
+
+.md-typeset .otterdog-timeline__event > :not(:first-child) {
+  grid-column: 2;
+  margin: 0;
+  padding: 0.5rem 0.8rem;
+  font-size: 0.75rem;
+  line-height: 1.6;
+  border: 0.05rem solid var(--md-default-fg-color--lightest);
+  border-radius: 0.4rem;
+  box-shadow: 0 0.1rem 0.3rem rgba(44, 34, 85, 0.08);
+}
+
+.md-typeset .twemoji.otterdog-timeline__icon {
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.3rem;
+  height: 2.3rem;
+  color: var(--otterdog-flow-icon);
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--otterdog-flow-circle-start), var(--otterdog-flow-circle-end));
+  box-shadow: 0 0.2rem 0.6rem rgba(44, 34, 85, 0.25);
+}
+
+/* the events of the people, the author or a reviewer */
+.md-typeset .twemoji.otterdog-timeline__icon--person {
+  color: var(--md-default-fg-color--light);
+  background: var(--md-default-bg-color);
+  border: 0.1rem solid var(--md-default-fg-color--lighter);
+  box-shadow: none;
+}
+
+.md-typeset .twemoji.otterdog-timeline__icon svg {
+  width: 1.15rem;
+  max-height: 1.15rem;
+}
+
+/* the ways to prepare a change on the workflow page (docs/userguide/workflow.md): a frame per way, with its title
+   on the border, around the steps of the home page, the last one in green as all the ways lead to it */
+.md-typeset .otterdog-lane {
+  position: relative;
+  margin: 2em 0 1.4em;
+  padding: 1.4rem 0.6rem 0.2rem;
+  border: 0.05rem solid var(--md-default-fg-color--lightest);
+  border-radius: 0.6rem;
+}
+
+.md-typeset .otterdog-lane .otterdog-flow {
+  margin: 0.4em 0;
+}
+
+.md-typeset .otterdog-lane__title {
+  position: absolute;
+  top: 0;
+  left: 1rem;
+  padding: 0.15rem 0.7rem;
+  color: var(--md-accent-fg-color);
+  font-size: 0.7rem;
+  font-weight: 700;
+  background: var(--md-default-bg-color);
+  border: 0.05rem solid var(--md-accent-fg-color);
+  border-radius: 1rem;
+  transform: translateY(-50%);
+  max-width: calc(100% - 2rem);
+}
+
+.md-typeset .otterdog-lane__title > p {
+  margin: 0;
+}
+
+/* the circles of the steps and of the timeline in the color of their outcome */
+.md-typeset .twemoji.otterdog-flow__icon--done,
+.md-typeset .twemoji.otterdog-timeline__icon--done {
+  color: #fff;
+  background: linear-gradient(135deg, #2e7d32, #1b5e20);
+}
+
+.md-typeset .twemoji.otterdog-flow__icon--admin,
+.md-typeset .twemoji.otterdog-timeline__icon--admin {
+  color: #fff;
+  background: linear-gradient(135deg, #546e7a, #37474f);
+}
+
+.md-typeset .twemoji.otterdog-flow__icon--danger,
+.md-typeset .twemoji.otterdog-timeline__icon--danger {
+  color: #fff;
+  background: linear-gradient(135deg, #d32f2f, #b71c1c);
+}
+
+/* what happens otherwise at a step of the timeline, e.g. a condition of the auto-merge that is not met */
+.md-typeset .otterdog-timeline__else {
+  display: block;
+  margin-top: 0.3rem;
+  padding-left: 0.6rem;
+  color: var(--md-default-fg-color--light);
+  font-size: 0.7rem;
+  border-left: 0.15rem solid var(--otterdog-ko);
+}
+
+/* alternatives side by side in the user guide, e.g. the ways to merge or the results of applying a pull request: a
+   card per outcome, with its color on top and in its title */
+.md-typeset .otterdog-outcomes {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 10rem), 1fr));
+  gap: 0.8rem;
+  margin: 1.4em 0;
+}
+
+.md-typeset .otterdog-outcome {
+  padding: 0.6rem 0.9rem 0.4rem;
+  font-size: 0.75rem;
+  line-height: 1.6;
+  border: 0.05rem solid var(--md-default-fg-color--lightest);
+  border-top: 0.25rem solid var(--otterdog-outcome-color);
+  border-radius: 0.4rem;
+  box-shadow: 0 0.1rem 0.3rem rgba(44, 34, 85, 0.08);
+  --otterdog-outcome-color: var(--md-accent-fg-color);
+}
+
+.md-typeset .otterdog-outcome > p,
+.md-typeset .otterdog-outcome > ul {
+  margin: 0.4em 0;
+}
+
+.md-typeset .otterdog-outcome > ul > li {
+  margin-bottom: 0.2em;
+}
+
+.md-typeset .otterdog-outcome > p:first-child {
+  color: var(--otterdog-outcome-color);
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.md-typeset .otterdog-outcome > p:first-child .twemoji {
+  margin-right: 0.2rem;
+}
+
+.md-typeset .otterdog-outcome--ok {
+  --otterdog-outcome-color: var(--otterdog-ok);
+}
+
+.md-typeset .otterdog-outcome--warn {
+  --otterdog-outcome-color: var(--otterdog-warn);
+}
+
+.md-typeset .otterdog-outcome--ko {
+  --otterdog-outcome-color: var(--otterdog-ko);
+}
+
+.md-typeset .otterdog-outcome--admin {
+  --otterdog-outcome-color: var(--otterdog-admin);
+}
+
+.md-typeset .otterdog-outcome--info {
+  --otterdog-outcome-color: var(--md-default-fg-color--light);
+}
+
+/* the events of otterdog in the timeline, i.e. the ones without the circle of a person, on a tinted card */
+.md-typeset .otterdog-timeline__event:not(:has(.otterdog-timeline__icon--person)) > :not(:first-child) {
+  background: var(--otterdog-bot-tint);
+}
+
+/* the legend of the timeline: the filled circles are the actions of otterdog, the outlined ones the ones of people */
+.md-typeset .otterdog-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem 1.6rem;
+  margin: 1em 0 0;
+  color: var(--md-default-fg-color--light);
+  font-size: 0.7rem;
+}
+
+.md-typeset .otterdog-legend > p {
+  margin: 0;
+}
+
+.md-typeset .otterdog-legend .twemoji.otterdog-timeline__icon {
+  width: 1.4rem;
+  height: 1.4rem;
+  margin-right: 0.4rem;
+  vertical-align: middle;
+  box-shadow: none;
+}
+
+.md-typeset .otterdog-legend .twemoji.otterdog-timeline__icon svg {
+  width: 0.8rem;
+  max-height: 0.8rem;
+}
+
+/* the frames of the ways to prepare a change in the color of their outcome, e.g. renaming with or without aliases */
+.md-typeset .otterdog-lane--ok .otterdog-lane__title {
+  color: var(--otterdog-ok);
+  border-color: var(--otterdog-ok);
+}
+
+.md-typeset .otterdog-lane--ko .otterdog-lane__title {
+  color: var(--otterdog-ko);
+  border-color: var(--otterdog-ko);
+}
+
+.md-typeset .otterdog-lane--admin .otterdog-lane__title {
+  color: var(--otterdog-admin);
+  border-color: var(--otterdog-admin);
+}
+
+/* the recommended way, highlighted */
+.md-typeset .otterdog-lane--featured {
+  background: var(--otterdog-bot-tint);
+  border: 0.1rem solid var(--md-accent-fg-color);
+  box-shadow: 0 0.2rem 0.8rem rgba(44, 34, 85, 0.12);
+}
+
+.md-typeset .otterdog-lane--featured .otterdog-lane__title {
+  color: #fff;
+  background: linear-gradient(135deg, #4b3f80, #2c2255);
+  border-color: transparent;
+}
+
+/* the banner of the Playground at the top of the workflow */
+.md-typeset .otterdog-hero {
+  display: flex;
+  gap: 1.2rem;
+  align-items: flex-start;
+  margin: 1.6em 0;
+  padding: 1.2rem 1.4rem;
+  color: #fff;
+  background: linear-gradient(135deg, #4b3f80, #2c2255);
+  border-radius: 0.8rem;
+  box-shadow: 0 0.3rem 1rem rgba(44, 34, 85, 0.25);
+}
+
+.md-typeset .otterdog-hero > p:first-child {
+  margin: 0;
+}
+
+.md-typeset .twemoji.otterdog-hero__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 3rem;
+  height: 3rem;
+  color: #2c2255;
+  background: #ffb459;
+  border-radius: 50%;
+}
+
+.md-typeset .twemoji.otterdog-hero__icon svg {
+  width: 1.6rem;
+  height: 1.6rem;
+}
+
+.md-typeset .otterdog-hero__body > p {
+  margin: 0 0 0.6em;
+}
+
+.md-typeset .otterdog-hero__body > p:first-child {
+  font-size: 0.95rem;
+}
+
+.md-typeset .otterdog-hero__body > p:last-child {
+  margin: 0.9em 0 0;
+}
+
+.md-typeset .otterdog-hero .md-button {
+  margin: 0.2rem 0.4rem 0.2rem 0;
+  color: #fff;
+  background: transparent;
+  border: 0.1rem solid rgba(255, 255, 255, 0.7);
+}
+
+.md-typeset .otterdog-hero .md-button--primary {
+  color: #2c2255;
+  background: #ffb459;
+  border-color: #ffb459;
+}
+
+.md-typeset .otterdog-hero .md-button:hover,
+.md-typeset .otterdog-hero .md-button:focus {
+  color: #2c2255;
+  background: #fff;
+  border-color: #fff;
+}
+
+@media screen and (max-width: 44.9375em) {
+  .md-typeset .otterdog-hero {
+    flex-direction: column;
+    gap: 0.6rem;
+  }
+}
+
+/* the commands in a lane: the command on the left, what it does on the right */
+.md-typeset .otterdog-commands {
+  padding: 1.4rem 0.9rem 0.4rem;
+}
+
+.md-typeset .otterdog-commands dl {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: 0.5rem 1rem;
+  align-items: baseline;
+  margin: 0.4em 0;
+  font-size: 0.75rem;
+}
+
+.md-typeset .otterdog-commands dt {
+  margin: 0;
+}
+
+.md-typeset .otterdog-commands dt code {
+  padding: 0.15rem 0.5rem;
+  font-weight: 600;
+  white-space: nowrap;
+  border-left: 0.15rem solid var(--md-accent-fg-color);
+}
+
+.md-typeset .otterdog-lane--ok.otterdog-commands dt code {
+  border-left-color: var(--otterdog-ok);
+}
+
+.md-typeset .otterdog-lane--admin.otterdog-commands dt code {
+  border-left-color: var(--otterdog-admin);
+}
+
+.md-typeset .otterdog-commands dd {
+  margin: 0;
+  padding-bottom: 0.5rem;
+  line-height: 1.6;
+  border-bottom: 0.05rem dashed var(--md-default-fg-color--lightest);
+}
+
+.md-typeset .otterdog-commands dd:last-of-type {
+  padding-bottom: 0;
+  border-bottom: none;
+}
+
+.md-typeset .otterdog-commands dd > p {
+  margin: 0;
+}
+
+@media screen and (max-width: 44.9375em) {
+  .md-typeset .otterdog-commands dl {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0.3rem;
+  }
+}
+
+.md-typeset .otterdog-lane .otterdog-match {
+  margin: 0.4em 0 0.6em;
+}
+
+/* how otterdog matches the resources of the configuration with the ones on GitHub (docs/userguide/resources.md): a
+   row per resource, the configuration on the left, GitHub on the right, and in between what the validation shows on
+   a line in the color of the change */
+.md-typeset .otterdog-match {
+  margin: 1.4em 0;
+  font-size: 0.75rem;
+}
+
+.md-typeset .otterdog-match__row > p {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 7rem minmax(0, 1fr);
+  align-items: center;
+  margin: 0.5em 0;
+  --otterdog-match-color: var(--md-accent-fg-color);
+}
+
+.md-typeset .otterdog-match__row--head > p {
+  margin-bottom: 0.2em;
+  color: var(--md-default-fg-color--light);
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.md-typeset .otterdog-match__config,
+.md-typeset .otterdog-match__github {
+  padding: 0.45rem 0.7rem;
+  line-height: 1.5;
+  border: 0.05rem solid var(--md-default-fg-color--lightest);
+  border-radius: 0.4rem;
+  box-shadow: 0 0.1rem 0.3rem rgba(44, 34, 85, 0.08);
+}
+
+.md-typeset .otterdog-match__config {
+  background: var(--otterdog-bot-tint);
+}
+
+/* a resource missing on one side */
+.md-typeset .otterdog-match__none {
+  color: var(--md-default-fg-color--light);
+  font-style: italic;
+  background: none;
+  border-style: dashed;
+  box-shadow: none;
+}
+
+/* what the validation shows: a chip on a line from the configuration to GitHub */
+.md-typeset .otterdog-match__result {
+  text-align: center;
+  background: linear-gradient(var(--otterdog-match-color), var(--otterdog-match-color)) center / 100% 0.1rem no-repeat;
+}
+
+.md-typeset .otterdog-match__result > span {
+  display: inline-block;
+  padding: 0.1rem 0.6rem;
+  color: var(--md-default-bg-color);
+  font-family: var(--md-code-font-family);
+  font-size: 0.7rem;
+  font-weight: 700;
+  white-space: nowrap;
+  background: var(--otterdog-match-color);
+  border-radius: 1rem;
+}
+
+.md-typeset .otterdog-match__row--create > p {
+  --otterdog-match-color: var(--otterdog-ok);
+}
+
+.md-typeset .otterdog-match__row--delete > p {
+  --otterdog-match-color: var(--otterdog-ko);
+}
+
+/* where the resources are declared (docs/userguide/resources.md): the keys of the configuration as a tree, the
+   containers in the color of the steps, each key with the function creating its resources */
+.md-typeset .otterdog-tree {
+  margin: 1.4em 0;
+  font-size: 0.75rem;
+}
+
+.md-typeset .otterdog-tree ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.md-typeset .otterdog-tree ul ul {
+  margin-left: 0.7rem;
+}
+
+.md-typeset .otterdog-tree li {
+  position: relative;
+  margin: 0;
+  padding: 0.15rem 0 0.15rem 1.4rem;
+  list-style: none;
+}
+
+.md-typeset .otterdog-tree > ul > li {
+  padding-left: 0;
+}
+
+/* the connectors: an elbow to each entry, and the line going on to the next one */
+.md-typeset .otterdog-tree ul ul > li::before {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 1.1rem;
+  height: 0.95rem;
+  content: "";
+  border-bottom: 0.1rem solid var(--md-default-fg-color--lighter);
+  border-left: 0.1rem solid var(--md-default-fg-color--lighter);
+  border-bottom-left-radius: 0.3rem;
+}
+
+.md-typeset .otterdog-tree ul ul > li:not(:last-child)::after {
+  position: absolute;
+  top: 0.95rem;
+  bottom: 0;
+  left: 0;
+  content: "";
+  border-left: 0.1rem solid var(--md-default-fg-color--lighter);
+}
+
+.md-typeset .otterdog-tree strong {
+  display: inline-block;
+  padding: 0.05rem 0.5rem;
+  font-family: var(--md-code-font-family);
+  font-size: 0.7rem;
+  font-weight: 600;
+  background: var(--md-code-bg-color);
+  border-radius: 0.3rem;
+}
+
+.md-typeset .otterdog-tree li:has(> ul) > strong {
+  color: #fff;
+  background: linear-gradient(135deg, #4b3f80, #2c2255);
+}
+
+.md-typeset .otterdog-tree a {
+  margin-left: 0.3rem;
+  font-family: var(--md-code-font-family);
+  font-size: 0.7rem;
+}
+
+.md-typeset .otterdog-tree__note {
+  margin-left: 0.4rem;
+  padding: 0 0.4rem;
+  color: var(--md-default-fg-color--light);
+  font-size: 0.6rem;
+  border: 0.05rem solid var(--md-default-fg-color--lighter);
+  border-radius: 1rem;
 }
