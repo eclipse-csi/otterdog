@@ -403,19 +403,19 @@
 .md-typeset .twemoji.otterdog-flow__icon--done,
 .md-typeset .twemoji.otterdog-timeline__icon--done {
   color: #fff;
-  background: linear-gradient(135deg, #43a047, #2e7d32);
+  background: linear-gradient(135deg, #2e7d32, #1b5e20);
 }
 
 .md-typeset .twemoji.otterdog-flow__icon--admin,
 .md-typeset .twemoji.otterdog-timeline__icon--admin {
   color: #fff;
-  background: linear-gradient(135deg, #78909c, #455a64);
+  background: linear-gradient(135deg, #546e7a, #37474f);
 }
 
 .md-typeset .twemoji.otterdog-flow__icon--danger,
 .md-typeset .twemoji.otterdog-timeline__icon--danger {
   color: #fff;
-  background: linear-gradient(135deg, #e53935, #b71c1c);
+  background: linear-gradient(135deg, #d32f2f, #b71c1c);
 }
 
 /* what happens otherwise at a step of the timeline, e.g. a condition of the auto-merge that is not met */
