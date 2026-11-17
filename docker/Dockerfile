@@ -67,8 +67,14 @@ COPY --from=builder-python3 /app/docker/init-webapp /app/init-webapp
 COPY --from=builder-python3 /app/hypercorn-cfg.toml /app/hypercorn-cfg.toml
 COPY --from=builder-node /app/otterdog/webapp/static/assets /app/otterdog/webapp/static/assets
 
-RUN chmod +x /app/start-webapp
-RUN chmod +x /app/init-webapp
+# the webapp runs as an unprivileged user, with a numeric id so that Kubernetes can check it with runAsNonRoot.
+# The files of the application stay owned by root, it only writes in its APP_ROOT, /app/work by default (an emptyDir
+# volume in the helm chart), and in the temporary directory.
+RUN chmod 0755 /app/start-webapp /app/init-webapp \
+    && groupadd --gid 1000 otterdog \
+    && useradd --uid 1000 --gid otterdog --create-home --home-dir /home/otterdog --shell /usr/sbin/nologin otterdog \
+    && mkdir /app/work \
+    && chown otterdog:otterdog /app/work
 
 WORKDIR /app
 
@@ -77,5 +83,7 @@ ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 # number of worker processes of the webapp
 ENV HYPERCORN_WORKERS=4
+
+USER 1000:1000
 
 ENTRYPOINT ["/app/start-webapp"]
