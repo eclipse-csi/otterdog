@@ -87,6 +87,7 @@ A resource is only deleted when a pull request removes it from the configuration
 | Webhook of the organization or of a repository                            | `url`, and its `aliases`  |
 | Team, organization role, custom property, code security configuration    | `name`                   |
 | Secret (Actions, Dependabot, Codespaces), variable, environment, ruleset  | `name`                   |
+| Actions policy                                                            | `name`                   |
 | Branch protection rule                                                    | `pattern`                |
 | IdP group connected to a team (`team_sync`)                               | `id`                     |
 
@@ -108,6 +109,7 @@ Declare the resource with the function of the default configuration at its place
     - **codespaces_secrets** [newOrgCodespacesSecret](../reference/organization/codespaces-secret.md)
     - **variables** [newOrgVariable](../reference/organization/variable.md)
     - **rulesets** [newOrgRuleset](../reference/organization/ruleset.md)
+    - **actions_policies** [newOrgActionsPolicy](../reference/organization/actions-policy.md)
     - **code_security_configurations** [newOrgCodeSecurityConfiguration](../reference/organization/code-security-configuration.md)
     - **_repositories** [newRepo](../reference/organization/repository/index.md) [extendRepo](../reference/organization/repository/index.md#jsonnet-function)
         - **webhooks** [newRepoWebhook](../reference/organization/repository/webhook.md)
@@ -117,6 +119,7 @@ Declare the resource with the function of the default configuration at its place
         - **variables** [newRepoVariable](../reference/organization/repository/variable.md)
         - **branch_protection_rules** [newBranchProtectionRule](../reference/organization/repository/branch-protection-rule.md)
         - **rulesets** [newRepoRuleset](../reference/organization/repository/ruleset.md)
+        - **actions_policies** [newRepoActionsPolicy](../reference/organization/repository/actions-policy.md)
         - **environments** [newEnvironment](../reference/organization/repository/environment/index.md)
             - **secrets** [newEnvSecret](../reference/organization/repository/environment/secret.md)
             - **variables** [newEnvVariable](../reference/organization/repository/environment/variable.md)

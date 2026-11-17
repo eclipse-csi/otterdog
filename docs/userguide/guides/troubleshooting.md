@@ -107,7 +107,7 @@ The surprises of `plan` and `apply`, which are not messages, are at the [end of 
     `use of organization roles requires an 'enterprise' plan, while this organization is currently on a '<plan>'
     plan.`
 
-    `<ruleset> has 'enforcement' of value 'evaluate' which is only available for an 'enterprise' plan.`
+    `<ruleset|policy> has 'enforcement' of value 'evaluate' which is only available for an 'enterprise' plan.`
 
     `enabling 'members_can_create_private_pages' requires an 'enterprise' plan.`
 
@@ -117,8 +117,10 @@ The surprises of `plan` and `apply`, which are not messages, are at the [end of 
     **Fix**:
 
     - organization rulesets: use repository rulesets instead, see [Organization-wide rulesets](organization-rulesets.md)
-    - `evaluate`: use `disabled` to prepare a ruleset without enforcing it, see
+    - `evaluate` of a ruleset: use `disabled` to prepare a ruleset without enforcing it, see
       [Prepare a ruleset before enforcing it](organization-rulesets.md#prepare-a-ruleset-before-enforcing-it)
+    - `evaluate` of an actions policy: start with the repositories whose workflows are known, see
+      [Control who and what can run workflows](github-actions.md#control-who-and-what-can-run-workflows)
     - organization roles: grant the permissions with teams instead, see [Teams and access](teams-and-access.md)
     - `members_can_create_private_pages`: keep it disabled
 
@@ -414,6 +416,111 @@ The surprises of `plan` and `apply`, which are not messages, are at the [end of 
     **Fix**: define the environment in the repository, see
     [Require a successful deployment before merging](environments.md#require-a-successful-deployment-before-merging).
 
+## Actions policies
+
+??? failure "The workflows of a policy are invalid"
+
+    `<policy> has empty 'include_workflows' and 'exclude_workflows', while at least one pattern is required, use
+    '~ALL' to target all workflows.`
+
+    `<policy> has 'include_workflows' combining '~ALL' with other patterns, while '~ALL' must be used on its own.`
+
+    `<policy> has '~ALL' in 'exclude_workflows', while it is only allowed in 'include_workflows'.`
+
+    **Cause**: a policy targets the workflows matching `include_workflows`, except the ones matching
+    `exclude_workflows`, and needs at least one pattern. `~ALL`, which targets all the workflows, is only allowed on
+    its own in `include_workflows`.
+
+    **Fix**: use `~ALL` on its own, or list the workflow files, e.g. `.github/workflows/release.yml`, see
+    [Control who and what can run workflows](github-actions.md#control-who-and-what-can-run-workflows).
+
+??? failure "An allowed actor is invalid"
+
+    `<policy> has an invalid allowed actor '<actor>', only users or bots ('@<login>'), teams ('@<org>/<team-slug>'),
+    roles ('#<role>'), apps ('<app-slug>') or actors referenced by their type and id ('<type>:<id>') are supported.`
+
+    `<policy> has allowed actor '<actor>' with unknown role '<role>', only roles ('RepositoryAdmin' | 'Write' |
+    'Maintain' | 'OrganizationAdmin') or the id of a custom role are supported.`
+
+    `<policy> has allowed actor '<actor>' with unknown type '<type>', only types (<types>) are supported.`
+
+    **Cause**: an actor of `allowed_actors` is written like a bypass actor of a ruleset: `@` and the login for a user
+    or a bot, `@` and the slug with the organization for a team, `#` for a role, the slug alone for an app. An email
+    address, e.g. `alice@example.org`, or a role that GitHub does not provide, e.g. `#Read`, is rejected.
+
+    **Fix**: fix the actor, see [AllowedActor](../../reference/organization/repository/allowed-actor.md).
+
+??? warning "A policy does not require any rule"
+
+    `<policy> does not require any rule, set one of ('allowed_actors' | 'allowed_events').`
+
+    **Cause**: `allowed_actors` and `allowed_events` are both `null`, their default value, which does not require the
+    rule: the policy blocks nothing.
+
+    **Fix**: set the actors or the events allowed to run the targeted workflows, see
+    [Control who and what can run workflows](github-actions.md#control-who-and-what-can-run-workflows).
+
+??? warning "A policy blocks all the targeted workflows"
+
+    `<policy> has an empty 'allowed_actors', no actor is allowed to run the targeted workflows.`
+
+    `<policy> has an empty 'allowed_events', no event is allowed to trigger the targeted workflows.`
+
+    **Cause**: an empty list allows nothing, unlike `null`, which does not require the rule.
+
+    **Fix**: list the allowed actors or events, or set the rule to `null`.
+
+??? warning "An event is unknown"
+
+    `<policy> has 'allowed_events' containing unknown event '<event>', GitHub might reject it.`
+
+    **Cause**: the event is not a trigger of workflows known to otterdog, usually because of a typo, or because it is
+    an activity type, e.g. `pull_request_closed` instead of `pull_request`.
+
+    **Fix**: use the name of the event, see
+    [Events that trigger workflows](https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows).
+
+??? warning "An organization policy targets no repository"
+
+    `<policy> has an empty 'include_repo_names', the policy does not apply to any repository, use '~ALL' to target
+    all repositories.`
+
+    `<policy> has an 'include_repo_names' pattern '<pattern>' that does not match any existing repository`
+
+    `<policy> has 'protect_repo_names' set to 'True' but 'include_repo_names' and 'exclude_repo_names' are empty.`
+
+    **Cause**: `newOrgActionsPolicy` targets no repository by default, its `include_repo_names` is empty. A pattern can
+    also match no repository, usually because of a typo, or because the repository does not exist yet. The same
+    applies to `exclude_repo_names`.
+
+    **Fix**: list the repositories in `include_repo_names`, or use `~ALL` to target all of them, see
+    [Control who and what can run workflows](github-actions.md#control-who-and-what-can-run-workflows).
+
+??? warning "An organization policy targets repositories by custom property or id"
+
+    `actions policy '<name>' targets repositories by <repository_property|repository_id>, which is not supported, its
+    targeting is kept on update`
+
+    **Cause**: the policy was created in the GitHub web interface with a targeting that otterdog does not support.
+    otterdog keeps this targeting when it updates the policy, and does not compare its `include_repo_names`,
+    `exclude_repo_names` and `protect_repo_names`. This warning is shown by the otterdog CLI when it reads the live
+    settings, e.g. with `plan`, `apply` or `import`.
+
+    **Fix**: nothing, to keep this targeting, see [Unsupported settings](../unsupported.md). To manage the targeting
+    with otterdog, target the repositories by name in the web interface first.
+
+??? warning "A policy with the same name already exists"
+
+    `actions policy '<name>' already exists for org '<org>', updating it`
+
+    `actions policy '<name>' already exists for repo '<org>/<repo>', updating it`
+
+    **Cause**: GitHub does not allow two policies with the same name. When the configuration adds a policy whose name
+    is used by a policy it did not know, e.g. created in the web interface or by a previous apply that failed,
+    otterdog updates that policy instead. This warning is shown in the log of the apply.
+
+    **Fix**: nothing, the policy is updated as configured.
+
 ## Merging with `/otterdog merge`
 
 When a pull request cannot be auto-merged, `/otterdog merge` replies with a warning listing the
@@ -512,10 +619,10 @@ When a pull request cannot be auto-merged, `/otterdog merge` replies with a warn
 
     **Fix**: see [Inherited and explicit values](inheritance.md).
 
-??? question "A ruleset or branch protection rule created in the GitHub web interface is deleted"
+??? question "A ruleset, branch protection rule or actions policy created in the GitHub web interface is deleted"
 
-    **Cause**: otterdog manages all the protections of the configured repositories, a protection that is not part of
-    the configuration is removed when deletions are applied.
+    **Cause**: otterdog manages all the protections and actions policies of the organization and of the configured
+    repositories, one that is not part of the configuration is removed when deletions are applied.
 
     **Fix**: add it to the configuration instead, see the warning in
     [Otterdog specifics](rulesets-vs-branch-protection.md#otterdog-specifics).
@@ -596,4 +703,4 @@ A configuration without problem in the Playground can still be rejected by the v
 </div>
 
 Some checks are only done when the changes are applied, by `validate` neither: the teams, users and apps of
-`bypass_actors` must exist, and GitHub can reject a value that otterdog accepts.
+`bypass_actors` and of `allowed_actors` must exist, and GitHub can reject a value that otterdog accepts.

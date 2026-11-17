@@ -70,7 +70,7 @@ and when something goes wrong, see [Troubleshooting](troubleshooting.md).
 
     ---
 
-    Limit the permissions of workflows and control which actions can run.
+    Limit the permissions of workflows, control which actions can run, and who and what can run the workflows.
 
 -   :material-shield-lock-outline:{ .lg .middle } **[Repository security features](repository-security.md)**
 
