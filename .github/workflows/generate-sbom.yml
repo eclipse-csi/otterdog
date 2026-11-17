@@ -13,7 +13,7 @@ on:
         required: true
 
 env:
-  PYTHON_VERSION: '3.12'
+  PYTHON_VERSION: '3.15'
   POETRY_VERSION: '2.0.1'
   PRODUCT_NAME: 'otterdog'
 
