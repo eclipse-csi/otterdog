@@ -406,8 +406,8 @@ class ValidatePullRequestTask(InstallationBasedTask, Task[ValidationResult]):
 
     async def _get_merge_commit_of_head(self, rest_api: RestApi, pull_request: dict[str, Any]) -> _MergeCommit | None:
         """
-        Returns the merge commit of the given state of the pull request if it merges the head that is validated,
-        None if GitHub has not created it yet.
+        Returns the merge commit of the given state of the pull request if it merges the head that is validated
+        into the current head of the default branch, None if GitHub has not created it yet.
         """
         merge_commit_sha = pull_request.get("merge_commit_sha")
         if pull_request.get("mergeable") is not True or merge_commit_sha is None:
@@ -417,6 +417,14 @@ class ValidatePullRequestTask(InstallationBasedTask, Task[ValidationResult]):
         parents = [parent["sha"] for parent in commit["parents"]]
         if len(parents) != 2 or parents[1] != self._pull_request.head.sha:
             # still the merge commit of a previous head
+            return None
+
+        # the base sha of the pull request is as outdated as its merge commit until GitHub recreates it,
+        # only the branch tells whether the default branch moved since
+        default_branch = unwrap(self._pull_request.base.repo).default_branch
+        branch = await rest_api.repo.get_branch(self.org_id, self.repo_name, default_branch)
+        if parents[0] != branch["commit"]["sha"]:
+            # still the merge commit into a previous head of the default branch
             return None
 
         return _MergeCommit(merge_commit_sha, parents[0])

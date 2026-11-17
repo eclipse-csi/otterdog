@@ -176,6 +176,7 @@ async def _execute_validate_task(
             compare_commits=compare_commits,
             get_commit=AsyncMock(return_value={"parents": [{"sha": sha} for sha in merge_commit_parents or []]}),
         ),
+        repo=pretend.stub(get_branch=AsyncMock(return_value={"commit": {"sha": "base-sha"}})),
     )
     org_config = _organization_config(tmp_path)
     task = ValidatePullRequestTask(1, "test-org", "repo", 42)
