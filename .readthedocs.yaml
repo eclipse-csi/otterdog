@@ -10,7 +10,7 @@ build:
   tools:
     python: "3.12"
   commands:
-    - python -m pip install --disable-pip-version-check "poetry==2.4.1"
+    - python -m pip install --disable-pip-version-check "poetry==2.5.1"
     - python -m poetry config virtualenvs.in-project true
     - python -m poetry install --only=docs --no-root
     - .venv/bin/python docs_site.py build --strict
