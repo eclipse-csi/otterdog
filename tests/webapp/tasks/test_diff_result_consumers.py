@@ -17,7 +17,10 @@ from otterdog.models import CostPolicy, LivePatchType
 from otterdog.models.repository import Repository
 from otterdog.operations.diff_operation import DiffResult, DiffStatus
 from otterdog.operations.validate import ValidationStatus
-from otterdog.webapp.webhook import CheckConfigurationInSyncTask, ValidatePullRequestTask
+
+# imported through the webhook package, as importing the task first runs into an import cycle
+from otterdog.webapp.webhook import CheckConfigurationInSyncTask, ValidatePullRequestTask  # isort: skip
+from otterdog.webapp.tasks.validate_pull_request import ValidationResult
 
 
 def _operation_factory(result: DiffResult, operation_name: str):
@@ -176,7 +179,6 @@ async def _execute_validate_task(
             compare_commits=compare_commits,
             get_commit=AsyncMock(return_value={"parents": [{"sha": sha} for sha in merge_commit_parents or []]}),
         ),
-        repo=pretend.stub(get_branch=AsyncMock(return_value={"commit": {"sha": "base-sha"}})),
     )
     org_config = _organization_config(tmp_path)
     task = ValidatePullRequestTask(1, "test-org", "repo", 42)
@@ -345,3 +347,25 @@ async def test_validate_pull_request_task_validates_the_head_without_merge_commi
         ("HEAD", "contributor", "repo", "head-sha"),
     ]
     assert render_template.await_args.kwargs["merged_into"] is None
+
+
+async def test_validate_pull_request_task_records_the_validated_commit(monkeypatch):
+    rest_api = pretend.stub(commit=pretend.stub(create_commit_status=AsyncMock()))
+    task = ValidatePullRequestTask(1, "test-org", "repo", 42)
+    task._pull_request = SimpleNamespace(head=SimpleNamespace(sha="head-sha"))
+    update_or_create_pull_request = AsyncMock(
+        return_value=pretend.stub(can_be_automerged=AsyncMock(return_value=False))
+    )
+
+    monkeypatch.setattr("otterdog.webapp.tasks.get_rest_api_for_installation", AsyncMock(return_value=rest_api))
+    monkeypatch.setattr(
+        "otterdog.webapp.tasks.validate_pull_request._get_webhook_validation_context", lambda: "otterdog-validate"
+    )
+    monkeypatch.setattr(
+        "otterdog.webapp.tasks.validate_pull_request.update_or_create_pull_request", update_or_create_pull_request
+    )
+
+    await task._update_final_status(ValidationResult(validation_success=True))
+
+    # a later push is validated on its own, the result must not count for it
+    assert update_or_create_pull_request.await_args.kwargs.get("validated_sha") == "head-sha"

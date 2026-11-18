@@ -205,6 +205,18 @@ async def test_newer_snapshot_updates_pull_request(collection):
     assert result.closed_at is None
 
 
+async def test_validation_result_is_recorded_with_the_validated_commit(collection):
+    await service.update_or_create_pull_request(
+        "org", ".eclipsefdn", _OPENED, valid=True, supports_auto_merge=False, validated_sha="sha-B"
+    )
+    # the result of a previous commit, completing later, replaces it along with the commit it applies to
+    result = await service.update_or_create_pull_request(
+        "org", ".eclipsefdn", _OPENED, valid=True, supports_auto_merge=True, validated_sha="sha-A"
+    )
+
+    assert (result.supports_auto_merge, result.validated_sha) == (True, "sha-A")
+
+
 async def test_snapshot_of_same_second_does_not_reopen_merged_pull_request(collection):
     # opened snapshot taken within the same second as the merge, e.g. the review that
     # triggered the native auto-merge of GitHub

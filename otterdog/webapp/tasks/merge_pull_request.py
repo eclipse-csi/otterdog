@@ -69,11 +69,12 @@ class MergePullRequestTask(InstallationBasedTask, Task[None]):
 
         self._pr_model = pr_model
 
-        if await pr_model.automerge_problems():
+        head_sha = pull_request.head.sha
+        if await pr_model.automerge_problems(head_sha=head_sha):
             matching_teams = None
             if pr_model.author_can_auto_merge is not True and pr_model.has_required_approvals is not True:
                 matching_teams = await get_teams_matching_approval_pattern(rest_api, self.org_id)
-            return await pr_model.automerge_problems(matching_teams=matching_teams)
+            return await pr_model.automerge_problems(matching_teams=matching_teams, head_sha=head_sha)
 
         if self.author != pull_request.user.login:
             # if somebody else as the creator of the pull requests added the comment,
@@ -125,7 +126,13 @@ class MergePullRequestTask(InstallationBasedTask, Task[None]):
 
     async def _execute(self) -> None:
         rest_api = await self.rest_api
-        merged = await rest_api.pull_request.merge(self.org_id, self.repo_name, str(self.pull_request_number))
+        # GitHub refuses the merge if a commit has been pushed since the validated one
+        merged = await rest_api.pull_request.merge(
+            self.org_id,
+            self.repo_name,
+            str(self.pull_request_number),
+            sha=self._pr_model.validated_sha,
+        )
 
         if merged is True:
             self.logger.info(f"Pull Request #{self.pull_request_number} auto-merged")

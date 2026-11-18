@@ -336,6 +336,9 @@ class ValidatePullRequestTask(InstallationBasedTask, Task[ValidationResult]):
             valid=validation_result.validation_success,
             requires_manual_apply=(validation_result.requires_secrets or validation_result.requires_web_ui),
             supports_auto_merge=validation_result.supports_auto_merge,
+            # recorded along with the result, so that a result of a previous head, completing after the
+            # validation of the current head, does not allow merging the current head
+            validated_sha=self._pull_request.head.sha,
         )
 
         if await pull_request_model.can_be_automerged():
@@ -352,8 +355,8 @@ class ValidatePullRequestTask(InstallationBasedTask, Task[ValidationResult]):
         Returns the commit merging the head of the pull request into the default branch, as created by GitHub
         to test the mergeability of the pull request, None if there is none, e.g. in case of conflicts.
 
-        GitHub creates it in the background once the pull request or its base branch changed: until then,
-        the pull request is not known to be mergeable or still refers to the previous merge commit.
+        GitHub creates it in the background for each new head of the pull request: until then, the pull
+        request is not known to be mergeable or still refers to the merge commit of the previous head.
         """
         if self._pull_request.base.ref != unwrap(self._pull_request.base.repo).default_branch:
             # only the merges into the default branch are applied
@@ -406,8 +409,8 @@ class ValidatePullRequestTask(InstallationBasedTask, Task[ValidationResult]):
 
     async def _get_merge_commit_of_head(self, rest_api: RestApi, pull_request: dict[str, Any]) -> _MergeCommit | None:
         """
-        Returns the merge commit of the given state of the pull request if it merges the head that is validated
-        into the current head of the default branch, None if GitHub has not created it yet.
+        Returns the merge commit of the given state of the pull request if it merges the head that is validated,
+        None if GitHub has not created it yet.
         """
         merge_commit_sha = pull_request.get("merge_commit_sha")
         if pull_request.get("mergeable") is not True or merge_commit_sha is None:
@@ -419,14 +422,9 @@ class ValidatePullRequestTask(InstallationBasedTask, Task[ValidationResult]):
             # still the merge commit of a previous head
             return None
 
-        # the base sha of the pull request is as outdated as its merge commit until GitHub recreates it,
-        # only the branch tells whether the default branch moved since
-        default_branch = unwrap(self._pull_request.base.repo).default_branch
-        branch = await rest_api.repo.get_branch(self.org_id, self.repo_name, default_branch)
-        if parents[0] != branch["commit"]["sha"]:
-            # still the merge commit into a previous head of the default branch
-            return None
-
+        # the first parent can be a previous head of the default branch, as GitHub does not always create the
+        # merge commit again when the default branch moves: the diff against it still only shows the changes
+        # of the pull request, and waiting would not help
         return _MergeCommit(merge_commit_sha, parents[0])
 
     async def _find_missing_configuration_changes(self, rest_api: RestApi, config_repo: str) -> str | None:

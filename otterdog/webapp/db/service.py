@@ -678,6 +678,7 @@ async def update_or_create_pull_request(
     author_can_auto_merge: bool | None = None,
     has_required_approvals: bool | None = None,
     apply_status: ApplyStatus | None = None,
+    validated_sha: str | None = None,
 ) -> PullRequestModel:
     task_fields: dict[str, Any] = {
         "valid": valid,
@@ -687,6 +688,7 @@ async def update_or_create_pull_request(
         "author_can_auto_merge": author_can_auto_merge,
         "has_required_approvals": has_required_approvals,
         "apply_status": apply_status,
+        "validated_sha": validated_sha,
     }
     task_fields = {k: v for k, v in task_fields.items() if v is not None}
 

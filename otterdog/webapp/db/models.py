@@ -115,6 +115,8 @@ class PullRequestModel(Model):
     supports_auto_merge: bool | None = None
     author_can_auto_merge: bool | None = None
     has_required_approvals: bool | None = None
+    # the head commit that valid, requires_manual_apply and supports_auto_merge have been computed for
+    validated_sha: str | None = None
 
     created_at: datetime = Field(index=True)
     updated_at: datetime = Field(index=True)
@@ -122,18 +124,25 @@ class PullRequestModel(Model):
     closed_at: datetime | None = None
     merged_at: datetime | None = Field(index=True, default=None)
 
-    async def automerge_problems(self, matching_teams: list[str] | None = None) -> list[str]:
+    async def automerge_problems(
+        self,
+        matching_teams: list[str] | None = None,
+        head_sha: str | None = None,
+    ) -> list[str]:
         """
         matching_teams, when passed, is the list of team slugs in the org that were
         actually resolved (via the GitHub API) to match one of the entries in
         GITHUB_APPROVAL_TEAMS (or its per-organization override). Left as None when
         the caller didn't resolve it (e.g. a plain boolean check), in which case the
         raw patterns are shown instead of a concrete team name.
+
+        head_sha, when passed, is the current head commit of the pull request: the
+        stored validation result only counts if it has been computed for that commit.
         """
         logger.debug(
             "automerge_problems for pull request '%s': status=%s, draft=%s, apply_status=%s, valid=%s, "
             "in_sync=%s, requires_manual_apply=%s, supports_auto_merge=%s, author_can_auto_merge=%s, "
-            "has_required_approvals=%s, matching_teams=%s",
+            "has_required_approvals=%s, validated_sha=%s, head_sha=%s, matching_teams=%s",
             self.id,
             self.status,
             self.draft,
@@ -144,6 +153,8 @@ class PullRequestModel(Model):
             self.supports_auto_merge,
             self.author_can_auto_merge,
             self.has_required_approvals,
+            self.validated_sha,
+            head_sha,
             matching_teams,
         )
 
@@ -152,6 +163,14 @@ class PullRequestModel(Model):
             return [f"pull request is {self.status.value}, only open pull requests can be managed"]
         if self.valid is None:
             return ["pull request has not been validated yet, run `/otterdog validate` first"]
+        if head_sha is not None and self.validated_sha != head_sha:
+            # validations of successive commits can complete in any order
+            return [
+                (
+                    "the latest commit of the pull request has not been validated yet, wait for its validation "
+                    "or run `/otterdog validate`"
+                )
+            ]
         if self.valid is False:
             problems.append(
                 "pull request is not valid, check the `/otterdog validate` comment for details and push a fix"

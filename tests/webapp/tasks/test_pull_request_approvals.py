@@ -55,7 +55,7 @@ def _review(state: str, login: str | None) -> dict:
     return {"state": state, "user": user}
 
 
-def _pr_model(has_required_approvals: bool | None) -> PullRequestModel:
+def _pr_model(has_required_approvals: bool | None, validated_sha: str = _REF["sha"]) -> PullRequestModel:
     return PullRequestModel(
         id=PullRequestId(org_id=_ORG, repo_name=_REPO, pull_request=_NUMBER),
         draft=False,
@@ -64,6 +64,7 @@ def _pr_model(has_required_approvals: bool | None) -> PullRequestModel:
         supports_auto_merge=True,
         author_can_auto_merge=False,
         has_required_approvals=has_required_approvals,
+        validated_sha=validated_sha,
         created_at=datetime(2026, 10, 30, tzinfo=UTC),
         updated_at=datetime(2026, 11, 2, tzinfo=UTC),
     )
@@ -79,6 +80,7 @@ async def github(app, monkeypatch):
         pull_request=SimpleNamespace(
             get_pull_request=AsyncMock(return_value=_PULL_REQUEST),
             get_reviews=AsyncMock(return_value=[]),
+            merge=AsyncMock(return_value=True),
         ),
         issue=SimpleNamespace(create_comment=AsyncMock()),
         team=SimpleNamespace(get_team_slugs=AsyncMock(return_value=["committers", "project-leads"])),
@@ -159,6 +161,27 @@ async def test_merge_does_not_recheck_recorded_approval(github):
 
     github.rest_api.pull_request.get_reviews.assert_not_awaited()
     github.db.update_or_create_pull_request.assert_not_awaited()
+
+
+async def test_merge_refused_when_the_latest_commit_has_not_been_validated(github):
+    # the validation of a previous commit, allowing the auto-merge, completed after the one of the head
+    github.db.find_pull_request.return_value = _pr_model(True, validated_sha="0" * 40)
+
+    assert await _merge_task()._pre_execute() is False
+
+    comment = github.rest_api.issue.create_comment.await_args.kwargs["body"]
+    assert "the latest commit of the pull request has not been validated yet" in comment
+
+
+async def test_merge_only_merges_the_validated_commit(github):
+    github.db.find_pull_request.return_value = _pr_model(True)
+    task = _merge_task()
+
+    assert await task._pre_execute() is True
+    await task._execute()
+
+    # GitHub refuses the merge if a commit is pushed in the meantime
+    assert github.rest_api.pull_request.merge.await_args.kwargs.get("sha") == _REF["sha"]
 
 
 async def test_approval_check_ignores_reviews_of_deleted_accounts(github):

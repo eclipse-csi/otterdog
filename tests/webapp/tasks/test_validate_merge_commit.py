@@ -36,7 +36,7 @@ def _pull_request(mergeable, merge_commit_sha="merge-sha", head_sha="head-sha"):
     return {"head": {"sha": head_sha}, "mergeable": mergeable, "merge_commit_sha": merge_commit_sha}
 
 
-def _rest_api(pull_requests, commits=None, default_branch_sha="base-sha"):
+def _rest_api(pull_requests, commits=None):
     """GitHub returning the given states of the pull request, one per request, the last one repeated."""
     pull_requests = list(pull_requests)
 
@@ -47,14 +47,9 @@ def _rest_api(pull_requests, commits=None, default_branch_sha="base-sha"):
     async def get_commit(org_id, repo_name, sha):
         return {"parents": [{"sha": parent} for parent in (commits or {})[sha]]}
 
-    async def get_branch(org_id, repo_name, branch_name):
-        assert (org_id, repo_name, branch_name) == ("test-org", "repo", "main")
-        return {"commit": {"sha": default_branch_sha}}
-
     return pretend.stub(
         pull_request=pretend.stub(get_pull_request=AsyncMock(side_effect=get_pull_request)),
         commit=pretend.stub(get_commit=AsyncMock(side_effect=get_commit)),
-        repo=pretend.stub(get_branch=AsyncMock(side_effect=get_branch)),
     )
 
 
@@ -80,29 +75,12 @@ async def test_merge_commit_is_waited_for_while_github_creates_it():
     assert rest_api.pull_request.get_pull_request.await_count == 3
 
 
-async def test_merge_commit_is_waited_for_once_the_default_branch_moved():
-    rest_api = _rest_api(
-        [
-            # same head, still the merge commit into the previous head of the default branch, which
-            # the base sha of the pull request still refers to as well
-            _pull_request(True, "old-merge-sha"),
-            _pull_request(True, "merge-sha"),
-        ],
-        {"old-merge-sha": ["old-base-sha", "head-sha"], "merge-sha": ["base-sha", "head-sha"]},
-    )
+async def test_merge_commit_into_a_previous_head_of_the_default_branch_is_not_waited_for():
+    # the default branch moved since the last push, GitHub kept the merge commit into its previous head
+    rest_api = _rest_api([_pull_request(True)], {"merge-sha": ["old-base-sha", "head-sha"]})
 
-    assert await _task()._find_merge_commit(rest_api) == _MergeCommit("merge-sha", "base-sha")
-    assert rest_api.pull_request.get_pull_request.await_count == 2
-
-
-async def test_no_merge_commit_while_the_default_branch_keeps_moving():
-    rest_api = _rest_api(
-        [_pull_request(True)], {"merge-sha": ["old-base-sha", "head-sha"]}, default_branch_sha="base-sha"
-    )
-
-    assert await _task()._find_merge_commit(rest_api) is None
-    # one request, then one per retry delay
-    assert rest_api.pull_request.get_pull_request.await_count == 3
+    assert await _task()._find_merge_commit(rest_api) == _MergeCommit("merge-sha", "old-base-sha")
+    assert rest_api.pull_request.get_pull_request.await_count == 1
 
 
 async def test_no_merge_commit_once_github_gave_up_waiting():

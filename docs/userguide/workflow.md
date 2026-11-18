@@ -73,7 +73,7 @@ You merge it with `/otterdog merge`, or an admin does, then otterdog applies it.
 
 !!! success "Merge it yourself with `/otterdog merge` when your pull request"
 
-    - passed the **validation** of otterdog,
+    - passed the **validation** of otterdog for its latest commit,
     - adds **no secret**, changes **no setting of the Web UI**, incurs **no cost**, **removes nothing** and only
       modifies `otterdog/<org>.jsonnet`,
     - is **written or approved by a member of an approval team**, e.g. the project leads, or of an admin team.
@@ -307,10 +307,11 @@ Push your branch, open the pull request against `main`.
     - **Playground**: the content you paste replaces the whole file, so it reverts the changes merged since you
       opened the Playground, e.g. a repository added in the meantime shows up as removed, which also prevents the
       auto-merge. Reload the Playground before editing if the configuration may have changed since you opened it.
-    - **git**: your branch does not need to be up to date, otterdog validates the result of merging it into `main`.
-      If GitHub cannot merge it, e.g. because of a conflict, otterdog compares your branch with the **latest** commit
-      of `main` instead: the changes merged since you started then appear as reverted, and the validation comment asks
-      you to update the branch. Rebase your branch on `main`, or merge `main` into it, and push again.
+    - **git**: your branch does not need to be up to date, otterdog validates the merge of your latest commit into
+      `main` that GitHub prepares when you push, and the validation comment tells which commit of `main` it merges
+      into. If GitHub cannot merge it, e.g. because of a conflict, otterdog compares your branch with the **latest**
+      commit of `main` instead: the changes merged since you started then appear as reverted, and the validation
+      comment asks you to update the branch. Rebase your branch on `main`, or merge `main` into it, and push again.
 
 ## 2. Open a pull request
 
@@ -510,8 +511,8 @@ comment explains why, and notifies the admin teams.
 
 :material-shield-check-outline:{ .otterdog-timeline__icon }
 
-**1. Open, and validated without errors?**
-<span class="otterdog-timeline__else">Otherwise: fix the configuration and push, or mark the draft as ready for review.</span>
+**1. Open, and its latest commit validated without errors?**
+<span class="otterdog-timeline__else">Otherwise: fix the configuration and push, mark the draft as ready for review, or wait for the validation of your latest commit.</span>
 
 </div>
 
