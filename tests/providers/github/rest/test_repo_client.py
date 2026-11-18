@@ -1,5 +1,6 @@
 import asyncio
 import json
+import re
 
 import pretend
 import pytest
@@ -733,6 +734,51 @@ class TestRepoClientActivities:
         with pytest.raises(RuntimeError, match="failed retrieving activities of type 'pr_merge'"):
             async for _ in repo_client.get_activities("test-org", "test-repo", "refs/heads/main", "pr_merge"):
                 pass
+
+
+class TestRepoClientDispatchWorkflow:
+    @staticmethod
+    def _repo_client(status: int, body: str = "") -> RepoClient:
+        async def mock_request_json(method, url, data=None, params=None):
+            return {"name": "test-repo", "default_branch": "main"}
+
+        async def mock_request_raw(method, url, data=None, params=None):
+            return status, body
+
+        requester = pretend.stub(
+            request_json=mock_request_json,
+            request_raw=pretend.call_recorder(mock_request_raw),
+        )
+        return RepoClient(pretend.stub(requester=requester))
+
+    async def test_dispatches_the_workflow_on_the_default_branch(self):
+        repo_client = self._repo_client(204)
+
+        await repo_client.dispatch_workflow("test-org", "test-repo", "ci.yml")
+
+        assert repo_client.requester.request_raw.calls == [
+            pretend.call(
+                "POST", "/repos/test-org/test-repo/actions/workflows/ci.yml/dispatches", json.dumps({"ref": "main"})
+            )
+        ]
+
+    @pytest.mark.parametrize(
+        "status,body",
+        [
+            (404, '{"message": "Not Found"}'),
+            (422, '{"message": "Workflow does not have \'workflow_dispatch\' trigger"}'),
+            (500, ""),
+        ],
+    )
+    async def test_failed_dispatch_raises_with_the_response(self, status, body):
+        repo_client = self._repo_client(status, body)
+
+        with pytest.raises(
+            RuntimeError, match=re.escape("failed dispatching workflow 'ci.yml' for repo 'test-org/test-repo'")
+        ) as ex:
+            await repo_client.dispatch_workflow("test-org", "test-repo", "ci.yml")
+
+        assert f"{status}: {body}" in str(ex.value)
 
 
 def _waiting_for(barrier, result=None):
