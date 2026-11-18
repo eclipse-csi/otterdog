@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import getpass
 import os
+import sys
 from typing import TYPE_CHECKING
 
 import hvac
@@ -248,13 +249,15 @@ class VaultProvider(CredentialProvider):
             RuntimeError: If authentication fails
         """
 
-        print("\n🔐 Vault Authentication Required")  # noqa: T201
-        print(f"Vault Address: {self._vault_addr}")  # noqa: T201
-        print("\nPlease provide your LDAP credentials:\n")  # noqa: T201
+        # stderr, as stdout can hold the JSON output of the command
+        print("\n🔐 Vault Authentication Required", file=sys.stderr)  # noqa: T201
+        print(f"Vault Address: {self._vault_addr}", file=sys.stderr)  # noqa: T201
+        print("\nPlease provide your LDAP credentials:\n", file=sys.stderr)  # noqa: T201
 
         username = os.getenv("VAULT_USERNAME")
         if not username:
-            username = input("Username: ").strip()
+            print("Username: ", end="", file=sys.stderr, flush=True)  # noqa: T201
+            username = input().strip()
 
         if not username:
             raise RuntimeError("Username cannot be empty")

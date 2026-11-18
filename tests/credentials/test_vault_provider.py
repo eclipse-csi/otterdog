@@ -6,6 +6,7 @@
 #  SPDX-License-Identifier: EPL-2.0
 #  *******************************************************************************
 
+import io
 import os
 from unittest.mock import MagicMock, patch
 
@@ -156,3 +157,30 @@ class TestVaultProvider:
             match="'github/test-org' \\(field: 'missing_field'\\)",
         ):
             provider.get_secret("github/test-org/missing_field")
+
+    @patch("otterdog.credentials.vault_provider.getpass.getpass", return_value="secret")
+    @patch("otterdog.credentials.vault_provider.hvac")
+    def test_interactive_authentication_writes_nothing_to_stdout(self, mock_hvac, _mock_getpass, monkeypatch, capsys):
+        """Test that the login prompts go to stderr, as stdout can hold the JSON output of the command."""
+        from otterdog.credentials.vault_provider import VaultProvider
+
+        login = mock_hvac.Client.return_value.auth.ldap.login
+        login.return_value = {"auth": {"client_token": "s.token"}}
+        monkeypatch.delenv("VAULT_USERNAME", raising=False)
+        monkeypatch.setattr("sys.stdin", io.StringIO("alice\n"))
+
+        provider = VaultProvider.__new__(VaultProvider)
+        provider._vault_addr = "https://vault.test.com"
+        provider._ca_cert = None
+        provider._verify_ssl = False
+        provider._client_cert = None
+
+        with patch.object(VaultProvider, "_write_token_to_file") as write_token:
+            provider._authenticate_interactive()
+
+        captured = capsys.readouterr()
+        assert captured.out == ""
+        assert "Vault Authentication Required" in captured.err
+        assert "Username: " in captured.err
+        login.assert_called_once_with(username="alice", password="secret")
+        write_token.assert_called_once_with("s.token")

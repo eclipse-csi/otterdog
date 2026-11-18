@@ -7,6 +7,8 @@
 #  *******************************************************************************
 
 import logging
+from collections.abc import Iterator
+from contextlib import contextmanager
 from logging import DEBUG, ERROR, INFO, WARNING  # noqa: F401 - passthrough for users of this module
 from typing import cast
 
@@ -24,19 +26,54 @@ TRACE = logging.DEBUG - 5
 # 3: trace
 _verbose_level = 0
 
-CONSOLE_STDOUT = Console(
-    theme=Theme(
-        {
-            "logging.level.error": "red",
-            "logging.level.warning": "yellow",
-            "logging.level.info": "green",
-            "logging.level.debug": "cyan",
-            "logging.level.trace": "magenta",
-        }
-    ),
-    highlight=False,
+_THEME = Theme(
+    {
+        "logging.level.error": "red",
+        "logging.level.warning": "yellow",
+        "logging.level.info": "green",
+        "logging.level.debug": "cyan",
+        "logging.level.trace": "magenta",
+    }
 )
+
+CONSOLE_STDOUT = Console(theme=_THEME, highlight=False)
 CONSOLE_STDERR = Console(stderr=True)
+# renders the messages like CONSOLE_STDOUT, which decides on colors for stdout only
+_CONSOLE_STDERR_MESSAGES = Console(stderr=True, theme=_THEME, highlight=False)
+
+# where the messages for users go: the output of operations, log records, warnings and errors
+_messages_console = CONSOLE_STDOUT
+
+
+def get_messages_console() -> Console:
+    return _messages_console
+
+
+@contextmanager
+def messages_to_stderr(enabled: bool = True) -> Iterator[None]:
+    """
+    While active, prints the messages for users to stderr, log records included, to keep stdout for the structured
+    output of a command, e.g. JSON.
+    """
+    global _messages_console
+
+    if not enabled:
+        yield
+        return
+
+    # the handler installed by init_logging
+    handlers = [h for h in logging.getLogger().handlers if isinstance(h, RichHandler) and h.console is CONSOLE_STDOUT]
+    previous = _messages_console
+    _messages_console = _CONSOLE_STDERR_MESSAGES
+    for handler in handlers:
+        handler.console = _CONSOLE_STDERR_MESSAGES
+
+    try:
+        yield
+    finally:
+        _messages_console = previous
+        for handler in handlers:
+            handler.console = CONSOLE_STDOUT
 
 
 class CustomLogger(logging.Logger):
@@ -143,17 +180,17 @@ def print_exception(exc: Exception) -> None:
             print_error(str(exc))
 
 
-def print_info(msg: str, console: Console = CONSOLE_STDOUT) -> None:
+def print_info(msg: str, console: Console | None = None) -> None:
     if is_info_enabled():
-        _print_message(msg, "green", "Info", console)
+        _print_message(msg, "green", "Info", console or _messages_console)
 
 
-def print_warn(msg: str, console: Console = CONSOLE_STDOUT) -> None:
-    _print_message(msg, "yellow", "Warning", console)
+def print_warn(msg: str, console: Console | None = None) -> None:
+    _print_message(msg, "yellow", "Warning", console or _messages_console)
 
 
-def print_error(msg: str, console: Console = CONSOLE_STDOUT) -> None:
-    _print_message(msg, "red", "Error", console)
+def print_error(msg: str, console: Console | None = None) -> None:
+    _print_message(msg, "red", "Error", console or _messages_console)
 
 
 # fmt: off

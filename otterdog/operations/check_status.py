@@ -11,6 +11,8 @@ from __future__ import annotations
 from json import dumps as json_dumps
 from typing import TYPE_CHECKING
 
+import click
+
 from .diff_operation import DiffOperation
 
 if TYPE_CHECKING:
@@ -41,9 +43,10 @@ class CheckStatusOperation(DiffOperation):
     def pre_execute(self) -> None: ...
 
     def post_execute(self) -> None:
-        if self.output_json and self.orgs_status:
-            with open(self.output_json, "w", encoding="utf-8") as f:
-                f.write(json_dumps(self.orgs_status, indent=2))
+        if self.output_json:
+            # '-' is stdout
+            with click.open_file(self.output_json, "w", encoding="utf-8") as f:
+                f.write(json_dumps(self.orgs_status, indent=2) + "\n")
 
     def resolve_secrets(self) -> bool:
         return False

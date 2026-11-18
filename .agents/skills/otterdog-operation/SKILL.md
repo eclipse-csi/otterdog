@@ -38,9 +38,12 @@ Before writing the class, decide what the user observes in each of these cases:
 - **Partial writes.** If the command sends several mutations, decide what the summary reports after a failure
   halfway, and what a rerun does. A one-shot action is not idempotent: running `dispatch-workflow` twice dispatches
   the workflow twice.
-- **Output.** The printer of the CLI writes to stdout, errors included (`print_error`); statistics go to stderr, to
-  keep structured output intact (`_report_api_usage`). If the command has machine-readable output, such as `--json`
-  of `list-apps` and `check-status`, decide where its diagnostics go so that they do not corrupt it.
+- **Output.** The printer of the CLI writes to stdout, errors (`print_error`) and log records included; statistics go
+  to stderr, to keep structured output intact (`_report_api_usage`). A command that writes machine-readable output
+  to stdout, such as `list-apps --json` or `check-status --json -`, declares it with `structured_stdout` on
+  `StdCommand`: its printer, errors and log records then go to stderr (`messages_to_stderr` in
+  `otterdog/logging.py`), and the operation writes the output itself with `click.echo` or `click.open_file`. Not
+  with the printer, which goes to stderr then, interprets Rich markup and wraps long lines.
 
 ## 2. Pick a model to copy
 
@@ -124,7 +127,8 @@ given. See `ApplyOperation.handle_finish` in `apply.py` and `check_config_file_o
   regression in this orchestration.
 - **Partial writes**: a failure halfway gives the summary of the contract, and a rerun does what the contract says.
 - **Webapp**: if a webapp task runs the operation, test that path without a terminal: `get_approval` is never called.
-- **Machine-readable output**: test its format, and that diagnostics do not end up in it.
+- **Machine-readable output**: test its format, and that diagnostics do not end up in it, with stdout and stderr
+  captured apart, as `tests/test_cli_structured_output.py` does.
 - `poetry run otterdog <command> --help` checks that the command is registered.
 
 ## 6. Documentation
