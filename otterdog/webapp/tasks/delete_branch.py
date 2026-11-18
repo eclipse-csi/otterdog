@@ -35,8 +35,8 @@ class DeleteBranchTask(InstallationBasedTask, Task[None]):
         )
 
         rest_api = await self.rest_api
-        await rest_api.reference.delete_reference(self.org_id, self.repo_name, self.ref)
-        self.logger.debug(f"deleted branch '{self.ref}' in repo '{self.org_id}/{self.repo_name}'")
+        if await rest_api.reference.delete_reference(self.org_id, self.repo_name, self.ref):
+            self.logger.debug(f"deleted branch '{self.ref}' in repo '{self.org_id}/{self.repo_name}'")
 
     def __repr__(self) -> str:
         return f"DeleteBranchTask(repo='{self.org_id}/{self.repo_name}', ref='{self.ref}')"
