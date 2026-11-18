@@ -542,6 +542,17 @@ When a pull request cannot be auto-merged, `/otterdog merge` replies with a warn
 
     **Fix**: mark the draft as ready for review, or comment `/otterdog validate`. Then comment `/otterdog merge` again.
 
+??? warning "The latest commit is not validated yet"
+
+    `the latest commit of the pull request has not been validated yet, wait for its validation or run /otterdog
+    validate`
+
+    **Cause**: a commit has been pushed since the last validation: its validation is still running, or the
+    validation of a previous commit completed after it.
+
+    **Fix**: wait for the validation comment of the latest commit, or comment `/otterdog validate`. Then comment
+    `/otterdog merge` again.
+
 ??? warning "The pull request is not valid"
 
     `pull request is not valid, check the /otterdog validate comment for details and push a fix`
@@ -605,10 +616,10 @@ When a pull request cannot be auto-merged, `/otterdog merge` replies with a warn
 ??? question "Nothing happens after `/otterdog merge`"
 
     **Cause**: the comment does not start with the command, or GitHub refused the merge, e.g. because of a conflict
-    with `main`.
+    with `main`, or because a commit has been pushed after the validated one.
 
-    **Fix**: start the comment with `/otterdog merge`. Otherwise, update the branch with `main` and comment
-    `/otterdog merge` again.
+    **Fix**: start the comment with `/otterdog merge`. Otherwise, update the branch with `main` if it conflicts, wait
+    for the validation of the latest commit, and comment `/otterdog merge` again.
 
 ## Plan and apply
 

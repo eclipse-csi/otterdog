@@ -206,7 +206,11 @@ class PullRequestClient(RestClient):
         pull_request_number: str,
         commit_message: str | None = None,
         merge_method: str = "squash",
+        sha: str | None = None,
     ) -> bool:
+        """
+        Merges the pull request. When sha is passed, GitHub only merges it if sha is still its head commit.
+        """
         _logger.debug("merging pull request #%s from repo '%s/%s'", pull_request_number, org_id, repo_name)
 
         try:
@@ -216,6 +220,9 @@ class PullRequestClient(RestClient):
 
             if commit_message is not None:
                 data.update({"commit_message": commit_message})
+
+            if sha is not None:
+                data.update({"sha": sha})
 
             response = await self.requester.request_json(
                 "PUT",

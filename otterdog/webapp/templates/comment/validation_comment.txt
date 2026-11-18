@@ -2,7 +2,7 @@
 Please find below the validation of the requested configuration changes:
 
 <details>
-<summary>Diff for {{ sha }}</summary>
+<summary>Diff for {{ sha }}{% if (merged_into is defined) and merged_into %} merged into {{ merged_into }}{% endif %}</summary>
 
 ```diff
 {{ result }}
@@ -10,6 +10,14 @@ Please find below the validation of the requested configuration changes:
 
 </details>
 
+{% if (missing_changes_url is defined) and missing_changes_url %}
+> [!WARNING]
+> The branch of this pull request is not up-to-date: the configuration has been changed on the default branch since it was created ([see the changes]({{ missing_changes_url }})).
+> The diff above is computed against the default branch, so it shows these changes as reverted by this pull request, although merging it would keep them. They may also prevent auto-merging.
+>
+> Please update the branch, e.g. by merging the default branch into it, to validate only the changes of this pull request.
+
+{% endif %}
 {% if (warnings is defined) and warnings %}
 ### Warnings
 
