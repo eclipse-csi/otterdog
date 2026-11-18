@@ -146,6 +146,7 @@ nav = [
     { "Contribution Workflow" = "developing_otterdog/contribution_workflow.md" },
     { "Coding & Style Guidelines" = "developing_otterdog/coding_style.md" },
     { "Testing" = "developing_otterdog/testing.md" },
+    { "AI Coding Agents" = "developing_otterdog/ai_agents.md" },
     { "Release Process" = "developing_otterdog/release_process.md" },
   ] },
 ]
