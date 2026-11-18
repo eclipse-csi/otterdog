@@ -22,6 +22,7 @@ import chevron
 from otterdog.logging import is_trace_enabled
 from otterdog.providers.github.exception import GitHubException, InsufficientPermissionsException
 from otterdog.providers.github.rest import RestApi, RestClient
+from otterdog.providers.github.rest.requester import is_rate_limited
 from otterdog.utils import (
     associate_by_key,
     get_logger,
@@ -878,14 +879,14 @@ class RepoClient(RestClient):
             status, body = await self.requester.request_raw("GET", f"/repos/{org_id}/{repo_name}/immutable-releases")
         except InsufficientPermissionsException as ex:
             # a 403 caused by missing OAuth scopes is raised by the requester instead of being returned
-            status, body = ex.status, str(ex)
+            status, body = ex.status, ex.message
 
         if status == 200:
             repo_data["immutable_releases_enabled"] = json.loads(body).get("enabled", True)
         elif status == 404:
             # GitHub answers with 404 when immutable releases are disabled for the repo
             repo_data["immutable_releases_enabled"] = False
-        elif status in (402, 403):
+        elif status in (402, 403) and not is_rate_limited(status, body):
             # leave the setting unset, it will not be taken into account when computing changes
             _logger.warning(
                 "immutable release settings for repo '%s/%s' not available (status=%s), "

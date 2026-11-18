@@ -15,6 +15,7 @@ from otterdog.providers.github.exception import GitHubException, InsufficientPer
 from otterdog.utils import get_logger
 
 from . import RestApi, RestClient
+from .requester import is_rate_limited
 
 _logger = get_logger(__name__)
 
@@ -142,10 +143,11 @@ class OrgClient(RestClient):
             return await self.requester.request_json("GET", f"/orgs/{org_id}/settings/immutable-releases")
         except (GitHubException, InsufficientPermissionsException) as ex:
             # a 403 caused by missing OAuth scopes is raised as InsufficientPermissionsException
+            body = ex.data if isinstance(ex, GitHubException) else ex.message
             if ex.status == 404:
                 _logger.debug("immutable releases not available for org '%s', treating as disabled", org_id)
                 return {"enforced_repositories": "none"}
-            if ex.status in (402, 403):
+            if ex.status in (402, 403) and not is_rate_limited(ex.status, body):
                 _logger.warning(
                     "immutable release settings for org '%s' not available (status=%s), "
                     "any configured setting will not be validated",
@@ -153,7 +155,9 @@ class OrgClient(RestClient):
                     ex.status,
                 )
                 return None
-            raise RuntimeError(f"failed retrieving immutable release settings for org '{org_id}':\n{ex}") from ex
+            raise RuntimeError(
+                f"failed retrieving immutable release settings for org '{org_id}': {ex.status}: {body}"
+            ) from ex
 
     async def _update_immutable_releases_settings(self, org_id: str, data: dict[str, Any]) -> None:
         _logger.debug("updating immutable release settings for org '%s'", org_id)

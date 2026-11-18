@@ -9,6 +9,11 @@ from otterdog.providers.github.exception import GitHubException
 from otterdog.providers.github.rest.repo_client import RepoClient
 from otterdog.providers.github.rest.requester import Requester
 
+_RATE_LIMITED_BODIES = [
+    '{"message": "API rate limit exceeded for installation ID 1."}',
+    '{"message": "You have exceeded a secondary rate limit. Please wait a few minutes before you try again."}',
+]
+
 
 class TestRepoClientCodeScanningConfig:
     @pytest.mark.parametrize(
@@ -377,6 +382,39 @@ class TestRepoClientImmutableReleases:
         await repo_client._fill_immutable_releases("test-org", "test-repo", repo_data)
 
         assert "immutable_releases_enabled" not in repo_data
+
+    @pytest.mark.parametrize("status", [403, 429])
+    @pytest.mark.parametrize("body", _RATE_LIMITED_BODIES)
+    async def test_fill_immutable_releases_raises_when_rate_limited(self, status, body):
+        # a rate limit does not mean that immutable releases are not available
+        async def mock_request_raw(method, url):
+            return (status, body)
+
+        mocked_restapi = pretend.stub(requester=pretend.stub(request_raw=mock_request_raw))
+        repo_client = RepoClient(mocked_restapi)
+
+        repo_data = {}
+
+        with pytest.raises(
+            RuntimeError, match=rf"(?s)immutable release settings for repo 'test-org/test-repo'.*{status}"
+        ):
+            await repo_client._fill_immutable_releases("test-org", "test-repo", repo_data)
+
+        assert "immutable_releases_enabled" not in repo_data
+
+    async def test_fill_immutable_releases_raises_when_rate_limited_with_missing_scopes(self):
+        async def mock_request_raw(method, url):
+            # the requester checks the scopes of any 403, a rate limited one included
+            Requester._check_permissions(
+                url, 403, _RATE_LIMITED_BODIES[0], {"X-OAuth-Scopes": "repo", "X-Accepted-OAuth-Scopes": "admin:org"}
+            )
+            raise AssertionError("expected InsufficientPermissionsException")
+
+        mocked_restapi = pretend.stub(requester=pretend.stub(request_raw=mock_request_raw))
+        repo_client = RepoClient(mocked_restapi)
+
+        with pytest.raises(RuntimeError, match=r"403: .*API rate limit exceeded"):
+            await repo_client._fill_immutable_releases("test-org", "test-repo", {})
 
     async def test_fill_immutable_releases_raises_on_unexpected_status(self):
         async def mock_request_raw(method, url):

@@ -15,6 +15,11 @@ from otterdog.providers.github.exception import GitHubException
 from otterdog.providers.github.rest.org_client import OrgClient
 from otterdog.providers.github.rest.requester import Requester
 
+_RATE_LIMITED_BODIES = [
+    '{"message": "API rate limit exceeded for installation ID 1."}',
+    '{"message": "You have exceeded a secondary rate limit. Please wait a few minutes before you try again."}',
+]
+
 
 class TestRestClientOptionalJson:
     async def test_get_optional_json_returns_response(self):
@@ -50,13 +55,7 @@ class TestRestClientOptionalJson:
 
         assert result is None
 
-    @pytest.mark.parametrize(
-        "body",
-        [
-            '{"message": "API rate limit exceeded for installation ID 1."}',
-            '{"message": "You have exceeded a secondary rate limit. Please wait a few minutes before you try again."}',
-        ],
-    )
+    @pytest.mark.parametrize("body", _RATE_LIMITED_BODIES)
     async def test_get_optional_json_raises_when_rate_limited(self, body):
         # a rate limit does not mean that the endpoint is not available
         async def mock_request(method, url):
@@ -310,6 +309,53 @@ class TestOrgClientImmutableReleases:
         )
 
         assert result == {"billing_email": "billing@example.com"}
+
+    @pytest.mark.parametrize("status", [403, 429])
+    @pytest.mark.parametrize("body", _RATE_LIMITED_BODIES)
+    async def test_get_settings_raises_when_immutable_releases_rate_limited(self, status, body):
+        # a rate limit does not mean that immutable releases are not available
+        async def mock_request_json(method, url):
+            if url == "/orgs/org":
+                return {"billing_email": "billing@example.com"}
+            if url == "/orgs/org/settings/immutable-releases":
+                raise GitHubException(url, status, body)
+
+            raise AssertionError(f"unexpected call {method} {url}")
+
+        org_client = OrgClient(pretend.stub(requester=pretend.stub(request_json=mock_request_json)))
+
+        with pytest.raises(RuntimeError, match=rf"(?s)immutable release settings for org 'org'.*{status}"):
+            await org_client.get_settings(
+                "org",
+                {
+                    "billing_email",
+                    "immutable_releases_enforced_repositories",
+                    "immutable_releases_selected_repositories",
+                },
+            )
+
+    async def test_get_settings_raises_when_immutable_releases_rate_limited_with_missing_scopes(self):
+        async def mock_request_json(method, url):
+            if url == "/orgs/org":
+                return {"billing_email": "billing@example.com"}
+            if url == "/orgs/org/settings/immutable-releases":
+                # the requester checks the scopes of any 403, a rate limited one included
+                Requester._check_permissions(
+                    url,
+                    403,
+                    _RATE_LIMITED_BODIES[0],
+                    {"X-OAuth-Scopes": "repo", "X-Accepted-OAuth-Scopes": "admin:org"},
+                )
+
+            raise AssertionError(f"unexpected call {method} {url}")
+
+        org_client = OrgClient(pretend.stub(requester=pretend.stub(request_json=mock_request_json)))
+
+        with pytest.raises(RuntimeError, match=r"403: .*API rate limit exceeded"):
+            await org_client.get_settings(
+                "org",
+                {"immutable_releases_enforced_repositories", "immutable_releases_selected_repositories"},
+            )
 
 
 class TestOrgClientForkPrApprovalPolicy:
