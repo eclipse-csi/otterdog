@@ -12,8 +12,8 @@ permissions:
   contents: read
 
 env:
-  LATEST_PY_VERSION: '3.12'
-  POETRY_VERSION: '2.4.1'
+  LATEST_PY_VERSION: '3.15'
+  POETRY_VERSION: '2.5.1'
   NODE_VERSION: '26'
 
 jobs:
@@ -23,6 +23,7 @@ jobs:
       fail-fast: false
       matrix:
         python-version:
+          - '3.15'
           - '3.14'
           - '3.13'
           - '3.12'
@@ -67,9 +68,10 @@ jobs:
         working-directory: otterdog/webapp/static
         run: npm test
 
-      # The end-to-end tests of the playground run in Firefox, they are skipped without it: run them once
+      # The end-to-end tests of the playground run in Firefox, they are skipped without it: run them once, on the
+      # Python version of the docker image
       - name: Install Firefox for the end-to-end tests
-        if: matrix.python-version == '3.14'
+        if: matrix.python-version == '3.15'
         run: |
           source $VENV
           python -m playwright install firefox
@@ -77,7 +79,7 @@ jobs:
       # Run tests in parallel, the coverage is measured once by the job running the end-to-end tests
       - name: Run tests
         env:
-          COVERAGE_OPTIONS: ${{ matrix.python-version == '3.14' && '--cov=otterdog --cov-report=term' || '' }}
+          COVERAGE_OPTIONS: ${{ matrix.python-version == '3.15' && '--cov=otterdog --cov-report=term' || '' }}
         run: |
           source $VENV
           pytest -ra -n auto --dist worksteal tests $COVERAGE_OPTIONS
