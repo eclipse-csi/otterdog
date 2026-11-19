@@ -6,6 +6,7 @@
 #  SPDX-License-Identifier: EPL-2.0
 #  *******************************************************************************
 
+import json
 from typing import Any
 
 from otterdog.logging import get_logger
@@ -60,7 +61,8 @@ class ReferenceClient(RestClient):
         status, body = await self.requester.request_raw("DELETE", f"/repos/{org_id}/{repo_name}/git/{full_ref}")
         if status == 204:
             return True
-        elif status == 404:
+        elif status == 404 or (status == 422 and _is_missing_reference(body)):
+            # GitHub answers a branch already deleted, e.g. on merge, with 422 instead of 404
             _logger.warning("reference '%s' in repo '%s/%s' does not exist, nothing to delete", ref, org_id, repo_name)
             return False
         elif status == 409:
@@ -71,10 +73,15 @@ class ReferenceClient(RestClient):
                 repo_name,
             )
             return False
-        elif status == 422:
-            _logger.warning(
-                "unprocessable request while deleting reference '%s' in repo '%s/%s'", ref, org_id, repo_name
-            )
-            return False
         else:
             raise RuntimeError(f"failed deleting reference '{ref}' in repo '{org_id}/{repo_name}'\n{status}: {body}")
+
+
+def _is_missing_reference(body: str) -> bool:
+    try:
+        response = json.loads(body)
+    except ValueError:
+        return False
+
+    message = response.get("message") if isinstance(response, dict) else None
+    return isinstance(message, str) and message.strip().lower() == "reference does not exist"
