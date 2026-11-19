@@ -117,6 +117,8 @@ class PullRequestModel(Model):
     has_required_approvals: bool | None = None
     # the head commit that valid, requires_manual_apply and supports_auto_merge have been computed for
     validated_sha: str | None = None
+    # the GraphQL id of the comment of the last validation, which shows whether the pull request can be auto-merged
+    validation_comment_id: str | None = None
 
     created_at: datetime = Field(index=True)
     updated_at: datetime = Field(index=True)
@@ -161,6 +163,8 @@ class PullRequestModel(Model):
         problems = []
         if self.status != PullRequestStatus.OPEN:
             return [f"pull request is {self.status.value}, only open pull requests can be managed"]
+        if self.draft:
+            return ["pull request is a draft, mark it as ready for review first"]
         if self.valid is None:
             return ["pull request has not been validated yet, run `/otterdog validate` first"]
         if head_sha is not None and self.validated_sha != head_sha:
@@ -196,15 +200,11 @@ class PullRequestModel(Model):
             # auto-merge requires ONE of these two independent conditions to hold. None does
             # not mean "still pending / will resolve on its own" - it means the corresponding
             # event never happened, so say what needs to happen instead of "not checked yet".
+            # the teams can be dozens, they are listed once by the template
             if self.has_required_approvals is None:
-                approval_status = (
-                    f"No approval from a member of `{team_description}` or of `{admin_team_description}` "
-                    "has been submitted yet"
-                )
+                approval_status = "No approval from a member of an approval or admin team has been submitted yet"
             else:
-                approval_status = (
-                    f"No approval from a member of `{team_description}` or of `{admin_team_description}` was found"
-                )
+                approval_status = "No approval from a member of an approval or admin team was found"
 
             if self.author_can_auto_merge is None:
                 author_status = (
@@ -212,7 +212,7 @@ class PullRequestModel(Model):
                     "(comment `/otterdog team-info` on the pull request to refresh it)"
                 )
             else:
-                author_status = f"The author is not a member of `{team_description}` or of `{admin_team_description}`"
+                author_status = "The author is not a member of an approval or admin team"
 
             problems.append(
                 await render_template(
@@ -226,8 +226,8 @@ class PullRequestModel(Model):
 
         return problems
 
-    async def can_be_automerged(self) -> bool:
-        return not await self.automerge_problems()
+    async def can_be_automerged(self, head_sha: str) -> bool:
+        return not await self.automerge_problems(head_sha=head_sha)
 
 
 class StatisticsModel(Model):

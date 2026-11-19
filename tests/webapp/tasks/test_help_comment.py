@@ -28,7 +28,7 @@ async def test_help_comment_lists_the_conditions_of_the_auto_merge(app):
 
     assert "If you are neither a member of an approval team nor of an admin team, ask one of their members" in comment
     assert "written or approved by a member of an approval team or of an admin team" in comment
-    assert "the changes add or change no secret (webhook secrets included)" in comment
+    assert "the changes add or change no secret and no webhook that has a secret" in comment
     assert "incur no cost" in comment
     assert "only the configuration of the organization is modified" in comment
     assert "- **Approval teams**: team 'project-leads'\n" in comment
@@ -68,14 +68,16 @@ async def test_help_and_auto_merge_comments_list_the_same_conditions(app):
     )
     auto_merge_comment = await _render(
         app,
-        "comment/auto_merge_comment.txt",
+        "comment/auto_merge_status.txt",
         team_description="team 'project-leads'",
+        admin_team_description="team 'org/admins'",
     )
 
     for condition in (
+        "- the pull request is ready for review and its latest commit has been validated without errors\n",
         "- the pull request is written or approved by a member of an approval team or of an admin team\n",
         (
-            "- the changes add or change no secret (webhook secrets included), change no setting of the Web UI, "
+            "- the changes add or change no secret and no webhook that has a secret, change no setting of the Web UI, "
             "incur no cost and remove no resource\n"
         ),
         "- only the configuration of the organization is modified\n",

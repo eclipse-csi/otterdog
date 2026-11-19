@@ -89,9 +89,10 @@ class MergePullRequestTask(InstallationBasedTask, Task[None]):
                 team_description = await describe_approval_teams(matching_teams, self.org_id)
                 admin_team_description = await describe_admin_teams(self.org_id)
                 return [
-                    (
-                        f"Only the author of the pull request, a member of {team_description}, "
-                        f"or a member of {admin_team_description} is allowed to auto-merge."
+                    await render_template(
+                        "comment/automerge_not_allowed.txt",
+                        team_description=team_description,
+                        admin_team_description=admin_team_description,
                     )
                 ]
 

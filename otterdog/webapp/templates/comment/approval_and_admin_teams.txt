@@ -1,0 +1,6 @@
+<details>
+<summary>Approval and admin teams</summary>
+
+- **Approval teams**: {{ team_description }}
+- **Admin teams**: {{ admin_team_description }}
+</details>

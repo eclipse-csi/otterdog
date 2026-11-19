@@ -1,0 +1,3 @@
+Only the author of the pull request, or a member of an approval team or of an admin team, is allowed to auto-merge.
+
+{% include "comment/approval_and_admin_teams.txt" %}

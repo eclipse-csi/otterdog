@@ -1,4 +1,5 @@
 <!-- Otterdog Comment: validate -->
+<!-- otterdog:auto-merge-status --><!-- /otterdog:auto-merge-status -->
 Please find below the validation of the requested configuration changes:
 
 <details>

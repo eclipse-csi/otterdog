@@ -534,13 +534,21 @@ When a pull request cannot be auto-merged, `/otterdog merge` replies with a warn
 
     **Fix**: reopen a closed pull request. A merged pull request is applied, see [Apply](../workflow.md#5-apply).
 
+??? warning "The pull request is a draft"
+
+    `pull request is a draft, mark it as ready for review first`
+
+    **Cause**: a draft is not merged, even once validated with `/otterdog validate`.
+
+    **Fix**: mark the pull request as ready for review: it is validated again. Then comment `/otterdog merge` again.
+
 ??? warning "The pull request is not validated yet"
 
     `pull request has not been validated yet, run /otterdog validate first`
 
-    **Cause**: a draft is not validated automatically, or the validation did not run.
+    **Cause**: the validation did not run, e.g. it failed before evaluating the configuration.
 
-    **Fix**: mark the draft as ready for review, or comment `/otterdog validate`. Then comment `/otterdog merge` again.
+    **Fix**: comment `/otterdog validate`. Then comment `/otterdog merge` again.
 
 ??? warning "The latest commit is not validated yet"
 
@@ -584,12 +592,12 @@ When a pull request cannot be auto-merged, `/otterdog merge` replies with a warn
 
 ??? warning "Neither the author nor an approval allows the auto-merge"
 
-    `The author is not a member of <approval teams> or of <admin teams>`
+    `The author is not a member of an approval or admin team`
 
-    `No approval from a member of <approval teams> or of <admin teams> <has been submitted yet|was found>`
+    `No approval from a member of an approval or admin team <has been submitted yet|was found>`
 
     **Cause**: the auto-merge requires an author or an approval from a member of these teams, the pull request has
-    neither.
+    neither. The reply lists the teams in its section **Approval and admin teams**.
 
     **Fix**: ask a member of an approval team for a review, then comment `/otterdog merge` again: otterdog checks the
     approvals again.
@@ -598,14 +606,15 @@ When a pull request cannot be auto-merged, `/otterdog merge` replies with a warn
 
     `The author's team membership is unknown (comment /otterdog team-info on the pull request to refresh it)`
 
-    **Cause**: otterdog has not retrieved the teams of the author, e.g. because the retrieval failed. It never does for
-    a bot, whose pull requests need an approval.
+    **Cause**: otterdog has not retrieved the teams of the author, e.g. because the retrieval failed. It retrieves them
+    when the pull request is opened or marked as ready for review, and at each validation while they are unknown. It
+    never does for a bot, whose pull requests need an approval.
 
-    **Fix**: comment `/otterdog team-info`, then `/otterdog merge` again.
+    **Fix**: comment `/otterdog team-info` or `/otterdog validate`, then `/otterdog merge` again.
 
 ??? warning "The comment comes from someone who cannot merge"
 
-    `Only the author of the pull request, a member of <approval teams>, or a member of <admin teams> is allowed to
+    `Only the author of the pull request, or a member of an approval team or of an admin team, is allowed to
     auto-merge.`
 
     **Cause**: `/otterdog merge` was commented by someone else than the author, who is not a member of an approval or

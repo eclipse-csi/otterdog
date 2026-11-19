@@ -47,27 +47,21 @@ class UpdatePullRequestTask(InstallationBasedTask, Task[None]):
                 self.org_id, self.repo_name, self.pull_request_number
             )
 
-            pull_request_model = await update_or_create_pull_request(
+            await update_or_create_pull_request(
                 self.org_id,
                 self.repo_name,
                 self.pull_request,
                 has_required_approvals=has_required_approvals,
             )
-
-            if await pull_request_model.can_be_automerged():
-                self.logger.info(
-                    "pull request #%d of repo '%s/%s' can be automerged, scheduling automerge task",
-                    self.pull_request_number,
-                    self.org_id,
-                    self.repo_name,
-                )
-                self.schedule_automerge_task(self.org_id, self.repo_name, self.pull_request_number)
         else:
             await update_or_create_pull_request(
                 self.org_id,
                 self.repo_name,
                 self.pull_request,
             )
+
+        # e.g. shown once approved, removed once the approval is dismissed or the pull request is converted to a draft
+        self.schedule_automerge_task(self.org_id, self.repo_name, self.pull_request_number)
 
     def __repr__(self) -> str:
         return f"UpdatePullRequestTask(repo={self.org_id}/{self.repo_name}, pull_request=#{self.pull_request_number})"

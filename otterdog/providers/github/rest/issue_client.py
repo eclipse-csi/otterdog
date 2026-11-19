@@ -6,6 +6,8 @@
 #  SPDX-License-Identifier: EPL-2.0
 #  *******************************************************************************
 
+from typing import Any
+
 from otterdog.logging import get_logger
 from otterdog.providers.github.exception import GitHubException
 
@@ -18,12 +20,13 @@ class IssueClient(RestClient):
     def __init__(self, rest_api: RestApi):
         super().__init__(rest_api)
 
-    async def create_comment(self, org_id: str, repo_name: str, issue_number: str, body: str) -> None:
+    async def create_comment(self, org_id: str, repo_name: str, issue_number: str, body: str) -> dict[str, Any]:
+        """Creates a comment and returns it, its `node_id` identifies it in GraphQL queries."""
         _logger.debug("creating issue comment for issue '%s' in repo '%s/%s'", issue_number, org_id, repo_name)
 
         try:
             data = {"body": body}
-            await self.requester.request_json(
+            return await self.requester.request_json(
                 "POST", f"/repos/{org_id}/{repo_name}/issues/{issue_number}/comments", data=data
             )
         except GitHubException as ex:

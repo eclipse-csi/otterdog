@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import asyncio
 import filecmp
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from io import StringIO
 from typing import TYPE_CHECKING, Any
 
@@ -21,7 +21,8 @@ from otterdog.operations.local_plan import LocalPlanOperation
 from otterdog.utils import IndentingPrinter, LogLevel, restrict_jsonnet_imports, unwrap
 from otterdog.webapp.db.models import TaskModel
 from otterdog.webapp.db.service import update_or_create_pull_request
-from otterdog.webapp.tasks import InstallationBasedTask, Task
+from otterdog.webapp.tasks import InstallationBasedTask, Task, contains_eligible_team_for_auto_merge
+from otterdog.webapp.tasks.auto_merge_comment import LEGACY_AUTO_MERGE_COMMENT_HEADER
 from otterdog.webapp.utils import (
     escape_for_github,
     fetch_config_from_github,
@@ -94,6 +95,9 @@ class ValidatePullRequestTask(InstallationBasedTask, Task[ValidationResult]):
     pull_request_or_number: PullRequest | int
     log_level: LogLevel = LogLevel.WARN
 
+    # the GraphQL id of the comment added with the result, which shows whether the pull request can be auto-merged
+    _comment_id: str | None = field(default=None, init=False)
+
     @property
     def pull_request_number(self) -> int:
         return (
@@ -130,6 +134,8 @@ class ValidatePullRequestTask(InstallationBasedTask, Task[ValidationResult]):
 
     async def _post_execute(self, result_or_exception: ValidationResult | Exception) -> None:
         if isinstance(result_or_exception, Exception):
+            # e.g. the comment of the previous validation has not been replaced, its status still applies
+            self.schedule_automerge_task(self.org_id, self.repo_name, self.pull_request_number)
             await self._create_failure_status()
         else:
             await self._update_final_status(result_or_exception)
@@ -276,16 +282,18 @@ class ValidatePullRequestTask(InstallationBasedTask, Task[ValidationResult]):
                 self.repo_name,
                 self.pull_request_number,
                 "<!-- Otterdog Comment: validate -->",
+                LEGACY_AUTO_MERGE_COMMENT_HEADER,
             )
 
             # add a comment about the validation result to the PR
             rest_api = await self.rest_api
-            await rest_api.issue.create_comment(
+            created_comment = await rest_api.issue.create_comment(
                 self.org_id,
                 self.repo_name,
                 str(self.pull_request_number),
                 comment,
             )
+            self._comment_id = created_comment["node_id"]
 
             return validation_result
 
@@ -339,16 +347,42 @@ class ValidatePullRequestTask(InstallationBasedTask, Task[ValidationResult]):
             # recorded along with the result, so that a result of a previous head, completing after the
             # validation of the current head, does not allow merging the current head
             validated_sha=self._pull_request.head.sha,
+            validation_comment_id=self._comment_id,
         )
 
-        if await pull_request_model.can_be_automerged():
-            self.logger.info(
-                "pull request #%d of repo '%s/%s' can be automerged, scheduling automerge task",
+        if pull_request_model.author_can_auto_merge is None:
+            await self._retrieve_author_membership()
+
+        # shown in the comment of this validation if the pull request can be auto-merged
+        self.schedule_automerge_task(self.org_id, self.repo_name, self.pull_request_number)
+
+    async def _retrieve_author_membership(self) -> None:
+        """
+        Records whether the author can auto-merge if it is not known yet, e.g. if the retrieval failed when the pull
+        request was opened. Never retrieved for a bot, as by /otterdog team-info, whose comment is not added.
+        """
+        author = self._pull_request.user
+        if author.type.lower() == "bot":
+            return
+
+        try:
+            teams = await self.get_teams_of_member(self.org_id, author.login)
+            author_can_auto_merge = len(teams) > 0 and await contains_eligible_team_for_auto_merge(teams, self.org_id)
+            await update_or_create_pull_request(
+                self.org_id,
+                self.repo_name,
+                self._pull_request,
+                author_can_auto_merge=author_can_auto_merge,
+            )
+        except Exception as ex:
+            # the result of the validation is already reported, it must not turn into a failure
+            self.logger.warning(
+                "failed retrieving the team membership of the author of pull request #%d of repo '%s/%s': %r",
                 self.pull_request_number,
                 self.org_id,
                 self.repo_name,
+                ex,
             )
-            self.schedule_automerge_task(self.org_id, self.repo_name, self.pull_request_number)
 
     async def _find_merge_commit(self, rest_api: RestApi) -> _MergeCommit | None:
         """

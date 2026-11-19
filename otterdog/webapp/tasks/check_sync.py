@@ -259,7 +259,7 @@ class CheckConfigurationInSyncTask(InstallationBasedTask, Task[bool]):
             in_sync=config_in_sync,
         )
 
-        if await pull_request_model.can_be_automerged():
+        if await pull_request_model.can_be_automerged(self._pull_request.head.sha):
             self.logger.info(
                 "pull request #%d of repo '%s/%s' can be automerged, scheduling automerge task",
                 self.pull_request_number,
