@@ -136,3 +136,11 @@ sent again, up to 3 times, after the wait GitHub asks for, given by the header `
 exhausted rate limit, otherwise after one minute, doubled for every retry. The other requests wait as well, and the
 repeated requests are counted as `Retries`. A wait longer than 5 minutes, e.g. until the reset of an exhausted
 quota, is not awaited: the request fails.
+
+A REST request that fails with a server error (status `5xx`) or a network error is made up to 3 times if sending it
+again has the same effect, i.e. for the methods `GET`, `HEAD`, `OPTIONS`, `PUT` and `DELETE`. Such a request can reach
+GitHub more often: within each attempt, aiohttp sends it once more when its connection is closed or reset before a
+response arrives. A response whose body is cut off is only requested again when otterdog reads it to cache it, e.g. a
+`GET` with the file cache of the CLI. A `POST` or `PATCH` request, e.g. the creation of a webhook, is only sent again
+when no connection to GitHub could be established, as GitHub may have processed it despite the error: the failure is
+reported, and the next run reads the actual state. GraphQL requests are made up to 3 times in both cases.

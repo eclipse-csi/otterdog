@@ -8,16 +8,29 @@
 
 """
 Verifies against a real HTTP server how the requester limits the requests sent concurrently,
-and sends again the requests that hit a rate limit of GitHub.
+sends again the requests that hit a rate limit of GitHub, and the ones that failed if sending
+them again is safe.
 """
 
 import asyncio
+import json
+import socket
 import time
 from collections import Counter
 
 import pytest
 import pytest_asyncio
-from aiohttp import web
+from aiohttp import (
+    ClientConnectorDNSError,
+    ClientConnectorError,
+    ClientError,
+    ClientOSError,
+    ClientPayloadError,
+    ConnectionTimeoutError,
+    ServerDisconnectedError,
+    SocketTimeoutError,
+    web,
+)
 from aiohttp.test_utils import TestServer
 
 from otterdog.credentials import Credentials
@@ -28,6 +41,7 @@ from otterdog.providers.github.rest.requester import (
     DEFAULT_MAX_CONCURRENT_REQUESTS,
     Requester,
     get_rate_limit_wait,
+    get_retry_options,
 )
 from otterdog.providers.github.stats import ApiUsage, collect_api_usage
 
@@ -43,6 +57,7 @@ class _GitHubStub:
         self.in_flight = 0
         self.max_in_flight = 0
         self.received_at: dict[str, float] = {}
+        self.hooks: list[dict] = []
 
         self.app = web.Application()
         self.app.router.add_get("/limited/{times}", self.limited)
@@ -51,6 +66,9 @@ class _GitHubStub:
         self.app.router.add_get("/denied", self.denied)
         self.app.router.add_get("/slow", self.slow)
         self.app.router.add_get("/meta", self.meta)
+        self.app.router.add_route("*", "/unavailable", self.unavailable)
+        self.app.router.add_route("*", "/disconnect", self.disconnect)
+        self.app.router.add_post("/orgs/acme/hooks", self.create_hook)
 
     def _hit(self, request: web.Request) -> int:
         self.hits[request.path] += 1
@@ -89,6 +107,25 @@ class _GitHubStub:
     async def meta(self, request: web.Request) -> web.Response:
         self._hit(request)
         return web.json_response({})
+
+    async def unavailable(self, request: web.Request) -> web.Response:
+        # fails with a server error twice, whatever the method
+        if self._hit(request) <= 2:
+            return web.Response(status=502)
+        return web.json_response({})
+
+    async def disconnect(self, request: web.Request) -> web.Response:
+        # the request has been received, but the connection is closed without any response
+        self._hit(request)
+        if request.transport is not None:
+            request.transport.close()
+        return web.Response()
+
+    async def create_hook(self, request: web.Request) -> web.Response:
+        # the webhook is created, but its response is lost
+        self._hit(request)
+        self.hooks.append(await request.json())
+        return web.Response(status=502)
 
 
 @pytest_asyncio.fixture
@@ -173,6 +210,100 @@ async def test_concurrent_requests_are_limited(github):
 
     assert github.hits["/slow"] == 6
     assert github.max_in_flight == 2
+
+
+@pytest.mark.parametrize("method", ["GET", "PUT", "DELETE"])
+async def test_idempotent_request_failing_with_a_server_error_is_sent_again(github, requester, method):
+    status, _ = await requester.request_raw(method, "/unavailable", json.dumps({"key": "value"}))
+
+    assert status == 200
+    assert github.hits["/unavailable"] == 3
+
+
+@pytest.mark.parametrize("method", ["POST", "PATCH"])
+async def test_request_not_idempotent_failing_with_a_server_error_is_sent_once(github, requester, method):
+    usage = ApiUsage()
+
+    with collect_api_usage(usage):
+        status, _ = await requester.request_raw(method, "/unavailable", json.dumps({"key": "value"}))
+
+    assert status == 502
+    assert github.hits["/unavailable"] == 1
+    assert usage.rest.retried_requests == 0
+
+
+async def test_creation_whose_response_is_lost_is_not_sent_again(github, requester):
+    status, _ = await requester.request_raw("POST", "/orgs/acme/hooks", json.dumps({"name": "web"}))
+
+    # the failure is reported, while sending the request again would have created a second webhook
+    assert status == 502
+    assert github.hooks == [{"name": "web"}]
+
+
+@pytest.mark.parametrize("method", ["POST", "PATCH"])
+async def test_request_not_idempotent_losing_its_connection_is_sent_once(github, requester, method):
+    with pytest.raises(ClientError):
+        await requester.request_raw(method, "/disconnect", json.dumps({"key": "value"}))
+
+    assert github.hits["/disconnect"] == 1
+
+
+@pytest.mark.parametrize("method", ["GET", "POST", "PATCH"])
+async def test_request_is_sent_again_when_no_connection_could_be_established(method):
+    with socket.socket() as sock:
+        sock.bind(("127.0.0.1", 0))
+        port = sock.getsockname()[1]
+
+    requester = Requester(token_auth("token"), ghproxy_cache(f"http://127.0.0.1:{port}"), "api.github.com", "v")
+    usage = ApiUsage()
+
+    try:
+        with collect_api_usage(usage), pytest.raises(ClientConnectorError):
+            await requester.request_raw(method, "/orgs/acme/hooks", json.dumps({"name": "web"}))
+    finally:
+        await requester.close()
+
+    assert usage.rest.unsent_attempts == {"network": 3}
+
+
+@pytest.mark.parametrize(
+    ("method", "exception", "sent_again"),
+    [
+        ("GET", ServerDisconnectedError, True),
+        ("HEAD", ClientPayloadError, True),
+        ("PUT", SocketTimeoutError, True),
+        ("DELETE", ClientOSError, True),
+        # no connection could be established, the request has not been sent
+        ("POST", ClientConnectorError, True),
+        ("POST", ClientConnectorDNSError, True),
+        ("PATCH", ConnectionTimeoutError, True),
+        # the request may have been received by GitHub
+        ("POST", ServerDisconnectedError, False),
+        ("POST", ClientOSError, False),
+        ("PATCH", SocketTimeoutError, False),
+        ("PATCH", ClientPayloadError, False),
+    ],
+)
+def test_exceptions_after_which_a_request_is_sent_again(method, exception, sent_again):
+    # matches the exceptions as aiohttp_retry does
+    exceptions = get_retry_options(method).exceptions
+    assert any(issubclass(exception, retried) for retried in exceptions) == sent_again
+
+
+@pytest.mark.parametrize(
+    ("method", "sent_again"),
+    [
+        ("GET", True),
+        ("HEAD", True),
+        ("OPTIONS", True),
+        ("PUT", True),
+        ("DELETE", True),
+        ("POST", False),
+        ("PATCH", False),
+    ],
+)
+def test_server_errors_after_which_a_request_is_sent_again(method, sent_again):
+    assert get_retry_options(method).retry_all_server_errors == sent_again
 
 
 @pytest.mark.parametrize(

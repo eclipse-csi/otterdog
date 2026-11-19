@@ -80,10 +80,10 @@ needs no stop.
 - **Order**: `apply` runs the patches in the order `generate_live_patch` of the parent produces them, except those
   that make an object read-only, which run last. If the resource depends on another item created or removed by the
   same `apply`, place its `generate_live_patch_of_list` call accordingly.
-- **Errors and retries**: interpret each response, and check what an automatic retry of a creation does, as the
-  Provider section of `github-config-property` describes; test both the retry within one `apply` and the
-  reconciliation by a later run (its Tests section). For a collection, a 409 or 422 after a creation needs evidence
-  before it is read as "already exists".
+- **Errors and retries**: interpret each response, and check what a lost response does to a creation, and what an
+  automatic retry does to a write sent with `PUT` or `DELETE`, as the Provider section of `github-config-property`
+  describes; test both the outcome within one `apply` and the reconciliation by a later run (its Tests section).
+  For a collection, a 409 or 422 after a creation needs evidence before it is read as "already exists".
 
 ## 4. Test through diff and apply
 
@@ -103,7 +103,7 @@ can use `evaluate_generated_jsonnet` in `tests/models/__init__.py`, which writes
 | Item renamed, the API renames in place | Matched through its alias; one update keeps the GitHub identifier; no creation or deletion is sent. |
 | Item renamed, the API only replaces | `apply` without `--delete-resources` does not leave a second object next to the old one by accident; the documented replacement happens with the opt-in. |
 | Inventory, or one of its pages, fails | The failure is reported; no mutation for that scope, and no import that presents a partial state as complete. |
-| Apply succeeds in part, or an applied write loses its response | A fresh apply reads the current state and sends only the remaining mutations. The retry within the same apply is tested with the real requester against the local server, as `github-config-property` describes. |
+| Apply succeeds in part, or an applied write loses its response | A fresh apply reads the current state and sends only the remaining mutations. The outcome within the same apply, which depends on the method of the write, is tested with the real requester against the local server, as `github-config-property` describes. |
 
 ## 5. Checks and report
 

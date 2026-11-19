@@ -66,8 +66,9 @@ finding.
    the next `apply` must send only what is still missing: no new modification of the resource already updated, and
    no duplicate creation. Check it with the HTTP mock: an error response for the second resource, then a second diff
    from the live state the first run left. A test of idempotence after a fully successful apply does not cover this.
-   The same applies when the response of a write is lost (5xx, connection error): the REST requester retries every
-   method, so the write may have been applied, or applied twice (see the Provider section of
+   The same applies when the response of a write is lost (5xx, connection error): the write may have been applied
+   although otterdog reports a failure, and the REST requester sends a `PUT` or `DELETE` again, whose repetition
+   may get another answer, e.g. a 404 for a deletion already applied (see the Provider section of
    `github-config-property`).
 3. **What does the provider do when GitHub does not return the value?** A field that is inaccessible (GitHub plan,
    403, 404), a value that is really empty, and an incomplete response (a failed page of a paginated list, a 500) are

@@ -107,9 +107,10 @@ In `otterdog/models/<resource>.py`:
       meaning is uncertain must never lead to a creation or a deletion based on a supposed absence. Log a warning when
       a value is left `UNSET`.
     - **Rate limit (403 or 429)**: it is neither an unavailable feature nor a denied access, and must raise;
-      `_get_optional_json` does so, with the predicate `_is_rate_limited`. The REST requester does not wait for
-      `Retry-After` or `X-RateLimit-Reset`. Do not add a retry loop in a helper: a waiting policy belongs in
-      `rest/requester.py`, and needs the user's agreement.
+      `_get_optional_json` does so, with the predicate `is_rate_limited`. The REST requester already sends a
+      rate-limited request again, up to 3 times, after the wait GitHub asks for (`get_rate_limit_wait`), and returns
+      the last response once the retries are exhausted or the wait exceeds 5 minutes. Do not add a retry loop in a
+      helper: a waiting policy belongs in `rest/requester.py`, and needs the user's agreement.
     - **409**: find out what the conflict means for this endpoint. When a creation conflicts because the resource
       already exists (created in between, or by a retried request), read it again and check its identity before
       adopting it. When an update conflicts, report it, or recompute the diff from the current state if the provider
@@ -120,13 +121,18 @@ In `otterdog/models/<resource>.py`:
       not the status alone. Test it in `tests/providers/github/rest/test_<client>.py` together with another response
       of the same status that must still fail, so that a targeted exception does not become a skip of every 422 that
       also hides payload errors.
-    - **5xx or lost response during a write**: the outcome is unknown, because GitHub may have applied the write.
-      The REST requester makes up to 3 attempts for every method, writes included, on any exception and any 5xx
-      (`ExponentialRetry` in `rest/requester.py`), before the provider gets a response: a read again in the provider
-      comes too late for these retries. Before wiring a new mutation that is not idempotent, such as a creation,
-      check what a repeated call does on this endpoint. If it can create a second object or apply the change twice,
-      tell the user before wiring it: the retry policy is shared code. A 409 or 422 after such a retry can mean that
-      the first attempt succeeded.
+    - **5xx or lost response during a write**: the outcome is unknown, because GitHub may have applied the write. The
+      REST requester (`get_retry_options` in `rest/requester.py`) makes up to 3 attempts on any 5xx and any exception
+      raised before the response is returned, only for the idempotent methods `GET`, `HEAD`, `OPTIONS`, `PUT` and
+      `DELETE`. Within an attempt, aiohttp itself resends such a request once when its connection is closed or reset
+      before a response arrives, and a body cut off after the headers is retried only when the cached session reads it
+      to cache it (`tests/providers/github/test_request_recording.py`). A `POST` or `PATCH` is sent again only when no
+      connection could be established: otherwise the provider gets the 5xx or the exception, and must report the
+      failure, since the next run reads the actual state. Before wiring a mutation sent with `PUT` or `DELETE`, check
+      that a repeated call has the same effect on this endpoint; if it can apply the change twice, tell the user before
+      wiring it: the retry policy is shared code. A 404 after a retried `DELETE`, or a 409 or 422 after a retried `PUT`,
+      can mean that the first attempt succeeded. The GraphQL client (`graphql.py`) still retries every query and
+      mutation on any 5xx and exception.
 - Any other response is an explicit failure: raise a `RuntimeError` with the operation, the organization, the
   repository and the status. On a read, turning it into `UNSET` hides a provider error and leaves the plan
   incomplete. On a write, treating it as a success leaves GitHub unchanged, and the same diff comes back at the next
@@ -184,13 +190,13 @@ In `otterdog/models/<resource>.py`:
       updated, others not), then check that the second run sends only the remaining operations, and that the state
       after it gives no change.
     - **Write applied, response lost, within the same run**: the automatic retries happen inside the first `apply`,
-      before the provider sees a response. The integration kit replaces `RetryClient` with the HTTP mock
-      (`tests/providers/github/integration/conftest.py`), so it never exercises them. Use the real `Requester`
-      against the local server of `tests/providers/github/test_request_recording.py`: add a route to `_GitHubStub`
-      that stores the first creation, then loses its response with a 502 or a dropped connection, as its `flaky` and
-      `disconnect` routes do. Check that the server holds exactly one resource at the end, whatever the number of
-      attempts (`hits`), and that the result otterdog reports matches it. Lock this down before wiring a new
-      mutation that is not idempotent.
+      before the provider sees a response, and depend on the method (see the Provider section). The integration kit
+      replaces `RetryClient` with the HTTP mock (`tests/providers/github/integration/conftest.py`), so it never
+      exercises them. Use the real `Requester` against the local server of
+      `tests/providers/github/rest/test_requester.py`: add a route to `_GitHubStub` that stores the write, then loses
+      its response with a 502 or a dropped connection, as its `create_hook` and `disconnect` routes do. Check that
+      the server holds exactly one resource at the end, whatever the number of attempts (`hits`), and that the result
+      otterdog reports matches it. Lock this down before wiring a mutation sent with `PUT` or `DELETE`.
     - **Write applied, response lost, then a new run**: the next run reads the resource, adopts it, and creates no
       second one.
 - **Priority regression test**: a resource created by hand, declared as is, then changed on one field. Check that

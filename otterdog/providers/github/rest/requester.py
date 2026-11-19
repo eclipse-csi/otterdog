@@ -13,7 +13,14 @@ import time
 from collections.abc import AsyncGenerator, AsyncIterable, AsyncIterator, Mapping
 from typing import Any
 
-from aiohttp import ClientResponse, ClientSession, ClientTimeout, TCPConnector
+from aiohttp import (
+    ClientConnectorError,
+    ClientResponse,
+    ClientSession,
+    ClientTimeout,
+    ConnectionTimeoutError,
+    TCPConnector,
+)
 from aiohttp_client_cache import CacheBackend
 from aiohttp_client_cache.session import CachedSession as AsyncCachedSession
 from aiohttp_retry import ExponentialRetry, RetryClient
@@ -43,6 +50,29 @@ _DEFAULT_RATE_LIMIT_WAIT_SECONDS = 60
 # the longest wait before sending a request again, a longer one, e.g. until an exhausted primary rate limit
 # is reset, fails the request instead
 _MAX_RATE_LIMIT_WAIT_SECONDS = 300
+
+# how many times a request is attempted when it fails with a server error or a network error
+_MAX_ATTEMPTS = 3
+# the methods whose request has the same effect when GitHub receives it several times, see RFC 9110, section 9.2.2
+_IDEMPOTENT_METHODS = frozenset({"GET", "HEAD", "OPTIONS", "PUT", "DELETE"})
+
+_IDEMPOTENT_RETRY = ExponentialRetry(_MAX_ATTEMPTS, exceptions={Exception})
+# GitHub may have processed a request despite a server error or a connection lost once it was sent,
+# thus any other request, e.g. a creation, is only sent again when no connection could be established
+_UNSENT_RETRY = ExponentialRetry(
+    _MAX_ATTEMPTS,
+    exceptions={ClientConnectorError, ConnectionTimeoutError},
+    retry_all_server_errors=False,
+)
+
+
+def get_retry_options(method: str) -> ExponentialRetry:
+    """
+    Returns when a request that fails with a server error or a network error is sent again, depending on its method:
+    an idempotent request on any server error (status >= 500) or exception, any other request, e.g. POST or PATCH,
+    only when no connection could be established.
+    """
+    return _IDEMPOTENT_RETRY if method.upper() in _IDEMPOTENT_METHODS else _UNSENT_RETRY
 
 
 def is_rate_limited(status: int, body: str) -> bool:
@@ -120,8 +150,9 @@ class Requester:
                 trace_configs=[self._recorder.trace_config()],
             )
 
+        # every request passes the retry options of its method, see get_retry_options
         self._client = RetryClient(
-            retry_options=ExponentialRetry(3, exceptions={Exception}),
+            retry_options=_UNSENT_RETRY,
             client_session=self._session,
         )
 
@@ -311,6 +342,7 @@ class Requester:
         async with self._client.request(
             method,
             url=self._build_url(url_path),
+            retry_options=get_retry_options(method),
             headers=headers,
             params=params,
             data=data,
@@ -348,6 +380,7 @@ class Requester:
         async with self._client.request(
             method,
             url=url,
+            retry_options=get_retry_options(method),
             headers=headers,
             params=params,
             data=data,
