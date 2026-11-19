@@ -171,8 +171,9 @@ def test_organizations_without_the_repository_do_not_fail_the_command(github, mo
     monkeypatch.setattr(cli, "set_github_cache", lambda cache: None)
     monkeypatch.setattr(cli, "_STATS", cli._StatsOptions(False, None, "delete-file"))
 
+    operation = _operation()
     with pytest.raises(SystemExit) as exit_info:
-        cli._execute_operation([], _operation())
+        cli._execute_operation([], operation)
 
     assert exit_info.value.code == 0
     assert github.sent == [
@@ -195,8 +196,9 @@ def test_failure_in_one_organization_does_not_stop_the_others(github, monkeypatc
     monkeypatch.setattr(cli, "set_github_cache", lambda cache: None)
     monkeypatch.setattr(cli, "_STATS", cli._StatsOptions(False, None, "delete-file"))
 
+    operation = _operation()
     with pytest.raises(SystemExit) as exit_info:
-        cli._execute_operation([], _operation())
+        cli._execute_operation([], operation)
 
     assert exit_info.value.code == 1
     assert ("DELETE", "/repos/org-b/test-repo/contents/path/to/file.txt") in github.sent

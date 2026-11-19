@@ -122,8 +122,9 @@ def test_failure_in_one_organization_does_not_stop_the_others(github, monkeypatc
     monkeypatch.setattr(cli, "set_github_cache", lambda cache: None)
     monkeypatch.setattr(cli, "_STATS", cli._StatsOptions(False, None, "dispatch-workflow"))
 
+    operation = _operation()
     with pytest.raises(SystemExit) as exit_info:
-        cli._execute_operation([], _operation())
+        cli._execute_operation([], operation)
 
     assert exit_info.value.code == 1
     assert ("POST", "/repos/org-b/.eclipsefdn/actions/workflows/ci.yml/dispatches") in github.sent
