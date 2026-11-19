@@ -29,9 +29,9 @@ the same and behave differently. Calls to a real organization are reserved for a
   read side: a value returned in the main payload of the resource can need a dedicated call to be written.
 - **Status codes**: what each one means for this endpoint. For example, `_fill_immutable_releases` in
   `rest/repo_client.py` reads a 404 as "disabled" (`False`), while on another endpoint a 404 can mean an unavailable
-  feature or a missing resource. Its handling of 402 and 403 is not a model to copy: it reads a rate limit or a
-  denied access as an unavailable feature. For an optional read, use `_get_optional_json` with the arguments that
-  "Provider" gives.
+  feature or a missing resource. Its handling of 402 and 403 is not a model to copy: it reads a denied access, a
+  missing scope included, as an unavailable feature. For an optional read, use `_get_optional_json` with the
+  arguments that "Provider" gives.
 - **Absent and empty values**: what happens when the configuration omits the field, when GitHub omits it, and when
   either side gives an explicit `null`, `false` or `[]`. In the diff, a value that is `UNSET` on either side is not
   compared, while `None`, `False` and `[]` are (`get_difference_from` in `otterdog/models/__init__.py`). An omitted
@@ -107,10 +107,13 @@ In `otterdog/models/<resource>.py`:
       meaning is uncertain must never lead to a creation or a deletion based on a supposed absence. Log a warning when
       a value is left `UNSET`.
     - **Rate limit (403 or 429)**: it is neither an unavailable feature nor a denied access, and must raise;
-      `_get_optional_json` does so, with the predicate `is_rate_limited`. The REST requester already sends a
-      rate-limited request again, up to 3 times, after the wait GitHub asks for (`get_rate_limit_wait`), and returns
-      the last response once the retries are exhausted or the wait exceeds 5 minutes. Do not add a retry loop in a
-      helper: a waiting policy belongs in `rest/requester.py`, and needs the user's agreement.
+      `_get_optional_json` and `_fill_immutable_releases` do so, with the predicate `is_rate_limited` of
+      `rest/requester.py`. Check it also on the message of an `InsufficientPermissionsException`: the requester raises
+      it for a 403 whenever a scope of `X-Accepted-OAuth-Scopes` is not granted, whatever the cause of the 403, a rate
+      limit included. The REST requester already sends a rate-limited request again, up to 3 times, after the wait
+      GitHub asks for (`get_rate_limit_wait`), and returns the last response once the retries are exhausted or the wait
+      exceeds 5 minutes, so a rate limit that reaches the provider is final. Do not add a retry loop in a helper: a
+      waiting policy belongs in `rest/requester.py`, and needs the user's agreement.
     - **409**: find out what the conflict means for this endpoint. When a creation conflicts because the resource
       already exists (created in between, or by a retried request), read it again and check its identity before
       adopting it. When an update conflicts, report it, or recompute the diff from the current state if the provider
