@@ -1464,22 +1464,22 @@ class RepoClient(RestClient):
 
         _logger.debug("updated fork PR approval policy for repo '%s/%s'", org_id, repo_name)
 
-    async def dispatch_workflow(self, org_id: str, repo_name: str, workflow_name: str) -> bool:
+    async def dispatch_workflow(self, org_id: str, repo_name: str, workflow_name: str) -> None:
         _logger.debug("dispatching workflow for repo '%s/%s'", org_id, repo_name)
 
         default_branch = await self.get_default_branch(org_id, repo_name)
         data = {"ref": default_branch}
 
-        status, _ = await self.requester.request_raw(
+        status, body = await self.requester.request_raw(
             "POST", f"/repos/{org_id}/{repo_name}/actions/workflows/{workflow_name}/dispatches", json.dumps(data)
         )
 
         if status != 204:
-            _logger.debug("failed dispatching workflow for repo '%s/%s'", org_id, repo_name)
-            return False
-        else:
-            _logger.debug("dispatched workflow for repo '%s/%s'", org_id, repo_name)
-            return True
+            raise RuntimeError(
+                f"failed dispatching workflow '{workflow_name}' for repo '{org_id}/{repo_name}'\n{status}: {body}"
+            )
+
+        _logger.debug("dispatched workflow for repo '%s/%s'", org_id, repo_name)
 
     async def get_ref_for_pull_request(self, org_id: str, repo_name: str, pull_number: str) -> str:
         _logger.debug(f"retrieving ref for pull request {pull_number} at {org_id}/{repo_name}")

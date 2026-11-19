@@ -328,6 +328,7 @@ def show_default(organizations: list[str], markdown):
 )
 @click.option(
     "--workflow",
+    required=True,
     help="the name of the workflow to dispatch",
 )
 def dispatch_workflow(organizations: list[str], repo, workflow):
@@ -855,6 +856,7 @@ def sync_template(organizations: list[str], repo):
 )
 @click.option(
     "--path",
+    required=True,
     help="the path of the content to be deleted",
 )
 @click.option("-m", "--message", help="commit messaged")

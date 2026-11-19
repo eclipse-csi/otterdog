@@ -10,6 +10,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from rich.markup import escape
+
 from otterdog.providers.github import GitHubProvider
 
 from . import Operation
@@ -37,7 +39,9 @@ class DispatchWorkflowOperation(Operation):
         return self._workflow_name
 
     def pre_execute(self) -> None:
-        self.printer.println(f"Dispatching workflow '{self.workflow_name}' in organization repo '{self.repo_name}':")
+        self.printer.println(
+            f"Dispatching workflow '{escape(self.workflow_name)}' in organization repo '{escape(self.repo_name)}':"
+        )
 
     async def execute(
         self,
@@ -58,14 +62,18 @@ class DispatchWorkflowOperation(Operation):
                 return 1
 
             async with GitHubProvider(credentials) as provider:
-                success = await provider.dispatch_workflow(github_id, self.repo_name, self.workflow_name)
-                if success is True:
-                    self.printer.println(f"workflow '{self.workflow_name}' dispatched for repo '{self.repo_name}'")
-                else:
-                    self.printer.println(
-                        f"failed to dispatch workflow '{self.workflow_name}' for repo '{self.repo_name}'"
+                try:
+                    await provider.dispatch_workflow(github_id, self.repo_name, self.workflow_name)
+                except RuntimeError as e:
+                    self.printer.print_error(
+                        f"failed to dispatch workflow '{escape(self.workflow_name)}' "
+                        f"for repo '{escape(self.repo_name)}'\n{escape(str(e))}"
                     )
+                    return 1
 
+            self.printer.println(
+                f"workflow '{escape(self.workflow_name)}' dispatched for repo '{escape(self.repo_name)}'"
+            )
             return 0
         finally:
             self.printer.level_down()

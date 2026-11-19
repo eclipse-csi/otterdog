@@ -756,8 +756,8 @@ class GitHubProvider:
     async def delete_team_permission(self, org_id: str, repo_name: str, team_name: str) -> None:
         await self.rest_api.repo.delete_team_permission(org_id, repo_name, team_name)
 
-    async def dispatch_workflow(self, org_id: str, repo_name: str, workflow_name: str) -> bool:
-        return await self.rest_api.repo.dispatch_workflow(org_id, repo_name, workflow_name)
+    async def dispatch_workflow(self, org_id: str, repo_name: str, workflow_name: str) -> None:
+        await self.rest_api.repo.dispatch_workflow(org_id, repo_name, workflow_name)
 
     async def get_repo_ids(self, org_id: str, repo_names: list[str]) -> list[int]:
         return await self.rest_api.repo.get_repo_ids(org_id, repo_names)

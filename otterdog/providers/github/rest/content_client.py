@@ -125,19 +125,29 @@ class ContentClient(RestClient):
         path: str,
         message: str | None = None,
     ) -> bool:
+        """
+        Deletes a file in the default branch of a repository.
+
+        Returns:
+            True if the file has been deleted, False if it does not exist.
+
+        Raises:
+            RuntimeError: if the file could not be read or deleted, or if the path is not a file.
+        """
         _logger.debug("deleting content '%s' in repo '%s/%s'", path, org_id, repo_name)
 
         try:
-            json_response = await self.get_content_object(org_id, repo_name, path)
-            if not isinstance(json_response, dict):
-                raise TypeError(f"unexpected result for retrieving content of path '{path}': '{type(json_response)}'")
-            old_sha = json_response["sha"]
-        except (RuntimeError, TypeError):
-            old_sha = None
+            json_response = await self.requester.request_json("GET", f"/repos/{org_id}/{repo_name}/contents/{path}")
+        except GitHubException as ex:
+            # only a 404 means that the file does not exist, any other failure leaves it unknown
+            if ex.status == 404:
+                return False
+            raise RuntimeError(f"failed retrieving content '{path}' from repo '{org_id}/{repo_name}':\n{ex}") from ex
 
-        if old_sha is None:
-            return False
+        if not isinstance(json_response, dict) or "sha" not in json_response:
+            raise RuntimeError(f"path '{path}' in repo '{org_id}/{repo_name}' is not a file")
 
+        old_sha = json_response["sha"]
         push_message = f"Deleting file '{path}' with otterdog." if message is None else message
 
         data = {"message": push_message, "sha": old_sha}
@@ -146,4 +156,4 @@ class ContentClient(RestClient):
             await self.requester.request_json("DELETE", f"/repos/{org_id}/{repo_name}/contents/{path}", data)
             return True
         except GitHubException as ex:
-            raise RuntimeError(f"failed deleting content '{path}' in repo '{repo_name}':\n{ex}") from ex
+            raise RuntimeError(f"failed deleting content '{path}' in repo '{org_id}/{repo_name}':\n{ex}") from ex

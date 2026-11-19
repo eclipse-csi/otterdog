@@ -46,7 +46,7 @@ class DeleteFileOperation(Operation):
         return self._message
 
     def pre_execute(self) -> None:
-        self.printer.println(f"Deleting file '{self._path}' in organization repository '{self.repo}':")
+        self.printer.println(f"Deleting file '{escape(self.path)}' in organization repository '{escape(self.repo)}':")
 
     async def execute(
         self,
@@ -72,6 +72,19 @@ class DeleteFileOperation(Operation):
                 self.printer.print_error(f"failed to load configuration: {escape(str(ex))}")
                 return 1
 
+            # without organization arguments, the command runs over all organizations, most of which do not have
+            # the repository: skipping them is not a failure
+            repositories_by_name = associate_by_key(organization.repositories, lambda r: r.name)
+            repo = repositories_by_name.get(self.repo)
+            if repo is None:
+                self.printer.print_warn(f"repository '{escape(self.repo)}' not found in the configuration, skipped")
+                return 0
+
+            repo_name = f"{github_id}/{repo.name}"
+            if repo.archived is True:
+                self.printer.print_warn(f"repository '{escape(repo_name)}' is archived, skipped")
+                return 0
+
             try:
                 credentials = self.get_credentials(org_config, only_token=True)
             except RuntimeError as e:
@@ -79,31 +92,25 @@ class DeleteFileOperation(Operation):
                 return 1
 
             async with GitHubProvider(credentials) as provider:
-                rest_api = provider.rest_api
+                self.printer.print(
+                    f"Deleting file '[bold]{escape(self.path)}[/]' in repository '[bold]{escape(repo_name)}[/]': "
+                )
 
-                repositories_by_name = associate_by_key(organization.repositories, lambda r: r.name)
-                repo = repositories_by_name.get(self.repo)
-                if repo is not None and repo.archived is False:
-                    collected_error = None
-                    repo_name = f"{github_id}/{repo.name}"
-                    self.printer.print(f"Deleting file '[bold]{self.path}[/]' in repository '[bold]{repo_name}[/]': ")
+                try:
+                    deleted_file = await provider.rest_api.content.delete_content(
+                        github_id, repo.name, self.path, self.message
+                    )
+                except RuntimeError as e:
+                    self.printer.println("[red]failed[/]")
+                    self.printer.print_error(f"failure deleting file\n{escape(str(e))}")
+                    return 1
 
-                    try:
-                        deleted_file = await rest_api.content.delete_content(
-                            github_id, repo.name, self.path, self.message
-                        )
-                    except RuntimeError as e:
-                        collected_error = e
+                if deleted_file is True:
+                    self.printer.println("[green]succeeded[/]")
+                else:
+                    # the file is already absent, as requested
+                    self.printer.println("[yellow]not found, nothing to delete[/]")
 
-                    if deleted_file is True:
-                        self.printer.println("[green]succeeded[/]")
-                    else:
-                        self.printer.println("[red]succeeded[/]")
-
-                    if collected_error is not None:
-                        self.printer.println()
-                        self.printer.print_error(f"failure deleting file\n{collected_error!s}")
-                        return 1
             return 0
 
         finally:
