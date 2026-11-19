@@ -18,6 +18,7 @@ import aiofiles
 from quart import current_app
 
 from otterdog.config import OrganizationConfig
+from otterdog.providers.github.exception import GitHubException
 from otterdog.providers.github.stats import RequestStatistics
 from otterdog.utils import unwrap
 from otterdog.webapp.db.service import (
@@ -212,7 +213,7 @@ class InstallationBasedTask(Protocol):
         org_id: str,
         repo_name: str,
         pull_request_number: int,
-        matching_header: str,
+        *matching_headers: str,
     ) -> None:
         graphql_api = await self.graphql_api
         comments = await graphql_api.get_issue_comments(org_id, repo_name, pull_request_number)
@@ -221,7 +222,7 @@ class InstallationBasedTask(Protocol):
             body = comment["body"]
             is_minimized = comment["isMinimized"]
 
-            if bool(is_minimized) is False and matching_header in body:
+            if bool(is_minimized) is False and any(header in body for header in matching_headers):
                 await graphql_api.minimize_comment(comment_id, "OUTDATED")
 
     async def comment_with_header_exists(
@@ -265,7 +266,32 @@ class InstallationBasedTask(Protocol):
 
         return await contains_valid_team_for_approval(approved_by_teams, org_id)
 
+    async def get_teams_of_member(self, org_id: str, user_login: str) -> list[str]:
+        """
+        Returns the teams of the user if they are an active member of the organization, no team otherwise.
+
+        Raises a RuntimeError if the membership cannot be retrieved: only a 404 means that the user is not a member.
+        """
+        rest_api = await self.rest_api
+
+        try:
+            membership = await rest_api.team.get_membership(org_id, user_login)
+            is_member = membership["state"] == "active" and membership["role"] in ("admin", "member")
+        except RuntimeError as ex:
+            cause = ex.__cause__
+            if not isinstance(cause, GitHubException) or cause.status != 404:
+                raise
+            is_member = False
+
+        if not is_member:
+            return []
+
+        graphql_api = await self.graphql_api
+        team_data = await graphql_api.get_team_membership(org_id, user_login)
+        return [team["name"] for team in team_data]
+
     def schedule_automerge_task(self, org_id: str, repo_name: str, pull_request_number: int) -> None:
+        """Shows in the comment of the last validation whether the pull request can be auto-merged."""
         from .auto_merge_comment import AutoMergeCommentTask
 
         current_app.add_background_task(

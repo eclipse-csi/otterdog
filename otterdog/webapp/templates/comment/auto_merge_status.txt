@@ -1,0 +1,27 @@
+### :rocket: Ready to merge
+
+This pull request meets all the conditions of the auto-merge, you can merge it yourself. To merge it and apply its changes to the organization, comment:
+
+```
+/otterdog merge
+```
+
+The author of the pull request, or a member of an approval team or of an admin team, can run this command.
+
+<details>
+<summary>Conditions met</summary>
+
+- the pull request is ready for review and its latest commit has been validated without errors
+- the pull request is written or approved by a member of an approval team or of an admin team
+- the changes add or change no secret and no webhook that has a secret, change no setting of the Web UI, incur no cost and remove no resource
+- only the configuration of the organization is modified
+
+**Approval teams**: {{ team_description }}
+
+**Admin teams**: {{ admin_team_description }}
+
+Details: [Can my pull request be auto-merged?]({{ documentation_url }}userguide/workflow/#can-my-pull-request-be-auto-merged)
+
+</details>
+
+---

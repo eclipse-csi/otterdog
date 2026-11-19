@@ -72,24 +72,11 @@ class RetrieveTeamMembershipTask(InstallationBasedTask, Task[None]):
 
         user = self._pull_request.user.login
 
-        try:
-            membership = await rest_api.team.get_membership(self.org_id, user)
-            state = membership["state"]
-            role = membership["role"]
-
-            is_member = bool(state == "active" and role in ("admin", "member"))
-        except RuntimeError:
-            is_member = False
-
-        if is_member is True:
-            graphql_api = await self.graphql_api
-            team_data = await graphql_api.get_team_membership(self.org_id, user)
-            team_membership = [team["name"] for team in team_data]
-            teams = [(team, f"https://github.com/orgs/{self.org_id}/teams/{team}") for team in team_membership]
-            author_can_auto_merge = await contains_eligible_team_for_auto_merge(team_membership, self.org_id)
-        else:
-            teams = []
-            author_can_auto_merge = False
+        team_membership = await self.get_teams_of_member(self.org_id, user)
+        teams = [(team, f"https://github.com/orgs/{self.org_id}/teams/{team}") for team in team_membership]
+        author_can_auto_merge = len(team_membership) > 0 and await contains_eligible_team_for_auto_merge(
+            team_membership, self.org_id
+        )
 
         await update_or_create_pull_request(
             self.org_id,
@@ -97,6 +84,9 @@ class RetrieveTeamMembershipTask(InstallationBasedTask, Task[None]):
             self._pull_request,
             author_can_auto_merge=author_can_auto_merge,
         )
+
+        # the membership may only be known after the validation, which then did not show that it can be auto-merged
+        self.schedule_automerge_task(self.org_id, self.repo_name, self.pull_request_number)
 
         comment = await render_template(
             "comment/team_membership_comment.txt",

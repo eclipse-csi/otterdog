@@ -278,6 +278,51 @@ class GraphQLClient:
 
         _logger.debug("successfully minimized comment")
 
+    async def get_issue_comment(self, comment_id: str) -> dict[str, Any] | None:
+        """Returns the body of a comment and whether it is minimized, None if it does not exist anymore."""
+        _logger.debug("retrieving comment '%s'", comment_id)
+
+        query = """query($id: ID!) {
+           node(id: $id) {
+             ... on IssueComment {
+               id
+               body
+               isMinimized
+             }
+           }
+        }"""
+
+        status, body = await self._request_raw("POST", query, {"id": comment_id}, "query getIssueComment")
+        json_data = json.loads(body) if status < 400 else {}
+        self._raise_if_rate_limited(json_data)
+
+        if status >= 400 or "data" not in json_data:
+            raise RuntimeError(f"failed retrieving comment '{comment_id}': {body}")
+
+        node = json_data["data"].get("node")
+        if node is None and any(error.get("type") != "NOT_FOUND" for error in json_data.get("errors", [])):
+            # not a deleted comment, but a failed or partial answer
+            raise RuntimeError(f"failed retrieving comment '{comment_id}': {body}")
+
+        return node
+
+    async def update_issue_comment(self, comment_id: str, comment_body: str) -> None:
+        _logger.debug("updating comment '%s'", comment_id)
+
+        query = """mutation($input: UpdateIssueCommentInput!) {
+           updateIssueComment(input: $input) {
+             clientMutationId
+           }
+        }"""
+
+        variables = {"input": {"id": comment_id, "body": comment_body}}
+        status, body = await self._request_raw("POST", query, variables, "mutation updateIssueComment")
+        # a failed mutation is commonly answered with a 200 carrying errors
+        if status >= 400 or "errors" in json.loads(body):
+            raise RuntimeError(f"failed updating comment '{comment_id}': {body}")
+
+        _logger.debug("successfully updated comment")
+
     async def get_team_membership(self, org_id: str, user_login: str) -> list[dict[str, Any]]:
         _logger.debug(f"retrieving team membership for user '{user_login}' in org '{org_id}'")
 

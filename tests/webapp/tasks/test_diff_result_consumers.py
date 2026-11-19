@@ -9,7 +9,7 @@
 from contextlib import asynccontextmanager
 from pathlib import Path
 from types import SimpleNamespace
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, Mock
 
 import pretend
 
@@ -20,6 +20,7 @@ from otterdog.operations.validate import ValidationStatus
 
 # imported through the webhook package, as importing the task first runs into an import cycle
 from otterdog.webapp.webhook import CheckConfigurationInSyncTask, ValidatePullRequestTask  # isort: skip
+from otterdog.webapp.tasks.auto_merge_comment import LEGACY_AUTO_MERGE_COMMENT_HEADER
 from otterdog.webapp.tasks.validate_pull_request import ValidationResult
 
 
@@ -173,7 +174,7 @@ async def _execute_validate_task(
     merge_commit_parents=None,
 ):
     rest_api = pretend.stub(
-        issue=pretend.stub(create_comment=AsyncMock()),
+        issue=pretend.stub(create_comment=AsyncMock(return_value={"node_id": "IC_validation"})),
         pull_request=pretend.stub(get_pull_request=AsyncMock(return_value=pull_request)),
         commit=pretend.stub(
             compare_commits=compare_commits,
@@ -220,6 +221,7 @@ async def _execute_validate_task(
 
     validation_result = await task.execute()
     rest_api.fetched_configs = fetched_configs
+    rest_api.task = task
 
     return validation_result, rest_api, render_template
 
@@ -253,6 +255,22 @@ async def test_validate_pull_request_task_exposes_patch_safety_flags(monkeypatch
     ]
     assert render_template.await_args.kwargs["missing_changes_url"] is None
     rest_api.issue.create_comment.assert_awaited_once()
+
+
+async def test_validate_pull_request_task_records_its_comment(monkeypatch, tmp_path):
+    result = DiffResult("test-org", DiffStatus(), ValidationStatus(), [])
+
+    _, rest_api, _ = await _execute_validate_task(
+        monkeypatch, tmp_path, result, AsyncMock(return_value=_NO_MISSING_CHANGES)
+    )
+
+    task = rest_api.task
+    # the comment shows whether the pull request can be auto-merged, see AutoMergeCommentTask
+    assert task._comment_id == "IC_validation"
+    # it replaces the comment of the previous validation, and the separate comment of previous versions
+    task.minimize_outdated_comments.assert_awaited_once_with(
+        "test-org", "repo", 42, "<!-- Otterdog Comment: validate -->", LEGACY_AUTO_MERGE_COMMENT_HEADER
+    )
 
 
 async def test_validate_pull_request_task_detects_configuration_changes_missing_from_the_branch(monkeypatch, tmp_path):
@@ -353,8 +371,10 @@ async def test_validate_pull_request_task_records_the_validated_commit(monkeypat
     rest_api = pretend.stub(commit=pretend.stub(create_commit_status=AsyncMock()))
     task = ValidatePullRequestTask(1, "test-org", "repo", 42)
     task._pull_request = SimpleNamespace(head=SimpleNamespace(sha="head-sha"))
+    task._comment_id = "IC_validation"
+    task.schedule_automerge_task = Mock()
     update_or_create_pull_request = AsyncMock(
-        return_value=pretend.stub(can_be_automerged=AsyncMock(return_value=False))
+        return_value=pretend.stub(author_can_auto_merge=True, can_be_automerged=AsyncMock(return_value=False))
     )
 
     monkeypatch.setattr("otterdog.webapp.tasks.get_rest_api_for_installation", AsyncMock(return_value=rest_api))
@@ -369,3 +389,6 @@ async def test_validate_pull_request_task_records_the_validated_commit(monkeypat
 
     # a later push is validated on its own, the result must not count for it
     assert update_or_create_pull_request.await_args.kwargs.get("validated_sha") == "head-sha"
+    assert update_or_create_pull_request.await_args.kwargs.get("validation_comment_id") == "IC_validation"
+    # the auto-merge comment is added or hidden depending on the recorded result, here hidden
+    task.schedule_automerge_task.assert_called_once_with("test-org", "repo", 42)

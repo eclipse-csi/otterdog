@@ -73,9 +73,9 @@ You merge it with `/otterdog merge`, or an admin does, then otterdog applies it.
 
 !!! success "Merge it yourself with `/otterdog merge` when your pull request"
 
-    - passed the **validation** of otterdog for its latest commit,
-    - adds **no secret**, changes **no setting of the Web UI**, incurs **no cost**, **removes nothing** and only
-      modifies `otterdog/<org>.jsonnet`,
+    - is **ready for review** and passed the **validation** of otterdog for its latest commit,
+    - adds or changes **no secret**, **no webhook with a secret** and **no setting of the Web UI**, incurs
+      **no cost**, **removes nothing** and only modifies `otterdog/<org>.jsonnet`,
     - is **written or approved by a member of an approval team**, e.g. the project leads, or of an admin team.
 
     The details: [Can my pull request be auto-merged?](#can-my-pull-request-be-auto-merged)
@@ -394,7 +394,9 @@ live settings, for information.
 
 :material-check-decagram-outline:{ .otterdog-timeline__icon }
 
-**Eligible for auto-merge** comment, once all the conditions are met: you can merge the pull request yourself.
+**Ready to merge** at the top of the validation comment, once all the conditions are met: you can merge the pull
+request yourself. The validation comment is updated in place: it shows it as soon as they are met, e.g. after an
+approval, and no longer once they are not, e.g. on a push, a dismissed approval or a conversion to a draft.
 
 </div>
 
@@ -475,7 +477,7 @@ An approval counts for the auto-merge when its author is a member of an **approv
 
 :material-rocket-launch-outline: Auto-merge with `/otterdog merge`
 
-When the pull request meets all the conditions below, otterdog adds a comment saying it is eligible. Comment
+When the pull request meets all the conditions below, the validation comment shows **Ready to merge**. Comment
 `/otterdog merge`: otterdog squash-merges the pull request, then applies it. If a condition is not met, otterdog
 replies with what is missing and how to proceed.
 
@@ -511,7 +513,7 @@ comment explains why, and notifies the admin teams.
 
 :material-shield-check-outline:{ .otterdog-timeline__icon }
 
-**1. Open, and its latest commit validated without errors?**
+**1. Open, ready for review, and its latest commit validated without errors?**
 <span class="otterdog-timeline__else">Otherwise: fix the configuration and push, mark the draft as ready for review, or wait for the validation of your latest commit.</span>
 
 </div>

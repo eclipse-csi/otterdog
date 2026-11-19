@@ -151,7 +151,25 @@ async def test_merge_refused_without_approval_of_eligible_team(github):
 
     assert github.db.update_or_create_pull_request.await_args.kwargs["has_required_approvals"] is False
     comment = github.rest_api.issue.create_comment.await_args.kwargs["body"]
-    assert "No approval from a member of `team 'project-leads'`" in comment
+    assert "No approval from a member of an approval or admin team was found" in comment
+    # the teams are listed once, they can be dozens
+    assert comment.count("team 'project-leads'") == 1
+
+
+async def test_merge_refused_when_requested_by_someone_who_cannot_merge(github):
+    github.db.find_pull_request.return_value = _pr_model(True)
+
+    assert await _merge_task(requested_by="committer")._pre_execute() is False
+
+    comment = github.rest_api.issue.create_comment.await_args.kwargs["body"]
+    assert (
+        "Only the author of the pull request, or a member of an approval team or of an admin team, "
+        "is allowed to auto-merge."
+    ) in comment
+    # the teams are listed once, in a collapsed section, they can be dozens
+    assert comment.count("team 'project-leads'") == 1
+    teams_section = comment.index("<summary>Approval and admin teams</summary>")
+    assert teams_section < comment.index("team 'project-leads'") < comment.index("</details>", teams_section)
 
 
 async def test_merge_does_not_recheck_recorded_approval(github):
