@@ -61,7 +61,8 @@ class ReferenceClient(RestClient):
         status, body = await self.requester.request_raw("DELETE", f"/repos/{org_id}/{repo_name}/git/{full_ref}")
         if status == 204:
             return True
-        elif status == 404:
+        elif status == 404 or (status == 422 and _is_missing_reference(body)):
+            # GitHub answers a branch already deleted, e.g. on merge, with 422 instead of 404
             _logger.warning("reference '%s' in repo '%s/%s' does not exist, nothing to delete", ref, org_id, repo_name)
             return False
         elif status == 409:
@@ -71,10 +72,6 @@ class ReferenceClient(RestClient):
                 org_id,
                 repo_name,
             )
-            return False
-        elif status == 422 and _is_missing_reference(body):
-            # GitHub answers a branch already deleted, e.g. on merge, with 422 instead of 404
-            _logger.warning("reference '%s' in repo '%s/%s' does not exist, nothing to delete", ref, org_id, repo_name)
             return False
         else:
             raise RuntimeError(f"failed deleting reference '{ref}' in repo '{org_id}/{repo_name}'\n{status}: {body}")
