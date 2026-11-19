@@ -11,6 +11,8 @@ from __future__ import annotations
 import json
 from typing import TYPE_CHECKING
 
+import click
+
 from otterdog.providers.github import GitHubProvider
 from otterdog.utils import is_info_enabled
 
@@ -38,10 +40,9 @@ class ListAppsOperation(Operation):
 
     def post_execute(self) -> None:
         if self.json_output is True:
-            if is_info_enabled():
-                self.printer.println()
             apps = [v for k, v in sorted(self.all_apps.items())]
-            self.printer.println(json.dumps(apps, indent=2))
+            # not with the printer: it goes to stderr with --json, interprets markup and wraps long lines
+            click.echo(json.dumps(apps, indent=2))
 
     async def execute(
         self,

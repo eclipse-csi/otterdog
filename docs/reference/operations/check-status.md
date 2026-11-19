@@ -42,7 +42,7 @@ the operation does not need the credentials of the secrets referenced by the con
   -n, --no-web-ui / --web-ui  skip settings retrieved via web ui, defaults to the 'no_web_ui' setting of the
                               otterdog configuration
   -r, --repo-filter TEXT      a valid shell pattern to match repository names to be included  [default: *]
-  -j, --json FILE             a file to write the status as JSON output
+  -j, --json FILE             a file to write the status as JSON output, '-' for stdout with the messages on stderr
   -h, --help                  Show this message and exit.
 ```
 
@@ -99,4 +99,16 @@ The file `status.json` contains the status of every organization, `changes` bein
     }
   }
 ]
+```
+
+The JSON lists the organizations whose status could be determined, and is an empty list if there is none. If an
+organization fails, e.g. as its credentials are invalid, the error is displayed, the other organizations are still
+checked, and the exit code is `1`. An unexpected error stops the command with the exit code `2`, and no JSON is
+written.
+
+With `--json -`, the JSON is written to stdout, and everything else is written to stderr: the status displayed for
+each organization, warnings, errors and logs. The output of the command can thus be processed by other tools:
+
+```shell
+$ otterdog check-status --no-web-ui --json - | jq -r '.[] | select(.sync_status.in_sync | not) | .org_id'
 ```

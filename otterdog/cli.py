@@ -9,6 +9,7 @@
 import asyncio
 import os
 import sys
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -19,10 +20,11 @@ from click.shell_completion import CompletionItem
 from otterdog.cache import set_github_cache
 from otterdog.logging import (
     CONSOLE_STDERR,
-    CONSOLE_STDOUT,
     get_logger,
+    get_messages_console,
     init_logging,
     is_info_enabled,
+    messages_to_stderr,
     print_error,
     print_exception,
 )
@@ -87,9 +89,20 @@ def complete_organizations(ctx, param, incomplete):
 
 
 class StdCommand(click.Command):
-    def __init__(self, *args, **kwargs):
+    def __init__(
+        self,
+        *args,
+        structured_stdout: Callable[[Mapping[str, Any]], bool] | None = None,
+        **kwargs,
+    ):
+        """
+        Args:
+            structured_stdout: tells from the parameters of the command whether it writes structured output to
+                stdout, e.g. JSON; its messages and logs then go to stderr.
+        """
         super().__init__(*args, **kwargs)
         self.context_settings = _CONTEXT_SETTINGS
+        self._structured_stdout = structured_stdout
         self.params.insert(
             0,
             click.Option(
@@ -155,13 +168,15 @@ class StdCommand(click.Command):
         config_file = ctx.params.pop("config")
         local_mode = ctx.params.pop("local")
 
-        try:
-            _CONFIG = load_otterdog_config(config_file, local_mode)
-        except Exception as exc:
-            print_exception(exc)
-            sys.exit(2)
+        structured_stdout = self._structured_stdout is not None and self._structured_stdout(ctx.params)
+        with messages_to_stderr(structured_stdout):
+            try:
+                _CONFIG = load_otterdog_config(config_file, local_mode)
+            except Exception as exc:
+                print_exception(exc)
+                sys.exit(2)
 
-        return super().invoke(ctx)
+            return super().invoke(ctx)
 
 
 class SingletonCommand(click.Command):
@@ -419,8 +434,14 @@ def open_pr(organizations: list[str], branch, title, author):
     _execute_operation(organizations, OpenPullRequestOperation(branch=branch, title=title, author=author))
 
 
-@cli.command(cls=StdCommand)
-@click.option("--json", is_flag=True, show_default=True, default=False, help="use json format for output")
+@cli.command(cls=StdCommand, structured_stdout=lambda params: params["json"])
+@click.option(
+    "--json",
+    is_flag=True,
+    show_default=True,
+    default=False,
+    help="use json format for output, messages go to stderr",
+)
 def list_apps(organizations: list[str], json):
     """
     Lists all app installations for the organization.
@@ -550,7 +571,11 @@ def plan(
     )
 
 
-@cli.command(cls=StdCommand, short_help="Check for sync with live configuration on GitHub.")
+@cli.command(
+    cls=StdCommand,
+    short_help="Check for sync with live configuration on GitHub.",
+    structured_stdout=lambda params: params["json"] == "-",
+)
 @_no_web_ui_option
 @click.option(
     "-r",
@@ -563,7 +588,7 @@ def plan(
     "-j",
     "--json",
     type=click.Path(file_okay=True, dir_okay=False, writable=False, readable=True, allow_dash=True),
-    help="a file to write the status as JSON output",
+    help="a file to write the status as JSON output, '-' for stdout with the messages on stderr",
 )
 def check_status(organizations: list[str], no_web_ui, repo_filter, json):
     """
@@ -1027,7 +1052,7 @@ def _resolve_no_web_ui(no_web_ui: bool | None) -> bool:
 
 
 def _execute_operation(organizations: list[str], operation: Operation):
-    printer = IndentingPrinter(CONSOLE_STDOUT)
+    printer = IndentingPrinter(get_messages_console())
     usage_report = ApiUsageReport(_STATS.command)
     outcome = "failed"
     exit_code = 0

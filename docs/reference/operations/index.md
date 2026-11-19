@@ -39,6 +39,16 @@ When running `otterdog`, all used data is stored and accessed locally. The confi
 organization are expected to be at location `$CWD/<config-dir>/<github-id>/`, where `<config-dir>` can be configured
 in `otterdog.json` and defaults to `orgs`.
 
+## Output
+
+Operations display their results, warnings, errors and logs on stdout. Commands that write JSON to stdout,
+`list-apps --json` and `check-status --json -`, write everything else to stderr, so that stdout holds only the JSON.
+The prompts of an interactive login to a credential provider are never written to stdout, whatever the command.
+
+With these commands, when an organization fails, its error is written to stderr and the exit code is not `0`.
+Depending on the failure, the other organizations are still processed and the JSON covers them, an empty list if
+none succeeded, or the command stops with the exit code `2` without writing any JSON.
+
 ## GitHub API usage statistics
 
 Every operation that processes organizations can report the requests it has sent to GitHub, to understand the cost
