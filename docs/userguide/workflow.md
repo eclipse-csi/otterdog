@@ -74,8 +74,8 @@ You merge it with `/otterdog merge`, or an admin does, then otterdog applies it.
 !!! success "Merge it yourself with `/otterdog merge` when your pull request"
 
     - passed the **validation** of otterdog for its latest commit,
-    - adds **no secret**, changes **no setting of the Web UI**, incurs **no cost**, **removes nothing** and only
-      modifies `otterdog/<org>.jsonnet`,
+    - adds or changes **no secret** (webhook secrets included) and **no setting of the Web UI**, incurs **no cost**,
+      **removes nothing** and only modifies `otterdog/<org>.jsonnet`,
     - is **written or approved by a member of an approval team**, e.g. the project leads, or of an admin team.
 
     The details: [Can my pull request be auto-merged?](#can-my-pull-request-be-auto-merged)
@@ -394,7 +394,7 @@ live settings, for information.
 
 :material-check-decagram-outline:{ .otterdog-timeline__icon }
 
-**Eligible for auto-merge** comment, once all the conditions are met: you can merge the pull request yourself.
+**Ready to merge** comment, once all the conditions are met: you can merge the pull request yourself.
 
 </div>
 

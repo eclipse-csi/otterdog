@@ -1,11 +1,24 @@
 <!-- Otterdog Comment: automerge -->
-This Pull Request is eligible for auto-merging as it passed the following checks:
+### :rocket: Ready to merge
 
-- valid configuration
-- approved by a member of {{ team_description }}
-- does not require any secrets
-- does not update settings only accessible via the GitHub Web UI
-- does not remove any resource
+This pull request meets all the conditions of the auto-merge, you can merge it yourself. To merge it and apply its changes to the organization, comment:
 
-> [!TIP]
-> In order to automatically merge and apply the changes, add a comment `/otterdog merge`. :rocket:
+```
+/otterdog merge
+```
+
+The author of the pull request, or a member of an approval team or of an admin team, can run this command.
+
+<details>
+<summary>Conditions met</summary>
+
+- the configuration has been validated without errors
+- the pull request is written or approved by a member of an approval team or of an admin team
+- the changes add or change no secret (webhook secrets included), change no setting of the Web UI, incur no cost and remove no resource
+- only the configuration of the organization is modified
+
+**Approval teams**: {{ team_description }}
+
+Details: [Can my pull request be auto-merged?]({{ documentation_url }}userguide/workflow/#can-my-pull-request-be-auto-merged)
+
+</details>
