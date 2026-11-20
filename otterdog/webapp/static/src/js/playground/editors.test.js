@@ -1,8 +1,11 @@
 import {StringStream} from "@codemirror/language";
+import {openSearchPanel} from "@codemirror/search";
+import {EditorState} from "@codemirror/state";
+import {keymap} from "@codemirror/view";
 import assert from "node:assert/strict";
 import {test} from "node:test";
 
-import {jsonnetParser} from "./editors.js";
+import {editorExtensions, jsonnetParser} from "./editors.js";
 
 // the tokens of the lines of a code, as [text, style] without the spaces, and the state at its end
 function tokensOf(code) {
@@ -46,4 +49,15 @@ test("lines are indented by the depth of the brackets", () => {
 
   assert.equal(jsonnetParser.indent(state, "name: 'x',", context), 4);
   assert.equal(jsonnetParser.indent(state, "},", context), 2);
+});
+
+test("Ctrl+F finds a text in the editors, except in the output, which has its own find", () => {
+  // the colors of the editors follow the color mode of the page
+  globalThis.document ??= {documentElement: {dataset: {}}};
+  const commandOf = (options) => EditorState.create({extensions: editorExtensions(options)}).facet(keymap).flat()
+    .find((binding) => binding.key === "Mod-f")?.run;
+
+  assert.equal(commandOf(), openSearchPanel);
+  assert.equal(commandOf({readOnly: true}), openSearchPanel);
+  assert.equal(commandOf({readOnly: true, diagnostics: false, find: false}), undefined);
 });

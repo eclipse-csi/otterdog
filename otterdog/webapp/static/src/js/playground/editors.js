@@ -1,6 +1,7 @@
 import {defaultKeymap, history, historyKeymap, indentLess, indentMore} from "@codemirror/commands";
 import {StreamLanguage, bracketMatching, indentUnit} from "@codemirror/language";
 import {lintGutter} from "@codemirror/lint";
+import {search, searchKeymap} from "@codemirror/search";
 import {EditorState, StateEffect, StateField} from "@codemirror/state";
 import {Decoration, EditorView, drawSelection, highlightSpecialChars, keymap, lineNumbers} from "@codemirror/view";
 
@@ -150,9 +151,10 @@ const THEME = EditorView.theme({
   ".cm-gutters": {backgroundColor: "var(--bs-tertiary-bg)", color: "var(--bs-secondary-color)"},
 });
 
-// the extensions of the editors, read-only ones having no history nor indentation keys, and the ones showing no
-// diagnostics, e.g. the output, no gutter for them
-export function editorExtensions({readOnly = false, diagnostics = true} = {}) {
+// The extensions of the editors, read-only ones having no history nor indentation keys, the ones showing no
+// diagnostics, e.g. the output, no gutter for them. The editors find a text with Ctrl+F, the find of the browser
+// missing the lines that CodeMirror does not render, except the ones having their own find, e.g. the output.
+export function editorExtensions({readOnly = false, diagnostics = true, find = true} = {}) {
   return [
     lineNumbers(),
     diagnostics ? lintGutter() : [],
@@ -165,6 +167,7 @@ export function editorExtensions({readOnly = false, diagnostics = true} = {}) {
     EditorState.tabSize.of(2),
     THEME,
     readOnly ? EditorState.readOnly.of(true) : [history(), keymap.of([TAB, ...historyKeymap])],
+    find ? [search({top: true}), keymap.of(searchKeymap)] : [],
     keymap.of(defaultKeymap),
   ];
 }

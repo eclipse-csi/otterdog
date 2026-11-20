@@ -279,7 +279,7 @@ Push your branch, open the pull request against `main`.
     1. **Open the Playground of your organization**: on the page of your organization in the dashboard, click on
        **Playground**. On the page of a repository, **Edit in Playground** opens the configuration at this repository.
     2. **Edit the configuration**, see the [configuration guides](guides/index.md) and the
-       [Reference](../reference/index.md).
+       [Reference](../reference/index.md). ++ctrl+f++ in the editor finds and replaces a text, e.g. a repository.
     3. **Validate** checks the configuration with otterdog on the server, like the validation of a pull request,
        except for the checks that need the live settings of GitHub.
     4. **Propose on GitHub** copies the configuration and opens the editor of GitHub on `otterdog/<org>.jsonnet`.

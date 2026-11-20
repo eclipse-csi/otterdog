@@ -102,6 +102,15 @@ class Playground:
             f"{self.view(selector)}.dispatch({{selection: {{anchor: {offset}}}}}); {self.view(selector)}.focus()"
         )
 
+    def selection(self, selector: str = EDITOR) -> list[int]:
+        """The offsets [from, to] of the selection of an editor."""
+        view = self.view(selector)
+        return self.page.evaluate(f"[{view}.state.selection.main.from, {view}.state.selection.main.to]")
+
+    def rendered(self, selector: str = EDITOR) -> str:
+        """The text of the lines of an editor rendered by CodeMirror, the ones that the find of the browser searches."""
+        return self.page.locator(f"{selector} .cm-content").inner_text()
+
     def cursor_line(self, selector: str = EDITOR) -> int:
         """The line of the cursor, starting at 1."""
         view = self.view(selector)

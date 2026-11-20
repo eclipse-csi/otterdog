@@ -31,7 +31,7 @@ export function createOutput(files) {
   };
   const editor = new EditorView({
     parent: area,
-    state: EditorState.create({extensions: [editorExtensions({readOnly: true, diagnostics: false}), findMarks.extension, keymap.of([findKey])]}),
+    state: EditorState.create({extensions: [editorExtensions({readOnly: true, diagnostics: false, find: false}), findMarks.extension, keymap.of([findKey])]}),
   });
   const find = createFind(editor, findMarks);
 
