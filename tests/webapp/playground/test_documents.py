@@ -10,7 +10,7 @@
 
 from otterdog.webapp.home import routes
 
-from .helpers import EDITOR, decode
+from .helpers import EDITOR, OUTPUT, decode
 
 CATALOG = routes._playground_examples()
 FUNCTIONS = "otterdog-functions.libsonnet"
@@ -129,6 +129,53 @@ def test_the_output_shows_a_section_or_a_repository_and_finds_a_text(playground)
     page.fill("#playground-output-find", "has_")
     assert page.locator("#playground-output-find-count").inner_text().startswith("1/")
     assert page.locator("#playground-output .playground-find-current").count() == 1
+
+
+def find(playground, selector: str, text: str) -> None:
+    """Finds a text in an editor with Ctrl+F, the find of the browser missing the lines that CodeMirror does not render."""
+    page = playground.page
+    assert text not in playground.rendered(selector)
+    page.locator(f"{selector} .cm-content").click()
+    page.keyboard.press("Control+f")
+    assert page.evaluate(
+        f"document.activeElement === document.querySelector('{selector} .cm-search input[name=search]')"
+    )
+    page.keyboard.type(text)
+    page.keyboard.press("Enter")
+
+
+def test_the_editors_find_a_text(playground):
+    playground.open("example.html")
+    page = playground.page
+    playground.type_code(
+        IMPORT
+        + "orgs.newOrg('p', 'o') {\n  _repositories+:: [\n"
+        + "".join(f"    orgs.newRepo('repository-{index}'),\n" for index in range(200))
+        + "  ],\n}"
+    )
+    playground.wait_evaluated()
+
+    find(playground, EDITOR, "repository-199")
+    start = playground.code().index("repository-199")
+    assert playground.selection() == [start, start + len("repository-199")]
+    assert "repository-199" in playground.rendered()
+    assert page.locator(f"{EDITOR} .cm-search input[name=replace]").count() == 1
+    page.keyboard.press("Escape")
+    assert page.locator(f"{EDITOR} .cm-search").count() == 0
+
+    # the files of the default configuration are read-only, nothing to replace in them
+    playground.open_file("otterdog-defaults.libsonnet")
+    pane = playground.file_editor("otterdog-defaults.libsonnet")
+    find(playground, pane, "newWorkflows::")
+    start = playground.code(pane).index("newWorkflows::")
+    assert playground.selection(pane) == [start, start + len("newWorkflows::")]
+    assert page.locator(f"{pane} .cm-search input[name=replace]").count() == 0
+
+    # the output has its own find
+    page.locator(f"{OUTPUT} .cm-content").click()
+    page.keyboard.press("Control+f")
+    assert page.evaluate("document.activeElement.id") == "playground-output-find"
+    assert page.locator(f"{OUTPUT} .cm-search").count() == 0
 
 
 def test_examples_are_opened_as_documents(playground):
