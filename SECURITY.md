@@ -1,34 +1,24 @@
 # Security Policy
 
-This Eclipse Foundation Project adheres to the [Eclipse Foundation Vulnerability Reporting Policy](https://www.eclipse.org/security/policy/).
+This project follows the [Eclipse Foundation Baseline Security Policy](https://www.eclipse.org/security/baseline/).
 
-## How To Report a Vulnerability
+## Reporting a Vulnerability
 
-If you think you have found a vulnerability in this repository, please report it to us through coordinated disclosure.
+To report a vulnerability privately, open this repository's **Security**
+tab and select **Report a vulnerability**.
 
-**Please do not report security vulnerabilities through public issues, discussions, or change requests.**
+You can also submit a confidential report through the
+[Eclipse Foundation Vulnerability Reporting Tracker](https://gitlab.eclipse.org/security/vulnerability-reports/-/work_items/new?issue%5Bconfidential%5D=true).
 
-Instead, you can report it using one of the following ways:
+Please use one of these private reporting channels, and do not report
+vulnerabilities through public issues, pull requests, discussions or mailing
+lists. Send your report as plain text without attachments. See the baseline
+policy for what to include in your report and what to expect after submitting
+it.
 
-* Contact the [Eclipse Foundation Security Team](mailto:security@eclipse-foundation.org) via email
-* Create a [confidential issue](https://gitlab.eclipse.org/security/vulnerability-reports/-/issues/new?issuable_template=new_vulnerability) in the Eclipse Foundation Vulnerability Reporting Tracker
-* Report a [vulnerability](https://github.com/eclipse-csi/otterdog/security/advisories/new) directly via private vulnerability reporting on GitHub
+## Supported Versions
 
-You can find more information about reporting and disclosure at the [Eclipse Foundation Security page](https://www.eclipse.org/security/).
-
-Please include as much of the information listed below as you can to help us better understand and resolve the issue:
-
-* The type of issue (e.g., buffer overflow, SQL injection, or cross-site scripting)
-* Affected version(s)
-* Impact of the issue, including how an attacker might exploit the issue
-* Step-by-step instructions to reproduce the issue
-* The location of the affected source code (tag/branch/commit or direct URL)
-* Full paths of source file(s) related to the manifestation of the issue
-* Any special configuration required to reproduce the issue
-* Any log files that are related to this issue (if possible)
-* Proof-of-concept or exploit code (if possible)
-
-This information will help us triage your report more quickly.
+Only the latest release receives security fixes.
 
 ## Scope
 
