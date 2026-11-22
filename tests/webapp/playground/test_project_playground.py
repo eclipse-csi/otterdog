@@ -11,6 +11,8 @@
 import json
 import time
 
+from otterdog.utils import jsonnet_evaluate_snippet
+
 from .conftest import ORGANIZATION
 from .helpers import EDITOR, encode, validated_by_otterdog
 
@@ -342,3 +344,12 @@ orgs.newOrg('custom', 'Upstream organization')
 
     assert "import 'vendor/custom/nested/upstream/./otterdog-defaults.libsonnet'" in playground.code()
     assert json.loads(playground.output())["settings"]["name"] == "Upstream organization"
+
+
+def test_playground_without_base_template_imports_the_packaged_defaults(playground):
+    """The configuration evaluated in the browser also evaluates with the installed package alone."""
+    playground.open("packaged.html")
+    code = playground.code()
+
+    assert "import 'otterdog/resources/defaults/otterdog-defaults.libsonnet'" in code
+    assert json.loads(playground.output()) == jsonnet_evaluate_snippet(code)

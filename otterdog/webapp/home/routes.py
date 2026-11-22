@@ -36,7 +36,7 @@ from otterdog.config import OrganizationConfig, OtterdogConfig
 from otterdog.credentials.secret_access_policy import SecretAccessPolicy
 from otterdog.jsonnet import JsonnetConfig
 from otterdog.models.github_organization import GitHubOrganization
-from otterdog.utils import PrettyFormatter, associate_by_key, parse_template_url
+from otterdog.utils import PACKAGED_DEFAULTS_IMPORT_DIR, PrettyFormatter, associate_by_key, parse_template_url, unwrap
 from otterdog.webapp.db.service import (
     find_scorecard_result,
     get_active_installations,
@@ -527,11 +527,6 @@ _EXAMPLE_TEMPLATE_FILE = "otterdog-defaults.libsonnet"
 async def global_playground():
     otterdog_config = await get_otterdog_config()
 
-    try:
-        base_template = otterdog_config.default_base_template
-    except RuntimeError:
-        return await render_template(_PAGE_NOT_FOUND), 404
-
     # the global playground can also use the example template of otterdog instead of the one of the instance
     example_template = await _example_template()
     templates = None
@@ -544,7 +539,7 @@ async def global_playground():
         if selected:
             return await _render_playground(example_template, None, templates=templates, example=True)
 
-    return await _render_playground(await _default_template(otterdog_config, base_template), None, templates=templates)
+    return await _render_playground(await _default_template(otterdog_config), None, templates=templates)
 
 
 @blueprint.route("/projects/<project_name>/playground")
@@ -606,12 +601,7 @@ async def validate_global_playground():
                     logger.warning("rejecting a validation for %s: the example template is not available", origin)
                     return {"error": "the example template of otterdog is not available"}, 404
             else:
-                try:
-                    base_template = otterdog_config.default_base_template
-                except RuntimeError:
-                    logger.warning("rejecting a validation for %s: no default base template is configured", origin)
-                    return {"error": "no default configuration is configured"}, 404
-                jsonnet_config = _default_org_config(otterdog_config, base_template, base_dir, work_dir).jsonnet_config
+                jsonnet_config = _default_org_config(otterdog_config, base_dir, work_dir).jsonnet_config
 
             return await _validate_playground_configuration(otterdog_config, jsonnet_config, data, origin)
 
@@ -884,26 +874,24 @@ async def _render_playground(
     )
 
 
-async def _default_template(otterdog_config: OtterdogConfig, base_template: str) -> dict[str, Any]:
+async def _default_template(otterdog_config: OtterdogConfig) -> dict[str, Any]:
     """Returns the files of the default base template of the instance, see _instance_template."""
 
     import aiofiles
 
     base_dir = get_temporary_base_directory()
     async with aiofiles.tempfile.TemporaryDirectory(dir=base_dir) as work_dir:
-        return await _instance_template(_default_org_config(otterdog_config, base_template, base_dir, work_dir))
+        return await _instance_template(_default_org_config(otterdog_config, base_dir, work_dir))
 
 
-def _default_org_config(
-    otterdog_config: OtterdogConfig, base_template: str, base_dir: str, work_dir: str
-) -> OrganizationConfig:
+def _default_org_config(otterdog_config: OtterdogConfig, base_dir: str, work_dir: str) -> OrganizationConfig:
     """Returns the configuration of an organization using the default base template of the instance."""
 
     return OrganizationConfig.of(
         "playground",
         "playground",
         otterdog_config.default_config_repo,
-        base_template,
+        otterdog_config.default_base_template,
         {"provider": "inmemory", "api_token": ""},
         base_dir,
         work_dir,
@@ -921,6 +909,10 @@ async def _instance_template(org_config: OrganizationConfig) -> dict[str, Any]:
 
     jsonnet_config = org_config.jsonnet_config
     await jsonnet_config.init_template()
+
+    if org_config.base_template is None:
+        # named like in the import statement of the organizations without a base template
+        return unwrap(await _example_template(PACKAGED_DEFAULTS_IMPORT_DIR))
 
     repo_url, _, ref = parse_template_url(org_config.base_template)
 
@@ -945,7 +937,7 @@ async def _instance_template(org_config: OrganizationConfig) -> dict[str, Any]:
     }
 
 
-async def _example_template() -> dict[str, Any] | None:
+async def _example_template(directory: str = "vendor/otterdog-defaults") -> dict[str, Any] | None:
     import aiofiles
     import aiofiles.os
 
@@ -963,7 +955,7 @@ async def _example_template() -> dict[str, Any] | None:
             async with aiofiles.open(os.path.join(_EXAMPLE_TEMPLATE_DIR, name)) as f:
                 files.append(
                     {
-                        "filename": f"vendor/otterdog-defaults/{name}",
+                        "filename": f"{directory}/{name}",
                         "content": await f.read(),
                         "url": f"{url}/{name}",
                     }
@@ -971,7 +963,7 @@ async def _example_template() -> dict[str, Any] | None:
 
     return {
         "files": files,
-        "default_config": f"vendor/otterdog-defaults/{_EXAMPLE_TEMPLATE_FILE}",
+        "default_config": f"{directory}/{_EXAMPLE_TEMPLATE_FILE}",
         "link": {
             "url": f"{url}/{_EXAMPLE_TEMPLATE_FILE}",
             "label": f"eclipse-csi/otterdog/otterdog/resources/defaults/{_EXAMPLE_TEMPLATE_FILE}@{ref}",
@@ -1099,13 +1091,7 @@ def _merge_policy_status(aggregate_status: MutableMapping[str, Any], org_status:
 async def template_impact():
     """The impact of a change of the default base template on the projects using it, evaluated in the browser."""
 
-    otterdog_config = await get_otterdog_config()
-    try:
-        base_template = otterdog_config.default_base_template
-    except RuntimeError:
-        return await render_template(_PAGE_NOT_FOUND), 404
-
-    template = await _default_template(otterdog_config, base_template)
+    template = await _default_template(await get_otterdog_config())
     return await render_home_template(
         "template-impact.html",
         jsonnet_files=template["files"],
@@ -1123,10 +1109,7 @@ async def template_impact_configurations():
     """
 
     otterdog_config = await get_otterdog_config()
-    try:
-        base_template = otterdog_config.default_base_template
-    except RuntimeError:
-        return {"projects": []}
+    base_template = otterdog_config.default_base_template
 
     installations = [
         installation

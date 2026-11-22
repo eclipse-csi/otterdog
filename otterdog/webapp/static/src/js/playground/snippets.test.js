@@ -29,6 +29,16 @@ test("snippets import the default configuration", () => {
     normalizeSnippet("local orgs = import 'vendor/eclipse-defaults/otterdog-defaults.libsonnet';\nx", TEMPLATE_FILES, TEMPLATE_FILES[0]),
     "local orgs = import 'vendor/otterdog-defaults/otterdog-defaults.libsonnet';\nx",
   );
+  // shared from and with a playground without base template
+  const packaged = "otterdog/resources/defaults/otterdog-defaults.libsonnet";
+  assert.equal(
+    normalizeSnippet(`local orgs = import '${packaged}';\nx`, TEMPLATE_FILES, TEMPLATE_FILES[0]),
+    "local orgs = import 'vendor/otterdog-defaults/otterdog-defaults.libsonnet';\nx",
+  );
+  assert.equal(
+    normalizeSnippet("local orgs = import 'vendor/eclipse-defaults/otterdog-defaults.libsonnet';\nx", [packaged], packaged),
+    `local orgs = import '${packaged}';\nx`,
+  );
 });
 
 test("only the imports of snippets are mapped to the default configuration, in both quote styles", () => {

@@ -15,9 +15,9 @@ const POSITION = /(\d+):(\d+)(?:-(\d+))?|\((\d+):(\d+)\)-\((\d+):(\d+)\)/y;
 // the characters that end the name of a file in an error message
 const FILE_NAME_END = /[\s:()<>]/;
 // a file of a default configuration imported by the configuration of an organization, e.g.
-// 'vendor/custom/nested/otterdog-defaults.libsonnet'. Capture the basename even
-// when the source repository stores its libraries in subdirectories.
-const VENDOR_FILE = /^vendor\/[^/]+\/(?:[^/]+\/)*([^/]+)$/;
+// 'vendor/custom/nested/otterdog-defaults.libsonnet', or 'otterdog/resources/defaults/otterdog-defaults.libsonnet'
+// without base template. Capture the basename even when the source repository stores its libraries in subdirectories.
+const VENDOR_FILE = /^(?:vendor\/[^/]+|otterdog\/resources\/defaults)\/(?:[^/]+\/)*([^/]+)$/;
 
 export const baseName = (path) => path.split("/").pop();
 

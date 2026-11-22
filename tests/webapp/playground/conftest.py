@@ -145,6 +145,16 @@ async def _render_pages(directory: Path) -> None:
 
     await _render_custom_template_pages(app, directory)
 
+    # an instance without base_template, rendered with the real template loader
+    packaged_config = OtterdogConfig.from_dict({"organizations": []}, False, ".")
+    with (
+        mock.patch.object(routes, "render_home_template", _render_home_template),
+        mock.patch.object(routes, "get_otterdog_config", mock.AsyncMock(return_value=packaged_config)),
+        mock.patch.object(routes, "get_temporary_base_directory", return_value=str(directory)),
+    ):
+        async with app.test_request_context("/playground"):
+            (directory / "packaged.html").write_text(await routes.global_playground())
+
     (directory / "admin" / "template-impact").mkdir(parents=True)
     (directory / "admin" / "template-impact" / "configurations").write_text(json.dumps({"projects": PROJECTS}))
 

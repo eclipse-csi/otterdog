@@ -71,15 +71,21 @@ $ ./otterdog.sh -h
 
 To start using the cli part of `otterdog` right away on a specific organization you have to set up the following:
 
-- define a default configuration to use, or use the following [default config](https://github.com/eclipse-csi/otterdog/blob/main/otterdog/resources/defaults/otterdog-defaults.libsonnet) right away
+- optionally define a default configuration to use, instead of the [default config](https://github.com/eclipse-csi/otterdog/blob/main/otterdog/resources/defaults/otterdog-defaults.libsonnet) packaged with otterdog
 - create a `otterdog.json` file that contains a list of GitHub organizations to manager and their respective credentials
 - start managing your organizations using the cli
 
 ### Default configuration
 
-The example [default config](https://github.com/eclipse-csi/otterdog/blob/main/otterdog/resources/defaults/otterdog-defaults.libsonnet) has all supported features enabled and can be used right away.
-However, reference a released tag or a commit SHA instead of `main` in `base_template`, the ref after `@` in the
-example below, to avoid incompatibilities and unreviewed changes. A branch is pulled on every run: every push to it
+The [default config](https://github.com/eclipse-csi/otterdog/blob/main/otterdog/resources/defaults/otterdog-defaults.libsonnet) packaged with otterdog has all supported features enabled and is used without `base_template`.
+Nothing is fetched or vendored: the configuration of an organization imports it with
+`import 'otterdog/resources/defaults/otterdog-defaults.libsonnet'`.
+
+To use your own default configuration, set `defaults.jsonnet.base_template` in `otterdog.json`, or `base_template` of
+an organization, to the url of a file in a GitHub repository, e.g.
+`https://github.com/<owner>/<repo>#otterdog-defaults.libsonnet@v1.0.0`.
+Reference a released tag or a commit SHA instead of a branch in `base_template`, the ref after `@`,
+to avoid incompatibilities and unreviewed changes. A branch is pulled on every run: every push to it
 changes the inherited values of your organizations and the [validation scripts](https://csi.eclipse.dev/otterdog/operating_otterdog/organization-policies/#enforce-settings-with-validation-scripts) that otterdog executes
 with your credentials. Otterdog logs a warning when `base_template` references a branch.
 
@@ -91,7 +97,6 @@ Create a `otterdog.jsonnet` or `otterdog.json` file with the following content (
 {
   "defaults": {
     "jsonnet": {
-      "base_template": "https://github.com/eclipse-csi/otterdog#otterdog/resources/defaults/otterdog-defaults.libsonnet@main",
       "config_dir": "orgs"
     }
   },

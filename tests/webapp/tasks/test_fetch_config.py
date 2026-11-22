@@ -9,6 +9,7 @@
 """The latest change of the configuration of an organization, stored with it when it is fetched."""
 
 import contextlib
+import os
 from datetime import UTC, datetime
 from unittest import mock
 
@@ -17,7 +18,7 @@ import aiohttp
 import pytest
 from pretend import stub
 
-from otterdog.webapp.tasks import fetch_config
+from otterdog.webapp.tasks import fetch_config, get_organization_config
 from otterdog.webapp.tasks.fetch_config import latest_change
 
 
@@ -58,6 +59,15 @@ async def test_the_latest_change_is_unknown_with_an_unexpected_date():
         return {"sha": "abc123", "commit": {"committer": {"date": "yesterday"}}}
 
     assert await latest_change(_rest_api(get_latest_commit_for_path), "org", "repo", "path") == (None, None)
+
+
+async def test_the_workspace_of_a_task_without_base_template_has_the_directory_of_the_organization(tmp_path):
+    installation = stub(project_name="my-org", github_id="my-org", config_repo=".otterdog", base_template=None)
+
+    org_config = await get_organization_config(installation, "token", str(tmp_path), str(tmp_path))
+
+    assert org_config.base_template is None
+    assert os.path.isdir(org_config.jsonnet_config.org_dir)
 
 
 @pytest.fixture

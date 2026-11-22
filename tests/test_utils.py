@@ -201,6 +201,12 @@ def test_jsonnet_import_callback_resolves_symlinks(tmp_path: Path):
         callback("", str(link))
 
 
+def test_jsonnet_import_callback_rejects_traversal_out_of_the_packaged_defaults(tmp_path: Path):
+    callback = _make_jsonnet_import_callback(str(tmp_path))
+    with pytest.raises(RuntimeError, match="not allowed"):
+        callback(str(tmp_path), "otterdog/resources/defaults/../../utils.py")
+
+
 def test_evaluate_with_restrict_import(tmp_path: Path):
     root = tmp_path / "root"
     root.mkdir()

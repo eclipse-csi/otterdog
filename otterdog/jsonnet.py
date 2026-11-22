@@ -19,7 +19,14 @@ import aiofiles.os
 import aiofiles.ospath
 
 from .logging import get_logger
-from .utils import is_local_template, jsonnet_evaluate_snippet, parse_github_url, parse_template_url
+from .utils import (
+    PACKAGED_DEFAULTS_DIR,
+    PACKAGED_DEFAULTS_IMPORT_DIR,
+    is_local_template,
+    jsonnet_evaluate_snippet,
+    parse_github_url,
+    parse_template_url,
+)
 
 _template_lock = Lock()
 # the updates of the cached templates, see JsonnetConfig._init_base_template, referenced until they complete
@@ -92,7 +99,7 @@ class JsonnetConfig:
         self,
         org_id: str,
         base_dir: str,
-        base_template_url: str,
+        base_template_url: str | None,
         local_only: bool,
         org_dir: str | None = None,
     ):
@@ -102,8 +109,16 @@ class JsonnetConfig:
 
         # the directory of a local base template, None if the base template is located in a GitHub repository
         self._base_template_local_dir: str | None = None
+        # without a base template, the default configuration packaged with otterdog is read in place: nothing is
+        # fetched or copied to the vendor directory, so there is no difference in local mode
+        self._packaged_defaults = base_template_url is None
 
-        if is_local_template(base_template_url):
+        if base_template_url is None:
+            self._base_template_repo_url = ""
+            self._base_template_repo_name = ""
+            self._base_template_file = "otterdog-defaults.libsonnet"
+            self._base_template_ref = ""
+        elif is_local_template(base_template_url):
             local_file = Path(base_template_url).expanduser().absolute()
             if len(local_file.parent.name) == 0:
                 raise ValueError(f"the local base template must not be located in the root directory: {local_file}")
@@ -169,7 +184,7 @@ class JsonnetConfig:
         if self._base_template_local_dir is not None:
             # nothing to fetch, so also done in local mode
             await self._init_local_base_template(self._base_template_local_dir)
-        elif not self._local_only:
+        elif not self._local_only and not self._packaged_defaults:
             await self._init_base_template()
 
         template_file = self.template_file
@@ -531,6 +546,8 @@ class JsonnetConfig:
 
     @property
     def template_dir(self) -> str:
+        if self._packaged_defaults:
+            return PACKAGED_DEFAULTS_DIR
         return os.path.join(
             self.org_dir,
             "vendor",
@@ -571,6 +588,8 @@ class JsonnetConfig:
 
     @property
     def import_statement(self) -> str:
+        if self._packaged_defaults:
+            return f"import '{PACKAGED_DEFAULTS_IMPORT_DIR}/{self._base_template_file}'"
         return f"import 'vendor/{self._base_template_repo_name}/{self._base_template_file}'"
 
     async def _init_local_base_template(self, local_dir: str) -> None:

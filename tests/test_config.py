@@ -13,6 +13,8 @@ from tempfile import TemporaryDirectory
 import pytest
 
 from otterdog.config import OtterdogConfig, load_json_or_jsonnet
+from otterdog.models.github_organization import GitHubOrganization
+from otterdog.utils import restrict_jsonnet_imports
 
 # Type alias for the temporary file creation function
 CreateTmpFile = Callable[[str, str], Path]
@@ -192,6 +194,30 @@ def test_cost_policy_rejects_invalid_free_cache_size(value):
 
     with pytest.raises(RuntimeError, match="free_max_cache_size_gb"):
         _ = config.cost_policy
+
+
+@pytest.mark.parametrize("local_mode", [False, True])
+async def test_an_organization_without_base_template_uses_the_packaged_defaults(tmp_path, local_mode):
+    config = OtterdogConfig.from_dict(
+        {"organizations": [{"name": "my-org", "github_id": "my-org"}]}, local_mode, str(tmp_path)
+    )
+    jsonnet_config = config.get_organization_config("my-org").jsonnet_config
+    config_file = Path(jsonnet_config.org_config_file)
+    config_file.parent.mkdir(parents=True)
+    config_file.write_text(f"local orgs = {jsonnet_config.import_statement};\norgs.newOrg('my-org', 'my-org')\n")
+    files = set(tmp_path.rglob("*"))
+
+    await jsonnet_config.init_template()
+    organization = GitHubOrganization.load_from_file("my-org", str(config_file))
+    # the webapp confines the imports to the directory of the organization
+    with restrict_jsonnet_imports(jsonnet_config.org_dir):
+        assert GitHubOrganization.load_from_file("my-org", str(config_file)) == organization
+        defaults = jsonnet_config.default_org_config_for_org_id("my-org", "my-org")
+
+    assert jsonnet_config.import_statement == "import 'otterdog/resources/defaults/otterdog-defaults.libsonnet'"
+    assert organization.settings.default_repository_permission == defaults["settings"]["default_repository_permission"]
+    # the packaged defaults are read in place, nothing is vendored
+    assert set(tmp_path.rglob("*")) == files
 
 
 def _config_with_templates(working_dir: Path, base_template: str, org_template: str | None = None) -> OtterdogConfig:
