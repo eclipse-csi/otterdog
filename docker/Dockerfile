@@ -1,4 +1,4 @@
-FROM node:26-alpine@sha256:c9f02360d2bc66e709b300214395588acd2d3603f600db8141117e67c0faf4ff AS builder-node
+FROM node:26-alpine@sha256:6bd9ab43c0ec0190ca7b2d193906cb8b7edf6e7f4afa43ddeccd6452710bffb5 AS builder-node
 
 WORKDIR /app/otterdog/webapp/static
 
