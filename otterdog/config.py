@@ -55,7 +55,7 @@ class OrganizationConfig:
         name: str,
         github_id: str,
         config_repo: str,
-        base_template: str,
+        base_template: str | None,
         jsonnet_config: JsonnetConfig,
         credential_data: dict[str, Any],
         approval_teams: str | None = None,
@@ -85,7 +85,8 @@ class OrganizationConfig:
         return self._config_repo
 
     @property
-    def base_template(self) -> str:
+    def base_template(self) -> str | None:
+        """The url or the local path of the base template, None for the default configuration packaged with otterdog."""
         return self._base_template
 
     @property
@@ -131,7 +132,7 @@ class OrganizationConfig:
 
         config_repo = data.get("config_repo", otterdog_config.default_config_repo)
         base_template = data.get("base_template", otterdog_config.default_base_template)
-        if is_local_template(base_template):
+        if base_template is not None and is_local_template(base_template):
             # a relative path of a local base template is relative to the directory of the otterdog configuration
             base_template = os.path.join(otterdog_config.working_dir, os.path.expanduser(base_template))
 
@@ -199,7 +200,7 @@ class OrganizationConfig:
         project_name: str,
         github_id: str,
         config_repo: str,
-        base_template: str,
+        base_template: str | None,
         credential_data: dict[str, Any],
         base_dir: str,
         work_dir: str,
@@ -470,13 +471,8 @@ class OtterdogConfig:
         return CostPolicy(free_max_cache_size_gb=free_max_cache_size_gb)
 
     @property
-    def default_base_template(self) -> str:
-        base_template = self._jsonnet_config.get("base_template")
-        if base_template is None:
-            raise RuntimeError(
-                "need to define a base template in your otterdog config, key: 'defaults.jsonnet.base_template'"
-            )
-        return base_template
+    def default_base_template(self) -> str | None:
+        return self._jsonnet_config.get("base_template")
 
     def _get_organization_config(self, project_or_organization_name: str):
         return self._organizations_map.get(project_or_organization_name.lower())

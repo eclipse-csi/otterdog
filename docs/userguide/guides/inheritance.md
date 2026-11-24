@@ -10,7 +10,8 @@ A value of a resource is determined in the following order:
 
 1. **The default configuration** defines a function for each resource type, e.g. `orgs.newRepo` or
    `orgs.newBranchProtectionRule`. Each function returns an object with a default value for every supported
-   property. The default configuration to use is set by `base_template` in the `otterdog.json` file, see
+   property. The default configuration packaged with otterdog is used, unless `base_template` sets another one in the
+   `otterdog.json` file, see
    [Default configuration](../../operating_otterdog/setup.md#default-configuration).
 2. **The configuration of your organization** overrides the properties that should differ from the defaults.
    These are the *explicit* values, all other values are *inherited*.

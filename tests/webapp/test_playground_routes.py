@@ -116,17 +116,17 @@ async def test_global_playground_without_example_template(app, monkeypatch, tmp_
     assert render_playground.await_args.kwargs["templates"] is None
 
 
-async def test_global_playground_without_default_base_template(app, monkeypatch):
-    render_playground = mock.AsyncMock()
-
+async def test_global_playground_without_default_base_template(app, monkeypatch, tmp_path):
+    render_playground = mock.AsyncMock(return_value="playground")
     monkeypatch.setattr(routes, "get_otterdog_config", mock.AsyncMock(return_value=_otterdog_config({})))
+    monkeypatch.setattr(routes, "get_temporary_base_directory", lambda: str(tmp_path))
     monkeypatch.setattr(routes, "_render_playground", render_playground)
 
     async with app.test_request_context("/playground"):
-        _, status = await routes.global_playground()
+        assert await routes.global_playground() == "playground"
 
-    assert status == 404
-    render_playground.assert_not_awaited()
+    template = render_playground.await_args.args[0]
+    assert template["default_config"] == "otterdog/resources/defaults/otterdog-defaults.libsonnet"
 
 
 async def test_playground_loads_a_root_template_and_its_nested_helper(monkeypatch, tmp_path):
@@ -464,16 +464,17 @@ async def test_global_playground_does_not_propose_changes(app):
     assert 'id="playground-propose-modal"' not in html
 
 
-async def test_configurations_of_the_projects_using_the_default_base_template(app, monkeypatch):
+@pytest.mark.parametrize("base_template", [None, _BASE_TEMPLATE])
+async def test_configurations_of_the_projects_using_the_default_base_template(app, monkeypatch, base_template):
     installations = [
-        pretend.stub(project_name="beta", github_id="beta-org", base_template=_BASE_TEMPLATE),
-        pretend.stub(project_name="alpha", github_id="alpha-org", base_template=_BASE_TEMPLATE),
+        pretend.stub(project_name="beta", github_id="beta-org", base_template=base_template),
+        pretend.stub(project_name="alpha", github_id="alpha-org", base_template=base_template),
         pretend.stub(project_name="other", github_id="other-org", base_template="https://github.com/other/template"),
-        pretend.stub(project_name="new", github_id="new-org", base_template=_BASE_TEMPLATE),
+        pretend.stub(project_name="new", github_id="new-org", base_template=base_template),
     ]
     sources = mock.AsyncMock(return_value={"alpha-org": "orgs.newOrg('alpha', 'alpha-org')", "beta-org": None})
     monkeypatch.setattr(
-        routes, "get_otterdog_config", mock.AsyncMock(return_value=_otterdog_config({"base_template": _BASE_TEMPLATE}))
+        routes, "get_otterdog_config", mock.AsyncMock(return_value=_otterdog_config({"base_template": base_template}))
     )
     monkeypatch.setattr(routes, "get_active_installations", mock.AsyncMock(return_value=installations))
     monkeypatch.setattr(routes, "get_configuration_sources", sources)
@@ -493,13 +494,6 @@ async def test_configurations_of_the_projects_using_the_default_base_template(ap
             {"name": "new", "jsonnet": None},
         ]
     }
-
-
-async def test_no_configurations_without_default_base_template(app, monkeypatch):
-    monkeypatch.setattr(routes, "get_otterdog_config", mock.AsyncMock(return_value=_otterdog_config({})))
-
-    async with app.test_request_context("/admin/template-impact/configurations"):
-        assert await routes.template_impact_configurations() == {"projects": []}
 
 
 async def test_the_impact_of_the_template_is_evaluated_with_the_default_base_template(app, monkeypatch, tmp_path):
@@ -523,15 +517,6 @@ async def test_the_impact_of_the_template_is_evaluated_with_the_default_base_tem
         "default_config": _TEMPLATE["default_config"],
         "default_configuration": _TEMPLATE["link"],
     }
-
-
-async def test_no_impact_of_the_template_without_default_base_template(app, monkeypatch):
-    monkeypatch.setattr(routes, "get_otterdog_config", mock.AsyncMock(return_value=_otterdog_config({})))
-
-    async with app.test_request_context("/admin/template-impact"):
-        _, status = await routes.template_impact()
-
-    assert status == 404
 
 
 def _evaluated(body: str = "", project_name: str = "my-project", github_id: str = "my-org") -> dict:
@@ -669,10 +654,10 @@ async def test_playground_validation_without_default_base_template(app, monkeypa
     monkeypatch.setattr(routes, "get_temporary_base_directory", lambda: str(tmp_path))
     monkeypatch.setattr(routes, "get_otterdog_config", mock.AsyncMock(return_value=_otterdog_config({})))
 
-    async with app.test_request_context("/playground/validate", method="POST", json=_evaluated()):
-        _, status = await routes.validate_global_playground()
+    async with app.test_request_context("/playground/validate", method="POST", json=_evaluated(_INVALID_RULESET)):
+        result = await routes.validate_global_playground()
 
-    assert status == 404
+    assert any("invalid 'include_refs' pattern" in error for error in _errors(result))
 
 
 async def test_playground_validation_uses_the_default_base_template(app, monkeypatch, tmp_path):

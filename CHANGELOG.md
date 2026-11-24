@@ -10,6 +10,8 @@
    The rules that otterdog does not support yet, e.g. **Require lockfile** whose rule GitHub does not publish in its API, are kept when a policy is updated.
    A policy added while a policy of the same name already exists on GitHub, e.g. created in the web UI, updates it instead of failing with `Name must be unique`.
    The policies are only managed with a default configuration that defines `newOrgActionsPolicy` and `newRepoActionsPolicy`, and the policies that are not configured are only deleted with `--delete-resources`.
+ - feat: use the default configuration packaged with otterdog when no `base_template` is configured, without fetching or vendoring it ([#825](https://github.com/eclipse-csi/otterdog/issues/825)).
+   Organizations with a `base_template` are not affected, see [Switching to the packaged default configuration](https://csi.eclipse.dev/otterdog/operating_otterdog/setup/#switching-to-the-packaged-default-configuration).
 
 ### Changed
 

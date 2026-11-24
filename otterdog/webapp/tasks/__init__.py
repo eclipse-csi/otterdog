@@ -15,6 +15,7 @@ from logging import Logger, getLogger
 from typing import TYPE_CHECKING, Any, Generic, Protocol, TypeVar
 
 import aiofiles
+import aiofiles.os
 from quart import current_app
 
 from otterdog.config import OrganizationConfig
@@ -314,15 +315,19 @@ class InstallationBasedTask(Protocol):
 async def get_organization_config(
     org_model: InstallationModel, token: str, base_dir: str, work_dir: str
 ) -> OrganizationConfig:
-    return OrganizationConfig.of(
+    config = OrganizationConfig.of(
         unwrap(org_model.project_name),
         org_model.github_id,
         unwrap(org_model.config_repo),
-        unwrap(org_model.base_template),
+        org_model.base_template,
         {"provider": "inmemory", "api_token": token},
         base_dir,
         work_dir,
     )
+
+    # init_template does not create this directory for the default configuration packaged with otterdog
+    await aiofiles.os.makedirs(config.jsonnet_config.org_dir, exist_ok=True)
+    return config
 
 
 async def _contains_approval_or_admin_team(teams: Iterable[str], org_id: str | None = None) -> bool:
